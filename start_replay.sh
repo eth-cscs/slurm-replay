@@ -5,18 +5,21 @@ WORKLOAD=$1
 #TODO get this time from the trace
 INIT_TIME=$2
 
+SLURM_DIR="/home/maximem/dev/github/slurm_simulator/slurm_newsim"
+SLURM_REPLAY="/home/maximem/dev/github/slurm_simulator/slurm-replay"
+
 killall -9 slurmd slurmctld submitter
 
-export PATH=/home/maximem/dev/github/slurm_simulator/slurm_newsim/bin:/home/maximem/dev/github/slurm_simulator/slurm_newsim/sbin:$PATH
-export LD_LIBRARY_PATH=/home/maximem/dev/github/slurm_simulator/slurm_newsim/lib
+export PATH=$SLURM_DIR/bin:$SLURM_DIR/sbin:$SLURM_REPLAY/submitter:$PATH
+export LD_LIBRARY_PATH=$SLURM_DIR/lib:$SLURM_REPLAY/distime
 
 rm -Rf /dev/shm/*
 rm -Rf /tmp/slurm-*.out
-rm -Rf /home/maximem/dev/github/slurm_simulator/slurm_newsim/tmp/slurmd/*
-rm -Rf /home/maximem/dev/github/slurm_simulator/slurm_newsim/tmp/state/*
-rm -Rf /home/maximem/dev/github/slurm_simulator/slurm_newsim/tmp/job*
-rm -f /home/maximem/dev/github/slurm_simulator/slurm_newsim/tmp/storage.txt
-rm -f /home/maximem/dev/github/slurm_simulator/slurm_newsim/tmp/slurmctld.*
+rm -Rf $SLURM_DIR/tmp/slurmd/*
+rm -Rf $SLURM_DIR/tmp/state/*
+rm -Rf $SLURM_DIR/tmp/job*
+rm -f $SLURM_DIR/tmp/storage.txt
+rm -f $SLURM_DIR/tmp/slurmctld.*
 
 # Add initial time
 starter -t $2 -a "A" -s "Insert first time clock: $2"
@@ -24,7 +27,7 @@ starter -t $2 -a "A" -s "Insert first time clock: $2"
 echo "Start submitter"
 # Initiate job submitter and populate submission time from trace
 #echo "launch this - 10 seconds"
-submitter -w $1 -u users.sim
+submitter -w $1 -t template.script
 #sleep 10
 
 echo "Start slurm"

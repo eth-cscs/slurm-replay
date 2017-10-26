@@ -13,56 +13,12 @@
 #include "trace.h"
 #include "shmem_pq.h"
 
-#define MAXUSER 5000
-
 FILE *logger = NULL;
+char *tfile = NULL;
 char *workload_filename = NULL;
-char *ufile = NULL;
 job_trace_t* job_arr;
 unsigned long njobs = 0;
-unsigned int nusers = 0;
-char username[MAXUSER][100];
-char account[MAXUSER][100];
 static int daemon_flag = 1;
-
-static void render_userfile()
-{
-    int t1,t2;
-    unsigned int i = 0;
-    char lines[100];
-    FILE *up = fopen(ufile, "r");
-    if (up == 0) {
-        fprintf(logger, "failed to open %s\n", ufile);
-        exit(1);
-    } else  {
-        while (i < MAXUSER && fgets(lines, sizeof(lines), up)) {
-            t1 = strcspn (lines,":");
-            t2 = strlen(lines);
-            strncpy(username[i], lines, t1);
-            username[i][t1] = '\0';
-            strncpy(account[i], lines+t1+1, t2-1);
-            strtok(account[i],"\n");
-            i = i + 1;
-        }
-        nusers = i;
-    }
-
-}
-
-static uid_t
-userid_from_name(const char *name)//, gid_t* gid)
-{
-    int k;
-    char *endptr;
-    uid_t v;
-
-    for(k = 0; k < nusers; k++) {
-        if (strcmp(name, username[k]) == 0) {
-            return strtol(account[k],&endptr,10);
-        }
-    }
-    return 0;
-}
 
 static void
 print_job_specs(job_desc_msg_t* dmesg)
@@ -96,7 +52,7 @@ static void create_script(char* script, int tasks, long int jobid, long int dura
     size_t len = 0;
     size_t read, k, j, i = 0;
 
-    fp = fopen("template.script","r");
+    fp = fopen(tfile,"r");
     if (fp == NULL) {
         fprintf(logger, "Cannot open template script file.");
         exit(1);
@@ -146,9 +102,6 @@ create_and_submit_job(job_trace_t jobd)
     submit_response_msg_t * respMsg = NULL;
     int rv = 0;
     char script[2048];
-    uid_t uidt;
-    //gid_t gidt;
-
 
     slurm_init_job_desc_msg(&dmesg);
 
@@ -158,10 +111,8 @@ create_and_submit_job(job_trace_t jobd)
     dmesg.name      = strdup("runner_job");
 
     //TODO change uid and gid
-    uidt = 22888;//userid_from_name(jobd.username);//, &gidt);
-    dmesg.user_id       = uidt;
+    dmesg.user_id       = 22888;
     dmesg.group_id      = 1001;
-    //dmesg.group_id      = gidt;
     //TODO change work_dir
     dmesg.work_dir      = strdup("/tmp"); /* hardcoded to /tmp for now */
 
@@ -177,6 +128,7 @@ create_and_submit_job(job_trace_t jobd)
     dmesg.ntasks_per_node = jobd.tasks_per_node;
 
     /* Need something for environment--Should make this more generic! */
+    // TODO is that needed?
     dmesg.environment  = (char**)malloc(sizeof(char*)*2);
     dmesg.environment[0] = strdup("HOME=/home/maximem");
     dmesg.env_size = 1;
@@ -199,7 +151,6 @@ create_and_submit_job(job_trace_t jobd)
     // Cleanup
     if (respMsg) slurm_free_submit_response_response_msg(respMsg);
 
-    //if (script) free(script);
     if (dmesg.name)        free(dmesg.name);
     if (dmesg.work_dir)    free(dmesg.work_dir);
     if (dmesg.qos)         free(dmesg.qos);
@@ -239,7 +190,7 @@ static void submit_jobs()
             // pop is done by slurm when the job is registered
             // this happens at the end of function _slurm_rpc_submit_batch_job
             // when this function completes the job information is in the slurm database
-            usleep(1000);
+//            usleep(1000);
 //            unlock_pq();
             k++;
         }
@@ -285,7 +236,7 @@ submitter -w <workload_trace>\n\
       -w, --wrkldfile filename 'filename' is the name of the trace file \n\
                    containing the information of the jobs to \n\
                    simulate.\n\
-      -u, --users filename containing the user names and accounts\n\
+      -t, --template filename containing the templatied script used by the jobs\n\
       -D, --nodaemon do not daemonize the process\n\
       -h, --help           This help message.\n";
 
@@ -295,7 +246,7 @@ static void
 get_args(int argc, char** argv)
 {
     static struct option long_options[]  = {
-        {"users",   1, 0, 'u'},
+        {"template",   1, 0, 't'},
         {"wrkldfile",   1, 0, 'w'},
         {"nodaemon",   0, 0, 'D'},
         {"help",    0, 0, 'h'}
@@ -303,11 +254,11 @@ get_args(int argc, char** argv)
     int opt_char, option_index;
 
     while (1) {
-        if ((opt_char = getopt_long(argc, argv, "hu:w:D", long_options, &option_index)) == -1 )
+        if ((opt_char = getopt_long(argc, argv, "ht:w:D", long_options, &option_index)) == -1 )
             break;
         switch(opt_char) {
-        case ('u'):
-            ufile = strdup(optarg);
+        case ('t'):
+            tfile = strdup(optarg);
             break;
         case ('w'):
             workload_filename = strdup(optarg);
@@ -362,12 +313,10 @@ int main(int argc, char *argv[])
 
     get_args(argc, argv);
 
-    if ( workload_filename == NULL || ufile == NULL) {
+    if ( workload_filename == NULL || tfile == NULL) {
         printf("Usage: %s\n", help_msg);
         exit(-1);
     }
-
-    render_userfile();
 
     if (read_job_trace(workload_filename) < 0) {
         printf("A problem was detected when reading trace file.\n"

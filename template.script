@@ -1,0 +1,10 @@
+#!/bin/bash
+#SBATCH -n <JOB_TASKS>
+
+SLURM_DIR="/home/maximem/dev/github/slurm_simulator/slurm_newsim"
+SLURM_REPLAY="/home/maximem/dev/github/slurm_simulator/slurm-replay"
+export PATH=$SLURM_DIR/bin:$SLURM_DIR/sbin:$SLURM_REPLAY/submitter:$PATH
+export LD_LIBRARY_PATH=$SLURM_DIR/lib:$SLURM_REPLAY/distime
+
+# Is srun needed?
+srun -n 1 starter -t <DURATION> -a "D" -s "Job <JOB_ID>: starts <JOB_TASKS> tasks with total duration <DURATION>"
