@@ -9,18 +9,30 @@ LIBRARIES := -lstdc++
 INCLUDES := -I.
 
 # Target rules
-all: build
+all: clean build
 
-build: libshmem_pq.so
+build: libshmemclock.so libwtime.so
 
-shmem_pq.o: shmem_pq.cpp
-	$(CXX) $(CCFLAGS) $(INCLUDES) -o $@ -c $<
+#shmem_pq.o: shmem_pq.cpp
+#	$(CXX) $(CCFLAGS) $(INCLUDES) -o $@ -c $<
 
-time_pq.o: time_pq.c
+#shmem_pq.o: shmem_pq.c
+#	$(CC) $(CCFLAGS) $(INCLUDES) -o $@ -c $<
+
+shmemclock.o: shmemclock.c
 	$(CC) $(CCFLAGS) $(INCLUDES) -o $@ -c $<
 
-libshmem_pq.so: shmem_pq.o time_pq.o
+#time_shmemclock.o: time_shmemclock.c
+#	$(CC) $(CCFLAGS) $(INCLUDES) -o $@ -c $<
+
+wrapper.o: wrapper.c
+	$(CC) $(CCFLAGS) $(INCLUDES) -o $@ -c $<
+
+libshmemclock.so: shmemclock.o
 	$(CC) $(LDFLAGS) $(LIBRARIES) -o $@ $+
 
+libwtime.so: wrapper.o
+	$(CC) $(LDFLAGS) -L. -lshmemclock -lrt -o $@ $+
+
 clean:
-	rm -f libshmem_pq.so shmem_pq.o time_pq.o
+	rm -f libshmemclock.so libwtime.so shmemclock.o wrapper.o

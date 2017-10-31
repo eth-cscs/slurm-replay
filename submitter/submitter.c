@@ -11,7 +11,7 @@
 #include <slurm/slurm.h>
 
 #include "trace.h"
-#include "shmem_pq.h"
+#include "shmemclock.h"
 
 FILE *logger = NULL;
 char *tfile = NULL;
@@ -43,7 +43,7 @@ print_job_specs(job_desc_msg_t* dmesg)
     fprintf(logger, "\t\tdmesg->script: (%s)\n", dmesg->script);
 }
 
-static void create_script(char* script, int tasks, long int jobid, long int duration)
+static void create_script(char* script, int tasks, long int jobid, long int duration, int exitcode)
 {
     FILE* fp;
     char* line = NULL;
@@ -84,6 +84,9 @@ static void create_script(char* script, int tasks, long int jobid, long int dura
                 }
                 if(strcmp(token,"JOB_ID")==0) {
                     sprintf(val,"%lu",jobid);
+                }
+                if(strcmp(token,"EXIT_CODE")==0) {
+                    sprintf(val,"%d",exitcode);
                 }
                 for(j = 0; j < strlen(val); j++,i++) {
                     script[i] = val[j];
@@ -134,7 +137,8 @@ create_and_submit_job(job_trace_t jobd)
     dmesg.env_size = 1;
 
     /* Standard script adding a time value in the clock and blocking until the clock reaches it */
-    create_script(script, jobd.tasks, jobd.job_id, jobd.duration);
+    // TODO add exitcode in trace
+    create_script(script, jobd.tasks, jobd.job_id, jobd.duration, 0);
     dmesg.script        = strdup(script);
 
     print_job_specs(&dmesg);
@@ -168,17 +172,19 @@ create_and_submit_job(job_trace_t jobd)
 
 static void submit_jobs()
 {
-    shmem_pq_elt_type current_time = 0;
+    time_t current_time = 0;
     unsigned long k = 0;
 
-    if (!empty_pq()) {
+/*    if (!empty_pq()) {
         current_time= top_pq();
-    }
+    }*/
+    current_time= get_shmemclock();
 
     // njobs time are in the queue, the queue cannot be empty
     while( k < njobs ) {
         while(current_time < job_arr[k].submit) {
-            current_time = top_pq();
+            //current_time = top_pq();
+    current_time= get_shmemclock();
             usleep(500);
         }
 
@@ -325,7 +331,8 @@ int main(int argc, char *argv[])
     }
 
     //Open shared priority queue for time clock
-    open_pq();
+    //open_pq();
+    open_rdonly_shmemclock();
 
     //Insert all submission times
     /*lock_pq();

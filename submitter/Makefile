@@ -6,14 +6,14 @@ SLURM_PATH ?= ../../slurm_newsim
 CC := gcc
 CCFLAGS := -O0 -g
 LDFLAGS :=
-LIBRARIES := -L$(DISTIME_PATH) -lshmem_pq -L$(SLURM_PATH)/lib -lslurm -lrt
+LIBRARIES := -L$(DISTIME_PATH) -lshmemclock -L$(SLURM_PATH)/lib -lslurm -lrt
 MYSQL_LIBS := -L/usr/lib  -lmysqlclient -lpthread -lz -lm -ldl -lssl -lcrypto
 INCLUDES := -I$(DISTIME_PATH) -I$(SLURM_PATH)/include
 
 # Target rules
-all: build
+all: clean build
 
-build: submitter starter trace_builder_mysql trace_builder_random trace_edit trace_list
+build: submitter starter job_runner trace_builder_mysql trace_builder_random trace_edit trace_list
 
 submitter.o: submitter.c
 	$(CC) $(CCFLAGS) $(INCLUDES) -o $@ -c $<
@@ -25,6 +25,12 @@ starter.o: starter.c
 	$(CC) $(CCFLAGS) $(INCLUDES) -o $@ -c $<
 
 starter: starter.o
+	$(CC) $(LDFLAGS) $(LIBRARIES) -o $@ $+
+
+job_runner.o: job_runner.c
+	$(CC) $(CCFLAGS) $(INCLUDES) -o $@ -c $<
+
+job_runner: job_runner.o
 	$(CC) $(LDFLAGS) $(LIBRARIES) -o $@ $+
 
 trace_builder_mysql.o: trace_builder_mysql.c
@@ -54,6 +60,7 @@ trace_list: trace_list.o
 clean:
 	rm -f submitter submitter.o
 	rm -f starter starter.o
+	rm -f job_runner job_runner.o
 	rm -f trace_builder_mysql trace_builder_mysql.o
 	rm -f trace_builder_random trace_builder_random.o
 	rm -f trace_edit trace_edit.o
