@@ -52,7 +52,7 @@ inline void set_shmemclock(time_t t)
     __atomic_store_n(clock_val, t, __ATOMIC_SEQ_CST);
 }
 
-inline time_t incr_shmemclock() {
-    return __atomic_add_fetch(clock_val, 1, __ATOMIC_SEQ_CST);
+inline time_t incr_shmemclock(int v) {
+    return __atomic_add_fetch(clock_val, v, __ATOMIC_SEQ_CST);
 }
 
