@@ -13,7 +13,7 @@ INCLUDES := -I$(DISTIME_PATH) -I$(SLURM_PATH)/include
 # Target rules
 all: clean build
 
-build: submitter starter job_runner trace_builder_mysql trace_builder_random trace_edit trace_list
+build: submitter ticker job_runner trace_builder_mysql trace_builder_random trace_edit trace_list
 
 submitter.o: submitter.c
 	$(CC) $(CCFLAGS) $(INCLUDES) -o $@ -c $<
@@ -21,10 +21,10 @@ submitter.o: submitter.c
 submitter: submitter.o
 	$(CC) $(LDFLAGS) $(LIBRARIES) -o $@ $+
 
-starter.o: starter.c
+ticker.o: ticker.c
 	$(CC) $(CCFLAGS) $(INCLUDES) -o $@ -c $<
 
-starter: starter.o
+ticker: ticker.o
 	$(CC) $(LDFLAGS) $(LIBRARIES) -o $@ $+
 
 job_runner.o: job_runner.c
@@ -59,7 +59,7 @@ trace_list: trace_list.o
 
 clean:
 	rm -f submitter submitter.o
-	rm -f starter starter.o
+	rm -f ticker ticker.o
 	rm -f job_runner job_runner.o
 	rm -f trace_builder_mysql trace_builder_mysql.o
 	rm -f trace_builder_random trace_builder_random.o

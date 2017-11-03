@@ -62,17 +62,13 @@ int main(int argc, char *argv[])
 
     get_args(argc, argv);
 
-    //if(!empty_pq()) {
-        //cur_time = top_pq();
-        start_time = cur_time = get_shmemclock();
-        reg_time = cur_time+duration;
-        while(cur_time < reg_time) {
-            usleep(500);
-        //    cur_time = top_pq();
+    start_time = cur_time = get_shmemclock();
+    reg_time = cur_time+duration;
+    while(cur_time < reg_time) {
+        usleep(500);
         cur_time = get_shmemclock();
-        }
-        printf("Job %ld: time=[%ld,%ld,%ld], %d tasks, exit=%d\n",jobid, start_time, duration, cur_time, ntasks, exitcode );
-    //}
+    }
+    printf("Job %ld: time=[%ld,%ld,%ld], %d tasks, exit=%d\n",jobid, start_time, duration, cur_time, ntasks, exitcode );
 
 
     exit(exitcode);
