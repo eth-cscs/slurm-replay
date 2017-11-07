@@ -12,7 +12,6 @@
 #define DEFAULT_START_TIMESTAMP 1420066800
 static const char DEFAULT_START[] = "2015-01-01 00:00:00";
 
-/* Flag set by ‘--verbose’. */
 static int verbose_flag;
 
 void finish_with_error(MYSQL *con)
@@ -59,23 +58,20 @@ main(int argc, char **argv)
     MYSQL *conn;
     MYSQL_RES *res;
     MYSQL_ROW row;
-    char query[300];
+    char query[1024];
     job_trace_t new_trace;
 
 
     while(1) {
         static struct option long_options[] = {
-            /* These options set a flag. */
-            {"verbose", no_argument,       &verbose_flag, 1},
-            /* These options don’t set a flag.
-            We distinguish them by their indices. */
-            {"endtime",   required_argument, 0, 'e'},
-            {"file",      required_argument, 0, 'f'},
-            {"host",      required_argument, 0, 'h'},
-            {"help",      no_argument,   0, 'p'},
+            {"verbose", no_argument, &verbose_flag, 1},
+            {"endtime", required_argument, 0, 'e'},
+            {"file", required_argument, 0, 'f'},
+            {"host", required_argument, 0, 'h'},
+            {"help", no_argument,   0, 'p'},
             {"starttime", required_argument, 0, 's'},
-            {"table",     required_argument, 0, 't'},
-            {"user",      required_argument, 0, 'u'},
+            {"table", required_argument, 0, 't'},
+            {"user", required_argument, 0, 'u'},
             {0, 0, 0, 0}
         };
 
@@ -88,70 +84,42 @@ main(int argc, char **argv)
         if (c == -1) break;
 
         switch (c) {
-        case 0:
-            /* If this option set a flag, do nothing else now. */
-            if (long_options[option_index].flag != 0) break;
-            printf ("option %s", long_options[option_index].name);
-            if (optarg)
-                printf (" with arg %s", optarg);
-            printf ("\n");
-            break;
-
         case 'v':
             verbose_flag = 1;
             break;
         case 'e':
             endtime = optarg;
             break;
-
         case 'f':
             file = optarg;
             break;
-
         case 'h':
             host = optarg;
             break;
-
         case 'p':
             print_usage();
             exit(0);
-
         case 's':
             starttime = optarg;
             break;
-
         case 't':
             table = optarg;
             break;
-
         case 'u':
             user = optarg;
             break;
-
         case '?':
             break;
-
         default:
             print_usage();
             abort ();
         }
-
-
     } /* while */
 
     if (verbose_flag)
         printf("Selected options:\n\nstart time \t\t%s\nend time \t\t%s"
                "\nfile out \t\t%s\ntable \t\t\t%s\n",
                starttime, endtime, file, table);
-
-    /* Print any remaining command line arguments (not options). */
-    if (optind < argc) {
-        printf ("non-option ARGV-elements: ");
-        while (optind < argc)
-            printf ("%s ", argv[optind++]);
-        putchar ('\n');
-    }
-
 
     /*validate input parameter*/
     if ((endtime == NULL) || (user == NULL) || (table == NULL) ||
@@ -177,27 +145,21 @@ main(int argc, char **argv)
     }
 
 
-    /*read the password*/
     strncpy(password, getpass("Type your DB Password: "), 20);
-    /* printf("You entered pass %s\n", password); */
 
-    /* mysql stuff */
     conn = mysql_init(NULL);
-    snprintf(query, sizeof(query), "SELECT account, cpus_req, exit_code, job_name,  "
+    snprintf(query, sizeof(query), "SELECT account, cpus_req, exit_code, job_name, "
              "id_job, id_user, id_group, mem_req, nodelist, nodes_alloc, partition, priority, state, "
              "timelimit, time_submit, time_eligible, time_start, time_end, time_suspended, gres_req, gres_alloc, tres_req "
-             " FROM %s "
+             "FROM %s "
              "WHERE FROM_UNIXTIME(time_submit) BETWEEN '%s' AND '%s' AND "
              "time_end>0 AND nodes_alloc>0 AND partition='normal'", table, starttime, endtime);
     printf("\nQuery --> %s\n\n", query);
 
-    /* Connect to database */
-    if (!mysql_real_connect(conn, host, user, password, "slurmdbd_test",
-                            0, NULL, 0)) {
+    if (!mysql_real_connect(conn, host, user, password, "slurmdbd_test", 0, NULL, 0)) {
         finish_with_error(conn);
     }
 
-    /* send SQL query */
     if (mysql_query(conn, query)) {
         finish_with_error(conn);
     }

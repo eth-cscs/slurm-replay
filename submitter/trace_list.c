@@ -56,7 +56,10 @@ int main(int argc, char *argv[])
     int tasks;
     int trace_file, record_idx = 0;
     job_trace_t job_trace;
-    char buf[20];
+    char submit[20];
+    char start[20];
+    char eligible[20];
+    char end[20];
     const char *qosname = "normal";
 
     if ( !getArgs(argc, argv) ) {
@@ -70,46 +73,42 @@ int main(int argc, char *argv[])
         exit(-1);
     }
 
-    printf("%8s \t%12s \t%12s \t%12s \t%12s \t%12s \t%19s \t%12s \t%8s "
-           "\t%10s\n",
-           "INDEX", "JOBID", "USERNAME", "PARTITION", "ACCOUNT", "QOS",
-           "SUBMIT", "DURATION","WCLIMIT","TASKS");
+    printf("\t%10s \t%10s \t%10s \t%10s \t%19s \t%19s \t%19s \t%19s \t%10s \t%8s \t%8s \t%8s \t%8s\n",
+           "JOBID", "USERID", "ACCOUNT", "DURATION", "SUBMIT", "ELIGIBLE", "START", "END", "TIMELIMIT", "TASKS", "NODES", "EXITCODE", "STATE");
 
-    printf("%8s \t%12s \t%12s \t%12s \t%12s \t%12s \t%19s \t%12s \t%8s "
-           "\t%10s\n",
-           "======", "=====", "========", "=========", "=======", "======",
-           "======", "========", "========", "=====");
+    printf("\t%10s \t%10s \t%10s \t%10s \t%19s \t%19s \t%19s \t%19s \t%10s \t%8s \t%8s \t%8s \t%8s\n",
+           "=====", "======", "=======", "========", "======", "========", "=====", "===", "=========", "=====", "=====", "========", "=====");
 
     while (read(trace_file, &job_trace, sizeof(job_trace))) {
         ++record_idx;
 
-        if (time_format)
-            strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S",
-                     localtime(&job_trace.time_submit));
-        else
-            sprintf(buf, "%ld", job_trace.time_submit);
+        if (time_format) {
+            strftime(submit, sizeof(submit), "%Y-%m-%d %H:%M:%S", localtime(&job_trace.time_submit));
+            strftime(start, sizeof(start), "%Y-%m-%d %H:%M:%S", localtime(&job_trace.time_start));
+            strftime(eligible, sizeof(eligible), "%Y-%m-%d %H:%M:%S", localtime(&job_trace.time_eligible));
+            strftime(end, sizeof(end), "%Y-%m-%d %H:%M:%S", localtime(&job_trace.time_end));
+        } else {
+            sprintf(submit, "%ld", job_trace.time_submit);
+            sprintf(start, "%ld", job_trace.time_start);
+            sprintf(eligible, "%ld", job_trace.time_eligible);
+            sprintf(end, "%ld", job_trace.time_end);
+        }
 
         tasks = slurmdb_find_tres_count_in_string(job_trace.tres_req,1);
-        printf("%8d \t%12d \t%12s \t%12s \t%12s \t%12s \t%19s "
-               "\t%12d \t%8d \t%5d(%d)",
-               record_idx,
+        printf("\t%10d \t%10d \t%10s \t%10d \t%19s \t%19s \t%19s \t%19s \t%10d \t%8d \t%8d \t%8d \t%8d\n",
                job_trace.id_job,
                job_trace.id_user,
-               job_trace.partition,
                job_trace.account,
-               qosname,
-               buf,
                job_trace.time_end - job_trace.time_start,
-               job_trace.timelimit,
+               submit,
+               eligible,
+               start,
+               end,
+               job_trace.timelimit*60,
                tasks,
-               job_trace.nodes_alloc);
-
-//        if (strlen(job_trace.reservation) > 0)
-//            printf(" RES=%s", job_trace.reservation);
-//        if (strlen(job_trace.dependency) > 0)
-//            printf(" DEP=%s", job_trace.dependency);
-
-        printf("\n");
+               job_trace.nodes_alloc,
+               job_trace.exit_code,
+               job_trace.state);
     }
 
     return 0;

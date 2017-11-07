@@ -7,7 +7,7 @@ CC := gcc
 CCFLAGS := -O0 -g
 LDFLAGS :=
 LIBRARIES := -L$(DISTIME_PATH) -lshmemclock -L$(SLURM_PATH)/lib -lslurm -lrt
-MYSQL_LIBS := -L/usr/lib  -lmysqlclient -lpthread -lz -lm -ldl -lssl -lcrypto
+MYSQL_LIBS := -L/usr/lib -L/usr/lib64/mysql  -lmysqlclient -lpthread -lz -lm -ldl -lssl -lcrypto
 INCLUDES := -I$(DISTIME_PATH) -I$(SLURM_PATH)/include
 
 # Target rules
