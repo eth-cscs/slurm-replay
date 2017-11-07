@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <getopt.h>
+#include <assert.h>
 
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -20,6 +21,32 @@ job_trace_t* job_arr;
 unsigned long njobs = 0;
 static int daemon_flag = 1;
 
+static unsigned long slurmdb_find_tres_count_in_string(char *tres_str_in, int id)
+{
+    char *tmp_str = tres_str_in;
+
+    if (!tmp_str || !tmp_str[0])
+        return INFINITE64;
+
+    while (tmp_str) {
+        if (id == atoi(tmp_str)) {
+            if (!(tmp_str = strchr(tmp_str, '='))) {
+                fprintf(logger, "slurmdb_find_tres_count_in_string: no value found");
+                break;
+            }
+            return strtoul(++tmp_str,NULL,10);
+        }
+
+
+        if (!(tmp_str = strchr(tmp_str, ',')))
+            break;
+        tmp_str++;
+    }
+
+    return INFINITE64;
+}
+
+
 static void
 print_job_specs(job_desc_msg_t* dmesg)
 {
@@ -32,12 +59,13 @@ print_job_specs(job_desc_msg_t* dmesg)
     fprintf(logger, "\t\tdmesg->qos: (%s)\n", dmesg->qos);
     fprintf(logger, "\t\tdmesg->partition: (%s)\n", dmesg->partition);
     fprintf(logger, "\t\tdmesg->account: (%s)\n", dmesg->account);
-    fprintf(logger, "\t\tdmesg->reservation: (%s)\n", dmesg->reservation);
+//    fprintf(logger, "\t\tdmesg->reservation: (%s)\n", dmesg->reservation);
 //    fprintf(logger, "\t\tdmesg->dependency: (%s)\n", dmesg->dependency);
     fprintf(logger, "\t\tdmesg->num_tasks: %d\n", dmesg->num_tasks);
     fprintf(logger, "\t\tdmesg->min_cpus: %d\n", dmesg->min_cpus);
-    fprintf(logger, "\t\tdmesg->cpus_per_task: %d\n", dmesg->cpus_per_task);
-    fprintf(logger, "\t\tdmesg->ntasks_per_node: %d\n", dmesg->ntasks_per_node);
+    fprintf(logger, "\t\tdmesg->min_nodes: %d\n", dmesg->min_nodes);
+//    fprintf(logger, "\t\tdmesg->cpus_per_task: %d\n", dmesg->cpus_per_task);
+//    fprintf(logger, "\t\tdmesg->ntasks_per_node: %d\n", dmesg->ntasks_per_node);
     //fprintf(logger, "\t\tdmesg->env_size: %d\n", dmesg->env_size);
     //fprintf(logger, "\t\tdmesg->environment[0]: (%s)\n", dmesg->environment[0]);
     fprintf(logger, "\t\tdmesg->script: (%s)\n", dmesg->script);
@@ -103,43 +131,58 @@ create_and_submit_job(job_trace_t jobd)
 {
     job_desc_msg_t dmesg;
     submit_response_msg_t * respMsg = NULL;
+    long int duration;
+    int tasks;
     int rv = 0;
     char script[2048];
+    int TRES_CPU = 1;
+    int TRES_MEM = 2;
+    int TRES_NODE = 4;
 
     slurm_init_job_desc_msg(&dmesg);
 
     /* Set up and call Slurm C-API for actual job submission. */
-    dmesg.time_limit    = jobd.wclimit;
-    dmesg.job_id        = jobd.job_id;
-    dmesg.name      = strdup("runner_job");
+    dmesg.time_limit = jobd.timelimit;
+    dmesg.job_id = jobd.id_job;
+    dmesg.name = strdup(jobd.job_name);
 
+    dmesg.account = strdup(jobd.account);
     //TODO change uid and gid
-    dmesg.user_id       = 22888;
-    dmesg.group_id      = 1001;
+    dmesg.user_id = 22888;
+    dmesg.group_id = 1001;
     //TODO change work_dir
-    dmesg.work_dir      = strdup("/tmp"); /* hardcoded to /tmp for now */
+    dmesg.work_dir = strdup("/tmp"); /* hardcoded to /tmp for now */
 
-    dmesg.qos           = strdup(jobd.qosname);
-    dmesg.partition     = strdup(jobd.partition);
-    dmesg.account       = strdup(jobd.account);
-    dmesg.reservation   = strdup(jobd.reservation);
-    dmesg.dependency    = strdup(jobd.dependency);
+    // Let's be conservative and consider only the normal qos, that is the case on most 
+    // of the job running on normal partition of Daint
+    assert(strcmp(jobd.partition, "normal") == 0);
+    dmesg.qos = strdup("normal");
+    dmesg.partition = strdup(jobd.partition);
+
+
+//    TODO there is no reservation field anymore
+//    dmesg.reservation   = strdup(jobd.reservation);
+
+//    TODO there is no dependency field
+//    dmesg.dependency    = strdup(jobd.dependency);
 //    dmesg.dependency    = NULL;
-    dmesg.num_tasks     = jobd.tasks;
-    dmesg.min_cpus      = jobd.tasks;
-    dmesg.cpus_per_task = jobd.cpus_per_task;
-    dmesg.ntasks_per_node = jobd.tasks_per_node;
+
+    tasks = slurmdb_find_tres_count_in_string(jobd.tres_req,TRES_CPU);
+    dmesg.num_tasks = tasks;
+    dmesg.min_cpus = tasks;
+    dmesg.min_nodes = jobd.nodes_alloc;
+    //dmesg.cpus_per_task = jobd.cpus_per_task;
+    //dmesg.ntasks_per_node = jobd.tasks_per_node;
 
     /* Need something for environment--Should make this more generic! */
     // TODO is that needed?
-    dmesg.environment  = (char**)malloc(sizeof(char*)*2);
-    dmesg.environment[0] = strdup("HOME=/home/maximem");
-    dmesg.env_size = 1;
+    //dmesg.environment  = (char**)malloc(sizeof(char*)*2);
+    //dmesg.environment[0] = strdup("HOME=/home/maximem");
+    //dmesg.env_size = 1;
 
-    /* Standard script adding a time value in the clock and blocking until the clock reaches it */
-    // TODO add exitcode in trace
-    create_script(script, jobd.tasks, jobd.job_id, jobd.duration, 0);
-    dmesg.script        = strdup(script);
+    duration = jobd.time_end - jobd.time_start;
+    create_script(script, tasks, jobd.id_job, duration, jobd.exit_code);
+    dmesg.script = strdup(script);
 
     print_job_specs(&dmesg);
 
@@ -175,29 +218,19 @@ static void submit_jobs()
     time_t current_time = 0;
     unsigned long k = 0;
 
-/*    if (!empty_pq()) {
-        current_time= top_pq();
-    }*/
     current_time= get_shmemclock();
 
     // njobs time are in the queue, the queue cannot be empty
     while( k < njobs ) {
-        while(current_time < job_arr[k].submit) {
-            //current_time = top_pq();
-    current_time= get_shmemclock();
+        while(current_time < job_arr[k].time_submit) {
+            current_time= get_shmemclock();
             usleep(500);
         }
 
         // block time progression and submit jobs
-        if(current_time == job_arr[k].submit && k < njobs) {
-//            lock_pq();
-            fprintf(logger, "Submitting job: time %lu | id %d\n", job_arr[k].submit, job_arr[k].job_id);
+        if(current_time == job_arr[k].time_submit && k < njobs) {
+            fprintf(logger, "Submitting job: time %lu | id %d\n", job_arr[k].time_submit, job_arr[k].id_job);
             create_and_submit_job(job_arr[k]);
-            // pop is done by slurm when the job is registered
-            // this happens at the end of function _slurm_rpc_submit_batch_job
-            // when this function completes the job information is in the slurm database
-//            usleep(1000);
-//            unlock_pq();
             k++;
         }
 
@@ -230,7 +263,7 @@ static int read_job_trace(const char* trace_file_name)
         ++idx;
     }
 
-    printf("Trace initialization done. Total trace records: %lu. Start time %lu\n", njobs, job_arr[0].submit);
+    printf("Trace initialization done. Total trace records: %lu. Start time %lu\n", njobs, job_arr[0].time_submit);
 
     close(trace_file);
 
@@ -331,23 +364,13 @@ int main(int argc, char *argv[])
     }
 
     //Open shared priority queue for time clock
-    //open_pq();
     open_rdonly_shmemclock();
-
-    //Insert all submission times
-    /*lock_pq();
-    for(k = 0; k < njobs; k++) {
-        push_pq(job_arr[k].submit);
-    }
-    unlock_pq();*/
 
     // goes in daemon state
     daemonize(daemon_flag);
 
     //Jobs are submit when the discretized time clock equal their submission time
     submit_jobs();
-
-    //close_pq();
 
     if (logger != NULL) fclose(logger);
 

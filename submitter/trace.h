@@ -1,26 +1,34 @@
-#ifndef __SIM_TRACE_H_
-#define __SIM_TRACE_H_
+#ifndef _TRACE_H_
+#define _TRACE_H_
 
-#define MAX_USERNAME_LEN 30
-#define MAX_RSVNAME_LEN  30
-#define MAX_QOSNAME      30
-#define TIMESPEC_LEN     30
-#define MAX_RSVNAME      30
+
+#define TINYTEXT_SIZE 64
+#define TEXT_SIZE 4096
 
 typedef struct job_trace {
-    int  job_id;
-    char username[MAX_USERNAME_LEN];
-    unsigned long submit; /* relative or absolute? */
-    unsigned long duration;
-    int  wclimit;
-    int  tasks;
-    char qosname[MAX_QOSNAME];
-    char partition[MAX_QOSNAME];
-    char account[MAX_QOSNAME];
-    int  cpus_per_task;
-    int  tasks_per_node;
-    char reservation[MAX_RSVNAME];
-    char dependency[MAX_RSVNAME];
+    char account[TINYTEXT_SIZE];
+    int cpus_req;
+    int exit_code;
+    char job_name[TINYTEXT_SIZE];
+    int id_job;
+    int id_qos;
+    int id_user;
+    int id_group;
+    unsigned long mem_req;
+    char nodelist[TEXT_SIZE];
+    int nodes_alloc;
+    char partition[TINYTEXT_SIZE];
+    int priority;
+    int state;
+    int timelimit;
+    unsigned long time_submit;
+    unsigned long time_eligible;
+    unsigned long time_start;
+    unsigned long time_end;
+    unsigned long time_suspended;
+    char gres_req[TEXT_SIZE];
+    char gres_alloc[TEXT_SIZE];
+    char tres_req[TEXT_SIZE];
     struct job_trace *next;
 } job_trace_t;
 
@@ -29,5 +37,7 @@ typedef struct rsv_trace {
     char *             rsv_command;
     struct rsv_trace * next;
 } rsv_trace_t;
+
+
 
 #endif

@@ -13,7 +13,7 @@ INCLUDES := -I$(DISTIME_PATH) -I$(SLURM_PATH)/include
 # Target rules
 all: clean build
 
-build: submitter ticker job_runner trace_builder_mysql trace_builder_random trace_edit trace_list
+build: submitter ticker job_runner trace_builder_mysql trace_list
 
 submitter.o: submitter.c
 	$(CC) $(CCFLAGS) $(INCLUDES) -o $@ -c $<
@@ -37,25 +37,25 @@ trace_builder_mysql.o: trace_builder_mysql.c
 	$(CC) $(CCFLAGS) $(INCLUDES) -o $@ -c $<
 
 trace_builder_mysql: trace_builder_mysql.o
-	$(CC) $(LDFLAGS) $(LIBRARIES) $(MYSQL_LIBS) -o $@ $+
+	$(CC) $(LDFLAGS) $(MYSQL_LIBS) -o $@ $+
 
 trace_builder_random.o: trace_builder_random.c
 	$(CC) $(CCFLAGS) $(INCLUDES) -o $@ -c $<
 
 trace_builder_random: trace_builder_random.o
-	$(CC) $(LDFLAGS) $(LIBRARIES) -o $@ $+
+	$(CC) $(LDFLAGS) -o $@ $+
 
 trace_edit.o: trace_edit.c
 	$(CC) $(CCFLAGS) $(INCLUDES) -o $@ -c $<
 
 trace_edit: trace_edit.o
-	$(CC) $(LDFLAGS) $(LIBRARIES) -o $@ $+
+	$(CC) $(LDFLAGS) -o $@ $+
 
 trace_list.o: trace_list.c
 	$(CC) $(CCFLAGS) $(INCLUDES) -o $@ -c $<
 
 trace_list: trace_list.o
-	$(CC) $(LDFLAGS) $(LIBRARIES) -o $@ $+
+	$(CC) $(LDFLAGS) -o $@ $+
 
 clean:
 	rm -f submitter submitter.o

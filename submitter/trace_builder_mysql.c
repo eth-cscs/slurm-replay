@@ -183,15 +183,16 @@ main(int argc, char **argv)
 
     /* mysql stuff */
     conn = mysql_init(NULL);
-    snprintf(query, sizeof(query), "SELECT id_job, account, cpus_req, "
-             "id_user, partition, time_submit, timelimit, (time_end-"
-             "time_start) as duration, cpus_alloc, nodes_alloc from %s "
-             "where FROM_UNIXTIME(time_submit) BETWEEN '%s' AND '%s' AND "
-             "time_end>0 AND nodes_alloc>0", table, starttime, endtime);
+    snprintf(query, sizeof(query), "SELECT account, cpus_req, exit_code, job_name,  "
+             "id_job, id_user, id_group, mem_req, nodelist, nodes_alloc, partition, priority, state, "
+             "timelimit, time_submit, time_eligible, time_start, time_end, time_suspended, gres_req, gres_alloc, tres_req "
+             " FROM %s "
+             "WHERE FROM_UNIXTIME(time_submit) BETWEEN '%s' AND '%s' AND "
+             "time_end>0 AND nodes_alloc>0 AND partition='normal'", table, starttime, endtime);
     printf("\nQuery --> %s\n\n", query);
 
     /* Connect to database */
-    if (!mysql_real_connect(conn, host, user, password, "slurm_acct_db",
+    if (!mysql_real_connect(conn, host, user, password, "slurmdbd_test",
                             0, NULL, 0)) {
         finish_with_error(conn);
     }
@@ -225,21 +226,28 @@ main(int argc, char **argv)
         printf("\n");
         j++;
 
-        new_trace.job_id = atoi(row[0]);
-        new_trace.submit = strtoul(row[5], NULL, 0);
-        sprintf(new_trace.username, "%s", row[3]);
-        sprintf(new_trace.partition, "%s", row[4]);
-        sprintf(new_trace.account, "%s", row[1]);
-        new_trace.duration = atoi(row[7]);
-        new_trace.wclimit = atoi(row[6]);
-
-
-        new_trace.cpus_per_task = 1;
-        new_trace.tasks_per_node = atoi(row[8])/atoi(row[9]);
-        new_trace.tasks = atoi(row[8]);
-
-        sprintf(new_trace.reservation, "%s", "");
-        sprintf(new_trace.qosname, "%s", "");
+        sprintf(new_trace.account, "%s", row[0]);
+        new_trace.cpus_req = atoi(row[1]);
+        new_trace.exit_code = atoi(row[2]);
+        sprintf(new_trace.job_name, "%s", row[3]);
+        new_trace.id_job = atoi(row[4]);
+        new_trace.id_user = atoi(row[5]);
+        new_trace.id_group = atoi(row[6]);
+        new_trace.mem_req = strtoul(row[7], NULL, 0);
+        sprintf(new_trace.nodelist, "%s", row[8]);
+        new_trace.nodes_alloc = atoi(row[9]);
+        sprintf(new_trace.partition, "%s", row[10]);
+        new_trace.priority = atoi(row[11]);
+        new_trace.state = atoi(row[12]);
+        new_trace.timelimit = atoi(row[13]);
+        new_trace.time_submit = strtoul(row[14], NULL, 0);
+        new_trace.time_eligible = strtoul(row[15], NULL, 0);
+        new_trace.time_start = strtoul(row[16], NULL, 0);
+        new_trace.time_end = strtoul(row[17], NULL, 0);
+        new_trace.time_suspended = strtoul(row[18], NULL, 0);
+        sprintf(new_trace.gres_req, "%s", row[19]);
+        sprintf(new_trace.gres_alloc, "%s", row[20]);
+        sprintf(new_trace.tres_req, "%s", row[21]);
 
         written = write(trace_file, &new_trace, sizeof(new_trace));
         if(written != sizeof(new_trace)) {

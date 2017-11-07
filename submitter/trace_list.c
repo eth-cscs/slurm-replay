@@ -24,12 +24,40 @@ list_trace [OPTIONS]\n\
 
 int getArgs(int argc, char** argv);
 
+static unsigned long slurmdb_find_tres_count_in_string(char *tres_str_in, int id)
+{
+    const int INFINITE64 = 0;
+    char *tmp_str = tres_str_in;
+
+    if (!tmp_str || !tmp_str[0])
+        return INFINITE64;
+
+    while (tmp_str) {
+        if (id == atoi(tmp_str)) {
+            if (!(tmp_str = strchr(tmp_str, '='))) {
+                printf("slurmdb_find_tres_count_in_string: no value found\n");
+                break;
+            }
+            return strtoul(++tmp_str,NULL,10);
+        }
+
+
+        if (!(tmp_str = strchr(tmp_str, ',')))
+            break;
+        tmp_str++;
+    }
+
+    return INFINITE64;
+}
+
+
 int main(int argc, char *argv[])
 {
-
+    int tasks;
     int trace_file, record_idx = 0;
     job_trace_t job_trace;
     char buf[20];
+    const char *qosname = "normal";
 
     if ( !getArgs(argc, argv) ) {
         printf("Usage: %s\n", help_msg);
@@ -57,29 +85,29 @@ int main(int argc, char *argv[])
 
         if (time_format)
             strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S",
-                     localtime(&job_trace.submit));
+                     localtime(&job_trace.time_submit));
         else
-            sprintf(buf, "%ld", job_trace.submit);
+            sprintf(buf, "%ld", job_trace.time_submit);
 
+        tasks = slurmdb_find_tres_count_in_string(job_trace.tres_req,1);
         printf("%8d \t%12d \t%12s \t%12s \t%12s \t%12s \t%19s "
-               "\t%12d \t%8d \t%5d(%d,%d)",
+               "\t%12d \t%8d \t%5d(%d)",
                record_idx,
-               job_trace.job_id,
-               job_trace.username,
+               job_trace.id_job,
+               job_trace.id_user,
                job_trace.partition,
                job_trace.account,
-               job_trace.qosname,
+               qosname,
                buf,
-               job_trace.duration,
-               job_trace.wclimit,
-               job_trace.tasks,
-               job_trace.tasks_per_node,
-               job_trace.cpus_per_task);
+               job_trace.time_end - job_trace.time_start,
+               job_trace.timelimit,
+               tasks,
+               job_trace.nodes_alloc);
 
-        if (strlen(job_trace.reservation) > 0)
-            printf(" RES=%s", job_trace.reservation);
-        if (strlen(job_trace.dependency) > 0)
-            printf(" DEP=%s", job_trace.dependency);
+//        if (strlen(job_trace.reservation) > 0)
+//            printf(" RES=%s", job_trace.reservation);
+//        if (strlen(job_trace.dependency) > 0)
+//            printf(" DEP=%s", job_trace.dependency);
 
         printf("\n");
     }
