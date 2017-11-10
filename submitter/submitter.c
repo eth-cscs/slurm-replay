@@ -7,6 +7,7 @@
 #include <fcntl.h>
 
 #include <sys/types.h>
+#include <pwd.h>
 
 #include <string.h>
 #include <slurm/slurm.h>
@@ -16,6 +17,9 @@
 
 FILE *logger = NULL;
 char *tfile = NULL;
+char *username = NULL;
+uid_t userid = 0;
+uid_t groupid = 0;
 char *workload_filename = NULL;
 job_trace_t* job_arr;
 unsigned long njobs = 0;
@@ -49,7 +53,7 @@ static unsigned long slurmdb_find_tres_count_in_string(char *tres_str_in, int id
 
 static void
 print_job_specs(job_desc_msg_t* dmesg)
-{
+ {
     fprintf(logger, "\tdmesg->job_id: %d\n", dmesg->job_id);
     fprintf(logger, "\t\tdmesg->time_limit: %d\n", dmesg->time_limit);
     fprintf(logger, "\t\tdmesg->name: (%s)\n", dmesg->name);
@@ -57,12 +61,13 @@ print_job_specs(job_desc_msg_t* dmesg)
     fprintf(logger, "\t\tdmesg->group_id: %d\n", dmesg->group_id);
     fprintf(logger, "\t\tdmesg->work_dir: (%s)\n", dmesg->work_dir);
     fprintf(logger, "\t\tdmesg->qos: (%s)\n", dmesg->qos);
+    fprintf(logger, "\t\tdmesg->gres: (%s)\n", dmesg->gres);
     fprintf(logger, "\t\tdmesg->partition: (%s)\n", dmesg->partition);
     fprintf(logger, "\t\tdmesg->account: (%s)\n", dmesg->account);
 //    fprintf(logger, "\t\tdmesg->reservation: (%s)\n", dmesg->reservation);
 //    fprintf(logger, "\t\tdmesg->dependency: (%s)\n", dmesg->dependency);
-    fprintf(logger, "\t\tdmesg->num_tasks: %d\n", dmesg->num_tasks);
-    fprintf(logger, "\t\tdmesg->min_cpus: %d\n", dmesg->min_cpus);
+//    fprintf(logger, "\t\tdmesg->num_tasks: %d\n", dmesg->num_tasks);
+//    fprintf(logger, "\t\tdmesg->min_cpus: %d\n", dmesg->min_cpus);
     fprintf(logger, "\t\tdmesg->min_nodes: %d\n", dmesg->min_nodes);
 //    fprintf(logger, "\t\tdmesg->cpus_per_task: %d\n", dmesg->cpus_per_task);
 //    fprintf(logger, "\t\tdmesg->ntasks_per_node: %d\n", dmesg->ntasks_per_node);
@@ -126,6 +131,33 @@ static void create_script(char* script, int tasks, long int jobid, long int dura
     fclose(fp);
 }
 
+
+static void userids_from_name()
+{
+    struct passwd *pwd;
+    uid_t u;
+    char *endptr;
+
+    if ( username == NULL || *username == '\0') {
+        userid = geteuid();
+        groupid = getegid();
+    } else {
+        userid = strtol(username, &endptr, 10); /* As a convenience to caller allow a numeric string */
+        if (*endptr == '\0') {
+            pwd = getpwuid(userid);
+        } else {
+            pwd = getpwnam(username);
+        }
+        if (pwd != NULL) {
+            userid = pwd->pw_uid;
+            groupid = pwd->pw_gid;
+        } else {
+            fprintf(logger,"Error: get uid and gid of user: %s\n", username);
+        }
+    }
+}
+
+
 static int
 create_and_submit_job(job_trace_t jobd)
 {
@@ -147,38 +179,37 @@ create_and_submit_job(job_trace_t jobd)
     dmesg.name = strdup(jobd.job_name);
 
     dmesg.account = strdup(jobd.account);
-    //TODO change uid and gid
-    dmesg.user_id = 22888;
-    dmesg.group_id = 1001;
+
+    dmesg.user_id = userid;
+    dmesg.group_id = groupid;
+
     //TODO change work_dir
     dmesg.work_dir = strdup("/tmp"); /* hardcoded to /tmp for now */
 
-    // Let's be conservative and consider only the normal qos, that is the case on most 
+    // Let's be conservative and consider only the normal qos, that is the case on most
     // of the job running on normal partition of Daint
     assert(strcmp(jobd.partition, "normal") == 0);
     dmesg.qos = strdup("normal");
     dmesg.partition = strdup(jobd.partition);
 
-
-//    TODO there is no reservation field anymore
-//    dmesg.reservation   = strdup(jobd.reservation);
-
-//    TODO there is no dependency field
-//    dmesg.dependency    = strdup(jobd.dependency);
-//    dmesg.dependency    = NULL;
-
-    tasks = slurmdb_find_tres_count_in_string(jobd.tres_req,TRES_CPU);
-    dmesg.num_tasks = tasks;
-    dmesg.min_cpus = tasks;
+//    tasks = slurmdb_find_tres_count_in_string(jobd.tres_req,TRES_CPU);
+//    dmesg.num_tasks = tasks;
+//    dmesg.min_cpus = tasks;
     dmesg.min_nodes = jobd.nodes_alloc;
-    //dmesg.cpus_per_task = jobd.cpus_per_task;
-    //dmesg.ntasks_per_node = jobd.tasks_per_node;
+    dmesg.gres = strdup(jobd.gres_req);
+    dmesg.priority = jobd.priority;
 
-    /* Need something for environment--Should make this more generic! */
     // TODO is that needed?
     //dmesg.environment  = (char**)malloc(sizeof(char*)*2);
     //dmesg.environment[0] = strdup("HOME=/home/maximem");
     //dmesg.env_size = 1;
+
+    //TODO there is no reservation field anymore
+    //dmesg.reservation   = strdup(jobd.reservation);
+
+    //TODO there is no dependency field
+    //dmesg.dependency    = strdup(jobd.dependency);
+    //dmesg.dependency    = NULL;
 
     duration = jobd.time_end - jobd.time_start;
     create_script(script, tasks, jobd.id_job, duration, jobd.exit_code);
@@ -263,7 +294,7 @@ static int read_job_trace(const char* trace_file_name)
         ++idx;
     }
 
-    printf("Trace initialization done. Total trace records: %lu. Start time %lu\n", njobs, job_arr[0].time_submit);
+    fprintf(logger,"Trace initialization done. Total trace records: %lu. Start time %lu\n", njobs, job_arr[0].time_submit);
 
     close(trace_file);
 
@@ -271,7 +302,8 @@ static int read_job_trace(const char* trace_file_name)
 }
 
 char   help_msg[] = "\
-submitter -w <workload_trace>\n\
+submitter -w <workload_trace> -t <template_script>\n\
+      -u, --user username  user that will be used to launch the jobs, should be the replay user\n\
       -w, --wrkldfile filename 'filename' is the name of the trace file \n\
                    containing the information of the jobs to \n\
                    simulate.\n\
@@ -285,15 +317,16 @@ static void
 get_args(int argc, char** argv)
 {
     static struct option long_options[]  = {
-        {"template",   1, 0, 't'},
-        {"wrkldfile",   1, 0, 'w'},
-        {"nodaemon",   0, 0, 'D'},
-        {"help",    0, 0, 'h'}
+        {"template", 1, 0, 't'},
+        {"wrkldfile", 1, 0, 'w'},
+        {"user", 1, 0, 'u'},
+        {"nodaemon", 0, 0, 'D'},
+        {"help", 0, 0, 'h'}
     };
     int opt_char, option_index;
 
     while (1) {
-        if ((opt_char = getopt_long(argc, argv, "ht:w:D", long_options, &option_index)) == -1 )
+        if ((opt_char = getopt_long(argc, argv, "ht:w:u:D", long_options, &option_index)) == -1 )
             break;
         switch(opt_char) {
         case ('t'):
@@ -301,6 +334,9 @@ get_args(int argc, char** argv)
             break;
         case ('w'):
             workload_filename = strdup(optarg);
+            break;
+        case ('u'):
+            username = strdup(optarg);
             break;
         case ('D'):
             daemon_flag = 0;
@@ -340,9 +376,11 @@ void daemonize(int daemon_flag)
         close(STDIN_FILENO);
         close(STDOUT_FILENO);
         close(STDERR_FILENO);
-    }
 
-    logger = fopen("submitter.log", "w+");
+        logger = fopen("submitter.log", "w+");
+    } else {
+        logger = stdout;
+    }
 }
 
 
@@ -357,22 +395,23 @@ int main(int argc, char *argv[])
         exit(-1);
     }
 
+    // goes in daemon state
+    daemonize(daemon_flag);
+
     if (read_job_trace(workload_filename) < 0) {
-        printf("A problem was detected when reading trace file.\n"
-               "Exiting...");
-        return -1;
+        fprintf(logger, "Error: a problem was detected when reading trace file.");
+        exit(-1);
     }
 
     //Open shared priority queue for time clock
     open_rdonly_shmemclock();
 
-    // goes in daemon state
-    daemonize(daemon_flag);
+    userids_from_name();
 
     //Jobs are submit when the discretized time clock equal their submission time
     submit_jobs();
 
-    if (logger != NULL) fclose(logger);
+    if (daemon_flag) fclose(logger);
 
     free(job_arr);
 

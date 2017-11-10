@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -n <JOB_TASKS>
+#####SBATCH -n <JOB_TASKS>
 set -x
 
 SLURM_DIR="/home/maximem/dev/github/slurm_simulator/slurm_newsim"

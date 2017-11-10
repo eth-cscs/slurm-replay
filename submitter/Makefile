@@ -6,7 +6,8 @@ SLURM_PATH ?= ../../slurm_newsim
 CC := gcc
 CCFLAGS := -O0 -g
 LDFLAGS :=
-LIBRARIES := -L$(DISTIME_PATH) -lshmemclock -L$(SLURM_PATH)/lib -lslurm -lrt
+LIB_SHMEMCLOCK := -L$(DISTIME_PATH) -lshmemclock -lrt
+LIB_SLURM := -L$(SLURM_PATH)/lib -lslurm
 MYSQL_LIBS := -L/usr/lib -L/usr/lib64/mysql  -lmysqlclient -lpthread -lz -lm -ldl -lssl -lcrypto
 INCLUDES := -I$(DISTIME_PATH) -I$(SLURM_PATH)/include
 
@@ -19,19 +20,19 @@ submitter.o: submitter.c
 	$(CC) $(CCFLAGS) $(INCLUDES) -o $@ -c $<
 
 submitter: submitter.o
-	$(CC) $(LDFLAGS) $(LIBRARIES) -o $@ $+
+	$(CC) $(LDFLAGS) $(LIB_SHMEMCLOCK) $(LIB_SLURM) -o $@ $+
 
 ticker.o: ticker.c
 	$(CC) $(CCFLAGS) $(INCLUDES) -o $@ -c $<
 
 ticker: ticker.o
-	$(CC) $(LDFLAGS) $(LIBRARIES) -o $@ $+
+	$(CC) $(LDFLAGS) $(LIB_SHMEMCLOCK) -o $@ $+
 
 job_runner.o: job_runner.c
 	$(CC) $(CCFLAGS) $(INCLUDES) -o $@ -c $<
 
 job_runner: job_runner.o
-	$(CC) $(LDFLAGS) $(LIBRARIES) -o $@ $+
+	$(CC) $(LDFLAGS) $(LIB_SHMEMCLOCK) $(LIB_SLURM) -o $@ $+
 
 trace_builder_mysql.o: trace_builder_mysql.c
 	$(CC) $(CCFLAGS) $(INCLUDES) -o $@ -c $<

@@ -11,10 +11,12 @@
 #include "trace.h"
 
 static int time_format = 0;           /* Default to Unix Epoch Format */
+static int noheader = 0;
 char* workload_trace_file = NULL;
 char default_trace_file[] = "test.trace";
 char help_msg[] = "\
 list_trace [OPTIONS]\n\
+    -n, --noheader                Do not print headers\n\
     -w, --wrkldfile filename      The name of the trace file to view\n\
     -u, --unixtime                Display submit time in Unix epoch format\n\
                                   Default\n\
@@ -72,13 +74,13 @@ int main(int argc, char *argv[])
                workload_trace_file);
         exit(-1);
     }
+    if (!noheader) {
+        printf("\t%10s \t%10s \t%10s \t%10s \t%19s \t%19s \t%19s \t%19s \t%10s \t%8s \t%8s \t%8s \t%8s\n",
+               "JOBID", "USERID", "ACCOUNT", "DURATION", "SUBMIT", "ELIGIBLE", "START", "END", "TIMELIMIT", "TASKS", "NODES", "EXITCODE", "STATE");
 
-    printf("\t%10s \t%10s \t%10s \t%10s \t%19s \t%19s \t%19s \t%19s \t%10s \t%8s \t%8s \t%8s \t%8s\n",
-           "JOBID", "USERID", "ACCOUNT", "DURATION", "SUBMIT", "ELIGIBLE", "START", "END", "TIMELIMIT", "TASKS", "NODES", "EXITCODE", "STATE");
-
-    printf("\t%10s \t%10s \t%10s \t%10s \t%19s \t%19s \t%19s \t%19s \t%10s \t%8s \t%8s \t%8s \t%8s\n",
-           "=====", "======", "=======", "========", "======", "========", "=====", "===", "=========", "=====", "=====", "========", "=====");
-
+        printf("\t%10s \t%10s \t%10s \t%10s \t%19s \t%19s \t%19s \t%19s \t%10s \t%8s \t%8s \t%8s \t%8s\n",
+               "=====", "======", "=======", "========", "======", "========", "=====", "===", "=========", "=====", "=====", "========", "=====");
+    }
     while (read(trace_file, &job_trace, sizeof(job_trace))) {
         ++record_idx;
 
@@ -119,6 +121,7 @@ getArgs(int argc, char** argv)
 {
     static struct option long_options[] = {
         {"wrkldfile",      1, 0, 'w'},
+        {"noheader",       0, 0, 'n'},
         {"unixtime",       0, 0, 'u'},
         {"humantime",      0, 0, 'r'},
         {"help",           0, 0, 'h'},
@@ -127,12 +130,15 @@ getArgs(int argc, char** argv)
     int valid = 1;
 
     while (1) {
-        if ( (opt_char = getopt_long(argc, argv, "w:urh", long_options,
+        if ( (opt_char = getopt_long(argc, argv, "w:nurh", long_options,
                                      &option_index)) == -1 )
             break;
         switch (opt_char) {
         case ('w'):
             workload_trace_file = strdup(optarg);
+            break;
+        case ('n'):
+            noheader = 1;
             break;
         case ('u'):
             time_format = 0;

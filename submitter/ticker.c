@@ -100,6 +100,8 @@ get_args(int argc, char** argv)
 int main(int argc, char *argv[])
 {
     const int one_second = 1000000;
+    char get_time[20];
+    time_t tmp_time;
 
     get_args(argc, argv);
 
@@ -112,7 +114,9 @@ int main(int argc, char *argv[])
     }
 
     if (enable_get) {
-        printf("get: %ld\n",get_shmemclock());
+        tmp_time = get_shmemclock();
+        strftime(get_time, sizeof(get_time), "%Y-%m-%d %H:%M:%S", localtime(&tmp_time));
+        printf("%ld -- %s\n", tmp_time, get_time);
     }
 
     if (enable_clock) {
