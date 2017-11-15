@@ -25,33 +25,6 @@ job_trace_t* job_arr;
 unsigned long njobs = 0;
 static int daemon_flag = 1;
 
-/*static unsigned long slurmdb_find_tres_count_in_string(char *tres_str_in, int id)
- {
-    char *tmp_str = tres_str_in;
-
-    if (!tmp_str || !tmp_str[0])
-        return INFINITE64;
-
-    while (tmp_str) {
-        if (id == atoi(tmp_str)) {
-            if (!(tmp_str = strchr(tmp_str, '='))) {
-                fprintf(logger, "slurmdb_find_tres_count_in_string: no value found");
-                fflush(logger);
-                break;
-            }
-            return strtoul(++tmp_str,NULL,10);
-        }
-
-
-        if (!(tmp_str = strchr(tmp_str, ',')))
-            break;
-        tmp_str++;
-    }
-
-    return INFINITE64;
-}*/
-
-
 static void
 print_job_specs(job_desc_msg_t* dmesg)
 {

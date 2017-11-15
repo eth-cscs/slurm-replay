@@ -32,7 +32,7 @@ Usage: mysql_trace_builder [OPTIONS]\n\
     -h, --host      db_hostname     Name of machine hosting MySQL DB\n\
     -u, --user      dbuser          Name of user with which to establish a\n\
                                     connection to the DB\n\
-    -p, --password                  Ask for password to connect to the db\n\
+    -p, --password  password        Password to connect to the db\n\
     -t, --table     db_table        Name of the MySQL table to query\n\
     -v, --verbose                   Increase verbosity of the messages\n\
     -f, --file      filename        Name of the output trace file being created\n\
@@ -48,7 +48,6 @@ main(int argc, char **argv)
     int i,c,written;
     unsigned long njobs = 0;
     int trace_file;
-    int use_password = 0;
     int use_query = 0;
     char year[4], month[2], day[2], hours[2], minutes[2], seconds[2];
 
@@ -59,12 +58,12 @@ main(int argc, char **argv)
     char *starttime = NULL;
     char *table = NULL;
     char *user = NULL;
-    char password[20];
+    char *query = NULL;
+    char *password;
 
     MYSQL *conn;
     MYSQL_RES *res;
     MYSQL_ROW row;
-    char *query;
     size_t query_length;
     job_trace_t new_trace;
 
@@ -76,17 +75,17 @@ main(int argc, char **argv)
             {"host", required_argument, 0, 'h'},
             {"dbname", required_argument, 0, 'd'},
             {"help", no_argument,   0, '?'},
-            {"passworg", no_argument,   0, 'p'},
-            {"query", no_argument,   0, 'q'},
+            {"password", required_argument,   0, 'p'},
+            {"query", required_argument,   0, 'q'},
             {"starttime", required_argument, 0, 's'},
             {"table", required_argument, 0, 't'},
             {"user", required_argument, 0, 'u'},
             {0, 0, 0, 0}
-        };
+        }; 
 
         /* getopt_long stores the option index here. */
         int option_index = 0;
-        c = getopt_long (argc, argv, "d:e:f:h:?s:t:u:pq",long_options,
+        c = getopt_long (argc, argv, "d:e:f:h:?s:t:u:pq:",long_options,
                          &option_index);
 
         /* Detect the end of the options. */
@@ -94,11 +93,11 @@ main(int argc, char **argv)
 
         switch (c) {
         case 'p':
-            use_password = 1;
+            password = optarg;
             break;
         case 'q':
             use_query = 1;
-            query = strdup(optarg);
+            query = optarg;
             break;
         case 'e':
             endtime = optarg;
@@ -131,9 +130,9 @@ main(int argc, char **argv)
     } /* while */
 
     if ((user == NULL) || (host == NULL) || (dbname == NULL) || (filename == NULL)) {
-            printf("user, host, dbname and trace file name cannot be NULL!\n");
-            print_usage();
-            exit(-1);
+        printf("user, host, dbname and trace file name cannot be NULL!\n");
+        print_usage();
+        exit(-1);
     }
 
     if (!use_query) {
@@ -160,18 +159,14 @@ main(int argc, char **argv)
             print_usage();
             exit(-1);
         }
-        snprintf(query, 1024*sizeof(char), "SELECT account, cpus_req, exit_code, job_name, "
-             "id_job, id_user, id_group, mem_req, nodelist, nodes_alloc, partition, priority, state, "
-             "timelimit, time_submit, time_eligible, time_start, time_end, time_suspended, gres_req, gres_alloc, tres_req "
-             "FROM %s "
-             "WHERE FROM_UNIXTIME(time_submit) BETWEEN '%s' AND '%s' AND "
-             "time_end>0 AND nodes_alloc>0 AND partition='normal'", table, starttime, endtime);
+        snprintf(query, 1024*sizeof(char), "SELECT t.account, t.cpus_req, t.exit_code, t.job_name, "
+                 "t.id_job, t.id_user, t.id_group, t.mem_req, t.nodelist, t.nodes_alloc, t.partition, t.priority, t.state, "
+                 "t.timelimit, t.time_submit, t.time_eligible, t.time_start, t.time_end, t.time_suspended, t.gres_req, t.gres_alloc, t.tres_req "
+                 "FROM %s as t "
+                 "WHERE FROM_UNIXTIME(t.time_submit) BETWEEN '%s' AND '%s' AND "
+                 "t.time_end > 0 AND t.nodes_alloc > 0 AND t.partition='normal'", table, starttime, endtime);
     }
     printf("\nQuery --> %s\n\n", query);
-
-    if (use_password) {
-        strncpy(password, getpass("Type your DB Password: "), 20);
-    }
 
     conn = mysql_init(NULL);
 
@@ -204,10 +199,10 @@ main(int argc, char **argv)
 
     while ((row = mysql_fetch_row(res))) {
 
-        for( i = 0; i < num_fields; i++) {
+        /*for( i = 0; i < num_fields; i++) {
             printf("%s ", row[i] ? row[i] : "NULL");
         }
-        printf("\n");
+        printf("\n");*/
         njobs++;
 
         sprintf(new_trace.account, "%s", row[0]);
@@ -247,7 +242,9 @@ main(int argc, char **argv)
     /* close connection */
     mysql_free_result(res);
     mysql_close(conn);
-    free(query);
+    if (!use_query) {
+        free(query);
+    }
 
     exit(0);
 }

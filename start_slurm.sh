@@ -1,7 +1,5 @@
 #!/bin/bash
 
-#NNODES=15
-#NNODES=$(cat all_nids.txt | wc -l)
 VERBOSE="-v"
 
 
@@ -26,6 +24,7 @@ mkdir $SLURM_DIR/tmp/archive
 ./start_slurmdbd.sh
 
 # With multiple_slurmd
+#NNODES=$(cat all_nids.txt | wc -l)
 #echo -n  "Starting slurmctld and $NNODES slurmd... "
 #nids="$(cat all_nids.txt | head -n $NNODES | xargs printf "nid%05d ")"
 #parallel eval "$SLURM_REPLAY_LIB slurmd $VERBOSE -c -N {}" ::: $nids

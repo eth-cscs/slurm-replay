@@ -35,15 +35,6 @@ echo "done."
 echo -n  "Populating database... "
 sacctmgr -i add cluster Daint >/dev/null
 
-# accounts
-#while IFS= read -r line; do
-#    acc="$(echo $line | cut -d '|' -f1)"
-#    descr="$(echo $line | cut -d '|' -f2)"
-#    org="$(echo $line | cut -d '|' -f3)"
-#    sacctmgr -i add account "$acc" Cluster=daint Description="$descr" Organization="$org" >/dev/null
-#done < "account.dat"
-
-
 # Command to obtain data:
 # mysqldump -u test -p slurmdbd_test acct_table acct_coord_table qos_table tres_table user_table daint_assoc_table daint_resv_table > slurmdb_tbl.sql
 mysql -u root slurm_acct_db < slurmdb_tbl.sql
