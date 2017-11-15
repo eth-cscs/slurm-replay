@@ -81,7 +81,6 @@ get_args(int argc, char** argv)
                 tick = atoi(tick_v);
             }
             free(clock_v);
-            printf("%ld, %f, %d\n",endtime_evt, rate, tick);
             break;
         case ('g'):
             enable_get = 1;
@@ -100,7 +99,8 @@ get_args(int argc, char** argv)
 int main(int argc, char *argv[])
 {
     const int one_second = 1000000;
-    char get_time[20];
+    char strstart_time[20];
+    char strend_time[20];
     time_t tmp_time;
 
     get_args(argc, argv);
@@ -108,18 +108,22 @@ int main(int argc, char *argv[])
     open_rdwr_shmemclock();
 
     if (enable_set) {
+        strftime(strstart_time, sizeof(strstart_time), "%Y-%m-%d %H:%M:%S", localtime(&time_evt));
         set_shmemclock(time_evt);
-        printf("Set time to %ld\n", time_evt);
-        printf("Get time to %ld\n", get_shmemclock());
+        printf("Set time to %s\n", strstart_time);
     }
 
     if (enable_get) {
         tmp_time = get_shmemclock();
-        strftime(get_time, sizeof(get_time), "%Y-%m-%d %H:%M:%S", localtime(&tmp_time));
-        printf("%ld -- %s\n", tmp_time, get_time);
+        strftime(strstart_time, sizeof(strstart_time), "%Y-%m-%d %H:%M:%S", localtime(&tmp_time));
+        printf("%ld -- %s\n", tmp_time, strstart_time);
     }
 
     if (enable_clock) {
+        tmp_time = get_shmemclock();
+        strftime(strstart_time, sizeof(strstart_time), "%Y-%m-%d %H:%M:%S", localtime(&tmp_time));
+        strftime(strend_time, sizeof(strend_time), "%Y-%m-%d %H:%M:%S", localtime(&endtime_evt));
+        printf("Clock: start='%s', end='%s', duration=%ld[s], rate=%.5f[s] for 1 replayed second\n",strstart_time, strend_time, endtime_evt-tmp_time, rate/tick);
         while(get_shmemclock() < endtime_evt) {
             usleep(one_second*rate);
             incr_shmemclock(tick);

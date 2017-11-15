@@ -12,10 +12,12 @@
 
 static int time_format = 0;           /* Default to Unix Epoch Format */
 static int noheader = 0;
+static int display_query = 0;
 char* workload_trace_file = NULL;
 char default_trace_file[] = "test.trace";
 char help_msg[] = "\
 list_trace [OPTIONS]\n\
+    -q, --query                   Print the SQL query used to generate the trace\n\
     -n, --noheader                Do not print headers\n\
     -w, --wrkldfile filename      The name of the trace file to view\n\
     -u, --unixtime                Display submit time in Unix epoch format\n\
@@ -63,6 +65,8 @@ int main(int argc, char *argv[])
     char eligible[20];
     char end[20];
     const char *qosname = "normal";
+    size_t query_length = 0;
+    char query[1024];
 
     if ( !getArgs(argc, argv) ) {
         printf("Usage: %s\n", help_msg);
@@ -74,6 +78,14 @@ int main(int argc, char *argv[])
                workload_trace_file);
         exit(-1);
     }
+
+    read(trace_file, &query_length, sizeof(size_t));
+    read(trace_file, query, query_length*sizeof(char));
+
+    if (display_query) {
+        printf("%s\n",query);
+    }
+
     if (!noheader) {
         printf("\t%10s \t%10s \t%10s \t%10s \t%19s \t%19s \t%19s \t%19s \t%10s \t%8s \t%8s \t%8s \t%8s\n",
                "JOBID", "USERID", "ACCOUNT", "DURATION", "SUBMIT", "ELIGIBLE", "START", "END", "TIMELIMIT", "TASKS", "NODES", "EXITCODE", "STATE");
@@ -81,6 +93,7 @@ int main(int argc, char *argv[])
         printf("\t%10s \t%10s \t%10s \t%10s \t%19s \t%19s \t%19s \t%19s \t%10s \t%8s \t%8s \t%8s \t%8s\n",
                "=====", "======", "=======", "========", "======", "========", "=====", "===", "=========", "=====", "=====", "========", "=====");
     }
+
     while (read(trace_file, &job_trace, sizeof(job_trace))) {
         ++record_idx;
 
@@ -121,6 +134,7 @@ getArgs(int argc, char** argv)
 {
     static struct option long_options[] = {
         {"wrkldfile",      1, 0, 'w'},
+        {"query",          0, 0, 'q'},
         {"noheader",       0, 0, 'n'},
         {"unixtime",       0, 0, 'u'},
         {"humantime",      0, 0, 'r'},
@@ -130,7 +144,7 @@ getArgs(int argc, char** argv)
     int valid = 1;
 
     while (1) {
-        if ( (opt_char = getopt_long(argc, argv, "w:nurh", long_options,
+        if ( (opt_char = getopt_long(argc, argv, "w:nurhq", long_options,
                                      &option_index)) == -1 )
             break;
         switch (opt_char) {
@@ -142,6 +156,9 @@ getArgs(int argc, char** argv)
             break;
         case ('u'):
             time_format = 0;
+            break;
+        case ('q'):
+            display_query = 1;
             break;
         case ('r'):
             time_format = 1;

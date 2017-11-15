@@ -12,7 +12,6 @@
 #define DEFAULT_START_TIMESTAMP 1420066800
 static const char DEFAULT_START[] = "2015-01-01 00:00:00";
 
-static int verbose_flag;
 
 void finish_with_error(MYSQL *con)
 {
@@ -29,13 +28,16 @@ Usage: mysql_trace_builder [OPTIONS]\n\
                                     format: \"yyyy-MM-DD hh:mm:ss\"\n\
     -e, --endtime   time            Stop selecting jobs at this time\n\
                                     format: \"yyyy-MM-DD hh:mm:ss\"\n\
+    -d, --dbname    db_name         Name of the database\n\
     -h, --host      db_hostname     Name of machine hosting MySQL DB\n\
     -u, --user      dbuser          Name of user with which to establish a\n\
                                     connection to the DB\n\
+    -p, --password                  Ask for password to connect to the db\n\
     -t, --table     db_table        Name of the MySQL table to query\n\
     -v, --verbose                   Increase verbosity of the messages\n\
     -f, --file      filename        Name of the output trace file being created\n\
-    -p, --help                      This help message\n\n\
+    -q, --query     query           Use a SQL query to retrieve the data\n\
+    -?, --help                      This help message\n\n\
 ");
 }
 
@@ -43,14 +45,18 @@ int
 main(int argc, char **argv)
 {
 
-    int i,c,written,j;
+    int i,c,written;
+    unsigned long njobs = 0;
     int trace_file;
+    int use_password = 0;
+    int use_query = 0;
     char year[4], month[2], day[2], hours[2], minutes[2], seconds[2];
 
     char *endtime = NULL;
-    char *file = "test.trace";
+    char *filename = NULL;
     char *host = NULL;
-    char *starttime = "2015-01-01 00:00:00";
+    char *dbname = NULL;
+    char *starttime = NULL;
     char *table = NULL;
     char *user = NULL;
     char password[20];
@@ -58,17 +64,20 @@ main(int argc, char **argv)
     MYSQL *conn;
     MYSQL_RES *res;
     MYSQL_ROW row;
-    char query[1024];
+    char *query;
+    size_t query_length;
     job_trace_t new_trace;
 
 
-    while(1) {
+    while(1) { 
         static struct option long_options[] = {
-            {"verbose", no_argument, &verbose_flag, 1},
             {"endtime", required_argument, 0, 'e'},
             {"file", required_argument, 0, 'f'},
             {"host", required_argument, 0, 'h'},
-            {"help", no_argument,   0, 'p'},
+            {"dbname", required_argument, 0, 'd'},
+            {"help", no_argument,   0, '?'},
+            {"passworg", no_argument,   0, 'p'},
+            {"query", no_argument,   0, 'q'},
             {"starttime", required_argument, 0, 's'},
             {"table", required_argument, 0, 't'},
             {"user", required_argument, 0, 'u'},
@@ -77,26 +86,33 @@ main(int argc, char **argv)
 
         /* getopt_long stores the option index here. */
         int option_index = 0;
-        c = getopt_long (argc, argv, "ve:f:h:ps:t:u:",long_options,
+        c = getopt_long (argc, argv, "d:e:f:h:?s:t:u:pq",long_options,
                          &option_index);
 
         /* Detect the end of the options. */
         if (c == -1) break;
 
         switch (c) {
-        case 'v':
-            verbose_flag = 1;
+        case 'p':
+            use_password = 1;
+            break;
+        case 'q':
+            use_query = 1;
+            query = strdup(optarg);
             break;
         case 'e':
             endtime = optarg;
             break;
         case 'f':
-            file = optarg;
+            filename = optarg;
             break;
         case 'h':
             host = optarg;
             break;
-        case 'p':
+        case 'd':
+            dbname = optarg;
+            break;
+        case '?':
             print_usage();
             exit(0);
         case 's':
@@ -108,55 +124,58 @@ main(int argc, char **argv)
         case 'u':
             user = optarg;
             break;
-        case '?':
-            break;
         default:
             print_usage();
             abort ();
         }
     } /* while */
 
-    if (verbose_flag)
-        printf("Selected options:\n\nstart time \t\t%s\nend time \t\t%s"
-               "\nfile out \t\t%s\ntable \t\t\t%s\n",
-               starttime, endtime, file, table);
-
-    /*validate input parameter*/
-    if ((endtime == NULL) || (user == NULL) || (table == NULL) ||
-        (host == NULL)) {
-        printf("endtime, user, table and host cannot be NULL!\n");
-        print_usage();
-        exit(-1);
+    if ((user == NULL) || (host == NULL) || (dbname == NULL) || (filename == NULL)) {
+            printf("user, host, dbname and trace file name cannot be NULL!\n");
+            print_usage();
+            exit(-1);
     }
 
-    if ( sscanf(endtime, "%4s-%2s-%2s %2s:%2s:%2s", year, month, day, hours,
-                minutes, seconds) != 6 ) {
-        printf("ERROR validate endtime\n");
-        print_usage();
-        return -1;
-    }
+    if (!use_query) {
+        query = malloc(1024*sizeof(char));
+
+        /*validate input parameter to build the query*/
+        if ((endtime == NULL) || (starttime == NULL) || (table == NULL)) {
+            printf("endtime, starttime and table cannot be NULL!\n");
+            print_usage();
+            exit(-1);
+        }
+
+        if ( sscanf(endtime, "%4s-%2s-%2s %2s:%2s:%2s", year, month, day, hours,
+                    minutes, seconds) != 6 ) {
+            printf("ERROR validate endtime\n");
+            print_usage();
+            exit(-1);
+        }
 
 
-    if ( sscanf(starttime, "%4s-%2s-%2s %2s:%2s:%2s", year, month, day,
-                hours, minutes, seconds) != 6 ) {
-        printf("ERROR validate starttime\n");
-        print_usage();
-        return -1;
-    }
-
-
-    strncpy(password, getpass("Type your DB Password: "), 20);
-
-    conn = mysql_init(NULL);
-    snprintf(query, sizeof(query), "SELECT account, cpus_req, exit_code, job_name, "
+        if ( sscanf(starttime, "%4s-%2s-%2s %2s:%2s:%2s", year, month, day,
+                    hours, minutes, seconds) != 6 ) {
+            printf("ERROR validate starttime\n");
+            print_usage();
+            exit(-1);
+        }
+        snprintf(query, 1024*sizeof(char), "SELECT account, cpus_req, exit_code, job_name, "
              "id_job, id_user, id_group, mem_req, nodelist, nodes_alloc, partition, priority, state, "
              "timelimit, time_submit, time_eligible, time_start, time_end, time_suspended, gres_req, gres_alloc, tres_req "
              "FROM %s "
              "WHERE FROM_UNIXTIME(time_submit) BETWEEN '%s' AND '%s' AND "
              "time_end>0 AND nodes_alloc>0 AND partition='normal'", table, starttime, endtime);
+    }
     printf("\nQuery --> %s\n\n", query);
 
-    if (!mysql_real_connect(conn, host, user, password, "slurmdbd_test", 0, NULL, 0)) {
+    if (use_password) {
+        strncpy(password, getpass("Type your DB Password: "), 20);
+    }
+
+    conn = mysql_init(NULL);
+
+    if (!mysql_real_connect(conn, host, user, password, dbname, 0, NULL, 0)) {
         finish_with_error(conn);
     }
 
@@ -172,21 +191,24 @@ main(int argc, char **argv)
     int num_fields = mysql_num_fields(res);
 
     /* writing results to file */
-    if((trace_file = open(file, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR |
+    if((trace_file = open(filename, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR |
                           S_IRGRP | S_IROTH)) < 0) {
-        printf("Error opening file %s\n", file);
-        return -1;
+        printf("Error opening file %s\n", filename);
+        exit(-1);
     }
 
+    /* write query at the top of the file */
+    query_length = strlen(query);
+    write(trace_file, &query_length, sizeof(size_t));
+    write(trace_file, query, query_length*sizeof(char));
 
-    j = 0;
     while ((row = mysql_fetch_row(res))) {
 
         for( i = 0; i < num_fields; i++) {
             printf("%s ", row[i] ? row[i] : "NULL");
         }
         printf("\n");
-        j++;
+        njobs++;
 
         sprintf(new_trace.account, "%s", row[0]);
         new_trace.cpus_req = atoi(row[1]);
@@ -215,17 +237,17 @@ main(int argc, char **argv)
         if(written != sizeof(new_trace)) {
             printf("Error writing to file: %d of %ld\n", written,
                    sizeof(new_trace));
-            return -1;
+            exit(-1);
         }
 
     }
 
-    printf("\nSuccessfully written file %s : Total number of jobs = %d\n",
-           file, j);
+    printf("\nSuccessfully written file %s : Total number of jobs = %ld\n", filename, njobs);
 
     /* close connection */
     mysql_free_result(res);
     mysql_close(conn);
+    free(query);
 
     exit(0);
 }

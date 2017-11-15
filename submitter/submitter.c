@@ -25,8 +25,8 @@ job_trace_t* job_arr;
 unsigned long njobs = 0;
 static int daemon_flag = 1;
 
-static unsigned long slurmdb_find_tres_count_in_string(char *tres_str_in, int id)
-{
+/*static unsigned long slurmdb_find_tres_count_in_string(char *tres_str_in, int id)
+ {
     char *tmp_str = tres_str_in;
 
     if (!tmp_str || !tmp_str[0])
@@ -36,6 +36,7 @@ static unsigned long slurmdb_find_tres_count_in_string(char *tres_str_in, int id
         if (id == atoi(tmp_str)) {
             if (!(tmp_str = strchr(tmp_str, '='))) {
                 fprintf(logger, "slurmdb_find_tres_count_in_string: no value found");
+                fflush(logger);
                 break;
             }
             return strtoul(++tmp_str,NULL,10);
@@ -48,35 +49,36 @@ static unsigned long slurmdb_find_tres_count_in_string(char *tres_str_in, int id
     }
 
     return INFINITE64;
-}
+}*/
 
 
 static void
 print_job_specs(job_desc_msg_t* dmesg)
- {
+{
     fprintf(logger, "\tdmesg->job_id: %d\n", dmesg->job_id);
     fprintf(logger, "\t\tdmesg->time_limit: %d\n", dmesg->time_limit);
     fprintf(logger, "\t\tdmesg->name: (%s)\n", dmesg->name);
+    fprintf(logger, "\t\tdmesg->account: (%s)\n", dmesg->account);
     fprintf(logger, "\t\tdmesg->user_id: %d\n", dmesg->user_id);
     fprintf(logger, "\t\tdmesg->group_id: %d\n", dmesg->group_id);
     fprintf(logger, "\t\tdmesg->work_dir: (%s)\n", dmesg->work_dir);
     fprintf(logger, "\t\tdmesg->qos: (%s)\n", dmesg->qos);
-    fprintf(logger, "\t\tdmesg->gres: (%s)\n", dmesg->gres);
     fprintf(logger, "\t\tdmesg->partition: (%s)\n", dmesg->partition);
-    fprintf(logger, "\t\tdmesg->account: (%s)\n", dmesg->account);
+    fprintf(logger, "\t\tdmesg->min_nodes: %d\n", dmesg->min_nodes);
+    fprintf(logger, "\t\tdmesg->features: (%s)\n", dmesg->features);
 //    fprintf(logger, "\t\tdmesg->reservation: (%s)\n", dmesg->reservation);
 //    fprintf(logger, "\t\tdmesg->dependency: (%s)\n", dmesg->dependency);
 //    fprintf(logger, "\t\tdmesg->num_tasks: %d\n", dmesg->num_tasks);
 //    fprintf(logger, "\t\tdmesg->min_cpus: %d\n", dmesg->min_cpus);
-    fprintf(logger, "\t\tdmesg->min_nodes: %d\n", dmesg->min_nodes);
 //    fprintf(logger, "\t\tdmesg->cpus_per_task: %d\n", dmesg->cpus_per_task);
 //    fprintf(logger, "\t\tdmesg->ntasks_per_node: %d\n", dmesg->ntasks_per_node);
-    //fprintf(logger, "\t\tdmesg->env_size: %d\n", dmesg->env_size);
-    //fprintf(logger, "\t\tdmesg->environment[0]: (%s)\n", dmesg->environment[0]);
+    fprintf(logger, "\t\tdmesg->env_size: %d\n", dmesg->env_size);
+    fprintf(logger, "\t\tdmesg->environment[0]: (%s)\n", dmesg->environment[0]);
     fprintf(logger, "\t\tdmesg->script: (%s)\n", dmesg->script);
+    fflush(logger);
 }
 
-static void create_script(char* script, int tasks, long int jobid, long int duration, int exitcode)
+static void create_script(char* script, int nodes, int tasks, long int jobid, long int duration, int exitcode)
 {
     FILE* fp;
     char* line = NULL;
@@ -88,6 +90,7 @@ static void create_script(char* script, int tasks, long int jobid, long int dura
     fp = fopen(tfile,"r");
     if (fp == NULL) {
         fprintf(logger, "Cannot open template script file.");
+        fflush(logger);
         exit(1);
     }
 
@@ -111,6 +114,9 @@ static void create_script(char* script, int tasks, long int jobid, long int dura
                 k+=j+1;
                 if(strcmp(token,"JOB_TASKS")==0) {
                     sprintf(val,"%d",tasks);
+                }
+                if(strcmp(token,"JOB_NODES")==0) {
+                    sprintf(val,"%d",nodes);
                 }
                 if(strcmp(token,"DURATION")==0) {
                     sprintf(val,"%lu",duration);
@@ -153,6 +159,7 @@ static void userids_from_name()
             groupid = pwd->pw_gid;
         } else {
             fprintf(logger,"Error: get uid and gid of user: %s\n", username);
+            fflush(logger);
         }
     }
 }
@@ -173,18 +180,15 @@ create_and_submit_job(job_trace_t jobd)
 
     slurm_init_job_desc_msg(&dmesg);
 
-    /* Set up and call Slurm C-API for actual job submission. */
     dmesg.time_limit = jobd.timelimit;
     dmesg.job_id = jobd.id_job;
     dmesg.name = strdup(jobd.job_name);
-
     dmesg.account = strdup(jobd.account);
-
     dmesg.user_id = userid;
     dmesg.group_id = groupid;
 
     //TODO change work_dir
-    dmesg.work_dir = strdup("/tmp"); /* hardcoded to /tmp for now */
+    dmesg.work_dir = strdup("/tmp");
 
     // Let's be conservative and consider only the normal qos, that is the case on most
     // of the job running on normal partition of Daint
@@ -192,17 +196,19 @@ create_and_submit_job(job_trace_t jobd)
     dmesg.qos = strdup("normal");
     dmesg.partition = strdup(jobd.partition);
 
-//    tasks = slurmdb_find_tres_count_in_string(jobd.tres_req,TRES_CPU);
-//    dmesg.num_tasks = tasks;
-//    dmesg.min_cpus = tasks;
-    dmesg.min_nodes = jobd.nodes_alloc;
-    dmesg.gres = strdup(jobd.gres_req);
-    dmesg.priority = jobd.priority;
+    //dmesg.priority = jobd.priority;
 
-    // TODO is that needed?
-    //dmesg.environment  = (char**)malloc(sizeof(char*)*2);
-    //dmesg.environment[0] = strdup("HOME=/home/maximem");
-    //dmesg.env_size = 1;
+    dmesg.min_nodes = jobd.nodes_alloc;
+    // check if string starts with "gpu:0" meaning using constriant mc
+    if (strncmp("gpu:0", jobd.gres_alloc, 5)) {
+        dmesg.features = strdup("mc");
+    } else {
+        dmesg.features = strdup("gpu");
+    }
+
+    dmesg.environment  = (char**)malloc(sizeof(char*)*2);
+    dmesg.environment[0] = strdup("HOME=/home/maximem");
+    dmesg.env_size = 1;
 
     //TODO there is no reservation field anymore
     //dmesg.reservation   = strdup(jobd.reservation);
@@ -212,20 +218,20 @@ create_and_submit_job(job_trace_t jobd)
     //dmesg.dependency    = NULL;
 
     duration = jobd.time_end - jobd.time_start;
-    create_script(script, tasks, jobd.id_job, duration, jobd.exit_code);
+    create_script(script, jobd.nodes_alloc, tasks, jobd.id_job, duration, jobd.exit_code);
     dmesg.script = strdup(script);
 
-    print_job_specs(&dmesg);
+    //print_job_specs(&dmesg);
 
-    if ( slurm_submit_batch_job(&dmesg, &respMsg) ) {
-        fprintf(logger,"Error: slurm_submit_batch_job\n");
-        rv = -1;
+    if ( rv = slurm_submit_batch_job(&dmesg, &respMsg) ) {
+        fprintf(logger,"Error: slurm_submit_batch_job: %s\n", slurm_strerror(rv));
+        fflush(logger);
     }
 
-    if (respMsg)
-        fprintf(logger, "Response from job submission\n\terror_code: %u"
-                "\n\tjob_id: %u\n",
-                respMsg->error_code, respMsg->job_id);
+    if (respMsg) {
+        fprintf(logger, "Job submitted: error_code=%u job_id=%u\n",respMsg->error_code, respMsg->job_id);
+        fflush(logger);
+    }
     // Cleanup
     if (respMsg) slurm_free_submit_response_response_msg(respMsg);
 
@@ -251,20 +257,17 @@ static void submit_jobs()
 
     current_time= get_shmemclock();
 
-    // njobs time are in the queue, the queue cannot be empty
     while( k < njobs ) {
+        // wait for submission time of next job
         while(current_time < job_arr[k].time_submit) {
             current_time= get_shmemclock();
             usleep(500);
         }
 
-        // block time progression and submit jobs
-        if(current_time == job_arr[k].time_submit && k < njobs) {
-            fprintf(logger, "Submitting job: time %lu | id %d\n", job_arr[k].time_submit, job_arr[k].id_job);
-            create_and_submit_job(job_arr[k]);
-            k++;
-        }
-
+        fprintf(logger, "[%d] Submitting job: time %lu | id %d\n", k, job_arr[k].time_submit, job_arr[k].id_job);
+        fflush(logger);
+        create_and_submit_job(job_arr[k]);
+        k++;
     }
 }
 
@@ -273,6 +276,8 @@ static int read_job_trace(const char* trace_file_name)
     struct stat  stat_buf;
     int nrecs = 0, idx = 0;
     int trace_file;
+    size_t query_length = 0;
+    char query[1024];
 
     trace_file = open(trace_file_name, O_RDONLY);
     if (trace_file < 0) {
@@ -280,8 +285,11 @@ static int read_job_trace(const char* trace_file_name)
         return -1;
     }
 
+    read(trace_file, &query_length, sizeof(size_t));
+    read(trace_file, query, query_length*sizeof(char));
+
     fstat(trace_file, &stat_buf);
-    nrecs = stat_buf.st_size / sizeof(job_trace_t);
+    nrecs = (stat_buf.st_size-sizeof(size_t)-query_length*sizeof(char)) / sizeof(job_trace_t);
 
     job_arr = (job_trace_t*)malloc(sizeof(job_trace_t)*nrecs);
     if (!job_arr) {
@@ -295,6 +303,7 @@ static int read_job_trace(const char* trace_file_name)
     }
 
     fprintf(logger,"Trace initialization done. Total trace records: %lu. Start time %lu\n", njobs, job_arr[0].time_submit);
+    fflush(logger);
 
     close(trace_file);
 
@@ -400,6 +409,7 @@ int main(int argc, char *argv[])
 
     if (read_job_trace(workload_filename) < 0) {
         fprintf(logger, "Error: a problem was detected when reading trace file.");
+        fflush(logger);
         exit(-1);
     }
 
@@ -408,7 +418,7 @@ int main(int argc, char *argv[])
 
     userids_from_name();
 
-    //Jobs are submit when the discretized time clock equal their submission time
+    //Jobs are submit when the replayed time clock equal their submission time
     submit_jobs();
 
     if (daemon_flag) fclose(logger);
