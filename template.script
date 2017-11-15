@@ -1,11 +1,9 @@
 #!/bin/bash
-#####SBATCH -n <JOB_TASKS>
-set -x
 
 SLURM_DIR="/home/maximem/dev/github/slurm_simulator/slurm_newsim"
 SLURM_REPLAY="/home/maximem/dev/github/slurm_simulator/slurm-replay"
 export PATH=$SLURM_DIR/bin:$SLURM_DIR/sbin:$SLURM_REPLAY/submitter:$PATH
 export LD_LIBRARY_PATH=$SLURM_DIR/lib:$SLURM_REPLAY/distime
 
-# Is srun needed?
-srun -n 1 job_runner -d <DURATION> -x <EXIT_CODE> -j <JOB_ID> -n <JOB_TASKS>
+# Do not use srun, steps are not considered
+job_runner -d <DURATION> -x <EXIT_CODE> -j <JOB_ID> -n <JOB_NODES>

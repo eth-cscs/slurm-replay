@@ -1,5 +1,7 @@
 #!/bin/bash
 
+VERBOSE="-v"
+
 # replay user should be set as SlurmUser, SlurmdUser and AccountingStorageUser in the slurm.conf file
 REPLAY_USER=maximem
 
@@ -26,13 +28,12 @@ mkdir $SLURM_DIR/tmp/state
 mkdir $SLURM_DIR/tmp/slurmd
 mkdir $SLURM_DIR/tmp/archive
 
-
-slurmdbd -v
-sleep 5
+slurmdbd $VERBOSE
+sleep 1
 echo "done."
 
 echo -n  "Populating database... "
-sacctmgr -i add cluster daint >/dev/null
+sacctmgr -i add cluster Daint >/dev/null
 
 # accounts
 #while IFS= read -r line; do
@@ -56,4 +57,5 @@ else
     sacctmgr -i add user "$REPLAY_USER" Account=$(echo "$DAINT_ACCOUNTS" | tr -s "\n" ",") Cluster=daint >/dev/null
     mysqldump -u maximem slurm_acct_db daint_assoc_table > userreplay_assoc_tbl.sql
 fi
+sleep 5
 echo "done."
