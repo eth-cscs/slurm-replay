@@ -2,8 +2,8 @@
 #define _TRACE_H_
 
 
-#define TINYTEXT_SIZE 64
-#define TEXT_SIZE 4096
+#define TINYTEXT_SIZE 32
+#define TEXT_SIZE 1512
 
 typedef struct job_trace {
     char account[TINYTEXT_SIZE];
@@ -14,6 +14,7 @@ typedef struct job_trace {
     int id_qos;
     int id_user;
     int id_group;
+    char resv_name[TINYTEXT_SIZE];
     unsigned long mem_req;
     char nodelist[TEXT_SIZE];
     int nodes_alloc;
@@ -29,15 +30,22 @@ typedef struct job_trace {
     char gres_req[TEXT_SIZE];
     char gres_alloc[TEXT_SIZE];
     char tres_req[TEXT_SIZE];
-    struct job_trace *next;
 } job_trace_t;
 
-typedef struct rsv_trace {
-    long int           creation_time;
-    char *             rsv_command;
-    struct rsv_trace * next;
-} rsv_trace_t;
+typedef struct node_trace {
+    unsigned long time_start;
+    unsigned long time_end;
+    char node_name[TINYTEXT_SIZE];
+} node_trace_t;
 
-
+typedef struct resv_trace {
+    int id_resv;
+    unsigned long time_start;
+    unsigned long time_end;
+    char nodelist[TEXT_SIZE];
+    char resv_name[TEXT_SIZE];
+    char accts[TEXT_SIZE];
+    int flags;
+} resv_trace_t;
 
 #endif

@@ -123,7 +123,7 @@ int main(int argc, char *argv[])
         tmp_time = get_shmemclock();
         strftime(strstart_time, sizeof(strstart_time), "%Y-%m-%d %H:%M:%S", localtime(&tmp_time));
         strftime(strend_time, sizeof(strend_time), "%Y-%m-%d %H:%M:%S", localtime(&endtime_evt));
-        printf("Clock: start='%s', end='%s', duration=%ld[s], rate=%.5f[s] for 1 replayed second\n",strstart_time, strend_time, endtime_evt-tmp_time, rate/tick);
+        printf("Clock: start='%s|%d', end='%s|%d', duration=%ld[s], rate=%.5f[s] for 1 replayed second\n",strstart_time, tmp_time, strend_time, endtime_evt, endtime_evt-tmp_time, rate/tick);
         while(get_shmemclock() < endtime_evt) {
             usleep(one_second*rate);
             incr_shmemclock(tick);

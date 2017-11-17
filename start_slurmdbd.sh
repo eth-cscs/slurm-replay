@@ -36,7 +36,7 @@ echo -n  "Populating database... "
 sacctmgr -i add cluster Daint >/dev/null
 
 # Command to obtain data:
-# mysqldump -u test -p slurmdbd_test acct_table acct_coord_table qos_table tres_table user_table daint_assoc_table daint_resv_table > slurmdb_tbl.sql
+# mysqldump -u test -p slurmdbd_test acct_table acct_coord_table qos_table tres_table user_table daint_assoc_table > slurmdb_tbl.sql
 mysql -u root slurm_acct_db < slurmdb_tbl.sql
 
 if [ -f "userreplay_assoc_tbl.sql" ]; then

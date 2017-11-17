@@ -3,7 +3,8 @@
 # compiler flags
 CC := gcc
 CXX := g++
-CCFLAGS := -O0 -g -fPIC
+#CCFLAGS := -O0 -g -fPIC
+CCFLAGS := -O2 -fPIC
 LDFLAGS := -shared
 LIBRARIES := -lstdc++
 INCLUDES := -I.

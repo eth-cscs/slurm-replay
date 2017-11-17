@@ -41,20 +41,26 @@ echo
 echo -n "Start submitter... "
 rm -f submitter.log
 submitter -w "$WORKLOAD" -t template.script
+sleep 3
 echo "done."
 
+echo
+echo "Reservations:"
+LD_PRELOAD=libwtime.so scontrol -o show reservation
+echo
+
 # Make time progress at a faster rate
-RATE="0.01"
-TICK="2"
+RATE="0.1"
+TICK="1"
 DURATION=$(( $END_TIME - $START_TIME ))
 END_REPLAY=$( echo "$DURATION*($RATE/$TICK)" | bc -l)
 echo "Replay ends at $(date --date="${END_REPLAY%.*} seconds")"
 
 ticker -c "$END_TIME,$RATE,$TICK"
 
-
+date
 echo -n "Collecting data... "
 # get the replay trace
 query=$(trace_list -w $WORKLOAD -q | head -n 1)
-trace_builder_mysql -f "replay.$WORKLOAD" -u "maximem" -p "" -h "localhost" -d "slurm_acct_db" -q "$query"
+trace_builder_mysql -f "replay.$WORKLOAD" -u "maximem" -p "" -h "localhost" -d "slurm_acct_db" -q "$query" -t daint_job_table -r daint_resv_table
 echo "done."

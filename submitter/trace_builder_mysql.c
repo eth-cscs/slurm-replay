@@ -3,14 +3,23 @@
 #include <mysql/mysql.h>
 #include <fcntl.h>
 #include <string.h>
-#include "trace.h"
-#include <ctype.h>
 #include <unistd.h>
 #include <getopt.h>
-#include <pwd.h>
 
-#define DEFAULT_START_TIMESTAMP 1420066800
-static const char DEFAULT_START[] = "2015-01-01 00:00:00";
+#include "trace.h"
+
+char *endtime = NULL;
+char *filename = NULL;
+char *host = NULL;
+char *dbname = NULL;
+char *starttime = NULL;
+char *job_table = NULL;
+char *resv_table = NULL;
+char *assoc_table = NULL;
+char *user = NULL;
+char *password;
+char *query = NULL;
+static int use_query = 0;
 
 
 void finish_with_error(MYSQL *con)
@@ -24,123 +33,127 @@ void print_usage()
 {
     printf("\
 Usage: mysql_trace_builder [OPTIONS]\n\
-    -s, --starttime time            Start selecting jobs from this time\n\
-                                    format: \"yyyy-MM-DD hh:mm:ss\"\n\
-    -e, --endtime   time            Stop selecting jobs at this time\n\
-                                    format: \"yyyy-MM-DD hh:mm:ss\"\n\
-    -d, --dbname    db_name         Name of the database\n\
-    -h, --host      db_hostname     Name of machine hosting MySQL DB\n\
-    -u, --user      dbuser          Name of user with which to establish a\n\
-                                    connection to the DB\n\
-    -p, --password  password        Password to connect to the db\n\
-    -t, --table     db_table        Name of the MySQL table to query\n\
-    -v, --verbose                   Increase verbosity of the messages\n\
-    -f, --file      filename        Name of the output trace file being created\n\
-    -q, --query     query           Use a SQL query to retrieve the data\n\
-    -?, --help                      This help message\n\n\
+    -s, --starttime  time            Start selecting jobs from this time\n\
+                                     format: \"yyyy-MM-DD hh:mm:ss\"\n\
+    -e, --endtime    time            Stop selecting jobs at this time\n\
+                                     format: \"yyyy-MM-DD hh:mm:ss\"\n\
+    -d, --dbname     db_name         Name of the database\n\
+    -h, --host       db_hostname     Name of machine hosting MySQL DB\n\
+    -u, --user       dbuser          Name of user with which to establish a\n\
+                                     connection to the DB\n\
+    -p, --password   password        Password to connect to the db\n\
+    -t, --job_table  db_job_table    Name of the MySQL table to query to obtain job information\n\
+    -r, --resv_table db_resv_table   Name of the MySQL table to query to obtain reservation infomartion\n\
+    -a, --assoc_table db_assoc_table   Name of the MySQL table to query to obtain associationss infomartion\n\
+    -v, --verbose                    Increase verbosity of the messages\n\
+    -f, --file       filename        Name of the output trace file being created\n\
+    -q, --query      query           Use a SQL query to retrieve the data\n\
+    -?, --help                       This help message\n\n\
 ");
 }
 
-int
-main(int argc, char **argv)
+static void
+get_args(int argc, char** argv)
 {
+    static struct option long_options[] = {
+        {"endtime", required_argument, 0, 'e'},
+        {"file", required_argument, 0, 'f'},
+        {"host", required_argument, 0, 'h'},
+        {"dbname", required_argument, 0, 'd'},
+        {"help", no_argument,   0, '?'},
+        {"password", required_argument,   0, 'p'},
+        {"query", required_argument,   0, 'q'},
+        {"starttime", required_argument, 0, 's'},
+        {"job_table", required_argument, 0, 't'},
+        {"resv_table", required_argument, 0, 'r'},
+        {"assoc_table", required_argument, 0, 'a'},
+        {"user", required_argument, 0, 'u'},
+        {0, 0, 0, 0}
+    };
+    int opt_char, option_index;
 
-    int i,c,written;
-    unsigned long njobs = 0;
-    int trace_file;
-    int use_query = 0;
-    char year[4], month[2], day[2], hours[2], minutes[2], seconds[2];
-
-    char *endtime = NULL;
-    char *filename = NULL;
-    char *host = NULL;
-    char *dbname = NULL;
-    char *starttime = NULL;
-    char *table = NULL;
-    char *user = NULL;
-    char *query = NULL;
-    char *password;
-
-    MYSQL *conn;
-    MYSQL_RES *res;
-    MYSQL_ROW row;
-    size_t query_length;
-    job_trace_t new_trace;
-
-
-    while(1) { 
-        static struct option long_options[] = {
-            {"endtime", required_argument, 0, 'e'},
-            {"file", required_argument, 0, 'f'},
-            {"host", required_argument, 0, 'h'},
-            {"dbname", required_argument, 0, 'd'},
-            {"help", no_argument,   0, '?'},
-            {"password", required_argument,   0, 'p'},
-            {"query", required_argument,   0, 'q'},
-            {"starttime", required_argument, 0, 's'},
-            {"table", required_argument, 0, 't'},
-            {"user", required_argument, 0, 'u'},
-            {0, 0, 0, 0}
-        }; 
-
-        /* getopt_long stores the option index here. */
-        int option_index = 0;
-        c = getopt_long (argc, argv, "d:e:f:h:?s:t:u:pq:",long_options,
-                         &option_index);
-
-        /* Detect the end of the options. */
-        if (c == -1) break;
-
-        switch (c) {
-        case 'p':
-            password = optarg;
+    while(1) {
+        if ((opt_char = getopt_long(argc, argv, "d:e:f:h:?s:t:r:u:p:q:a:", long_options, &option_index)) == -1 )
             break;
-        case 'q':
+        switch  (opt_char) {
+        case ('p'):
+            password = strdup(optarg);
+            break;
+        case ('q'):
             use_query = 1;
             query = optarg;
             break;
-        case 'e':
+        case ('e'):
             endtime = optarg;
             break;
-        case 'f':
+        case ('f'):
             filename = optarg;
             break;
-        case 'h':
+        case ('h'):
             host = optarg;
             break;
-        case 'd':
+        case ('d'):
             dbname = optarg;
             break;
-        case '?':
+        case ('?'):
             print_usage();
             exit(0);
-        case 's':
+        case ('s'):
             starttime = optarg;
             break;
-        case 't':
-            table = optarg;
+        case ('t'):
+            job_table = optarg;
             break;
-        case 'u':
+        case ('r'):
+            resv_table = optarg;
+            break;
+        case ('a'):
+            assoc_table = optarg;
+            break;
+        case ('u'):
             user = optarg;
             break;
-        default:
-            print_usage();
-            abort ();
-        }
-    } /* while */
+        };
+    }
+}
 
-    if ((user == NULL) || (host == NULL) || (dbname == NULL) || (filename == NULL)) {
+int main(int argc, char **argv)
+{
+
+    int c,written;
+    int trace_file;
+    char year[4], month[2], day[2], hours[2], minutes[2], seconds[2];
+
+    size_t query_length;
+    unsigned int num_fields;
+    unsigned long long num_rows;
+
+    MYSQL *conn;
+    MYSQL_RES *result_job;
+    MYSQL_RES *result_resv;
+    MYSQL_ROW row;
+    job_trace_t job_trace;
+    resv_trace_t resv_trace;
+
+    get_args(argc, argv);
+
+    if ((user == NULL) || (host == NULL) || (dbname == NULL) || (filename == NULL) || (job_table == NULL) || (resv_table== NULL)) {
         printf("user, host, dbname and trace file name cannot be NULL!\n");
         print_usage();
         exit(-1);
+    }
+
+    conn = mysql_init(NULL);
+    if (!mysql_real_connect(conn, host, user, password, dbname, 0, NULL, 0)) {
+        finish_with_error(conn);
     }
 
     if (!use_query) {
         query = malloc(1024*sizeof(char));
 
         /*validate input parameter to build the query*/
-        if ((endtime == NULL) || (starttime == NULL) || (table == NULL)) {
-            printf("endtime, starttime and table cannot be NULL!\n");
+        if ((endtime == NULL) || (starttime == NULL) || (job_table == NULL)) {
+            printf("endtime, starttime and job table cannot be NULL!\n");
             print_usage();
             exit(-1);
         }
@@ -160,30 +173,26 @@ main(int argc, char **argv)
             exit(-1);
         }
         snprintf(query, 1024*sizeof(char), "SELECT t.account, t.cpus_req, t.exit_code, t.job_name, "
-                 "t.id_job, t.id_user, t.id_group, t.mem_req, t.nodelist, t.nodes_alloc, t.partition, t.priority, t.state, "
-                 "t.timelimit, t.time_submit, t.time_eligible, t.time_start, t.time_end, t.time_suspended, t.gres_req, t.gres_alloc, t.tres_req "
-                 "FROM %s as t "
+                 "t.id_job, t.id_user, t.id_group, r.resv_name, t.mem_req, t.nodelist, t.nodes_alloc, t.partition, t.priority, t.state, "
+                 "t.timelimit, t.time_submit, t.time_eligible, t.time_start, t.time_end, t.time_suspended, "
+                 "t.gres_req, t.gres_alloc, t.tres_req "
+                 "FROM %s as t LEFT JOIN %s as r ON t.id_resv = r.id_resv "
                  "WHERE FROM_UNIXTIME(t.time_submit) BETWEEN '%s' AND '%s' AND "
-                 "t.time_end > 0 AND t.nodes_alloc > 0 AND t.partition='normal'", table, starttime, endtime);
+                 "t.time_end > 0 AND t.nodes_alloc > 0 AND t.partition='normal'", job_table, resv_table, starttime, endtime);
     }
     printf("\nQuery --> %s\n\n", query);
-
-    conn = mysql_init(NULL);
-
-    if (!mysql_real_connect(conn, host, user, password, dbname, 0, NULL, 0)) {
-        finish_with_error(conn);
-    }
 
     if (mysql_query(conn, query)) {
         finish_with_error(conn);
     }
-    res = mysql_store_result(conn);
+    result_job = mysql_store_result(conn);
 
-    if (res == NULL) {
+    if (result_job == NULL) {
         finish_with_error(conn);
     }
 
-    int num_fields = mysql_num_fields(res);
+    num_fields = mysql_num_fields(result_job);
+    num_rows = mysql_num_rows(result_job);
 
     /* writing results to file */
     if((trace_file = open(filename, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR |
@@ -197,54 +206,96 @@ main(int argc, char **argv)
     write(trace_file, &query_length, sizeof(size_t));
     write(trace_file, query, query_length*sizeof(char));
 
-    while ((row = mysql_fetch_row(res))) {
+    write(trace_file, &num_rows, sizeof(unsigned long long));
+
+    while ((row = mysql_fetch_row(result_job))) {
 
         /*for( i = 0; i < num_fields; i++) {
             printf("%s ", row[i] ? row[i] : "NULL");
         }
         printf("\n");*/
-        njobs++;
 
-        sprintf(new_trace.account, "%s", row[0]);
-        new_trace.cpus_req = atoi(row[1]);
-        new_trace.exit_code = atoi(row[2]);
-        sprintf(new_trace.job_name, "%s", row[3]);
-        new_trace.id_job = atoi(row[4]);
-        new_trace.id_user = atoi(row[5]);
-        new_trace.id_group = atoi(row[6]);
-        new_trace.mem_req = strtoul(row[7], NULL, 0);
-        sprintf(new_trace.nodelist, "%s", row[8]);
-        new_trace.nodes_alloc = atoi(row[9]);
-        sprintf(new_trace.partition, "%s", row[10]);
-        new_trace.priority = atoi(row[11]);
-        new_trace.state = atoi(row[12]);
-        new_trace.timelimit = atoi(row[13]);
-        new_trace.time_submit = strtoul(row[14], NULL, 0);
-        new_trace.time_eligible = strtoul(row[15], NULL, 0);
-        new_trace.time_start = strtoul(row[16], NULL, 0);
-        new_trace.time_end = strtoul(row[17], NULL, 0);
-        new_trace.time_suspended = strtoul(row[18], NULL, 0);
-        sprintf(new_trace.gres_req, "%s", row[19]);
-        sprintf(new_trace.gres_alloc, "%s", row[20]);
-        sprintf(new_trace.tres_req, "%s", row[21]);
+        sprintf(job_trace.account, "%s", row[0]);
+        job_trace.cpus_req = atoi(row[1]);
+        job_trace.exit_code = atoi(row[2]);
+        sprintf(job_trace.job_name, "%s", row[3]);
+        job_trace.id_job = atoi(row[4]);
+        job_trace.id_user = atoi(row[5]);
+        job_trace.id_group = atoi(row[6]);
+        if (row[7] != NULL) {
+            sprintf(job_trace.resv_name, "%s", row[7]);
+        } else {
+            job_trace.resv_name[0] = '\0';;
+        }
+        job_trace.mem_req = strtoul(row[8], NULL, 0);
+        sprintf(job_trace.nodelist, "%s", row[9]);
+        job_trace.nodes_alloc = atoi(row[10]);
+        sprintf(job_trace.partition, "%s", row[11]);
+        job_trace.priority = atoi(row[12]);
+        job_trace.state = atoi(row[13]);
+        job_trace.timelimit = atoi(row[14]);
+        job_trace.time_submit = strtoul(row[15], NULL, 0);
+        job_trace.time_eligible = strtoul(row[16], NULL, 0);
+        job_trace.time_start = strtoul(row[17], NULL, 0);
+        job_trace.time_end = strtoul(row[18], NULL, 0);
+        job_trace.time_suspended = strtoul(row[19], NULL, 0);
+        sprintf(job_trace.gres_req, "%s", row[20]);
+        sprintf(job_trace.gres_alloc, "%s", row[21]);
+        sprintf(job_trace.tres_req, "%s", row[22]);
 
-        written = write(trace_file, &new_trace, sizeof(new_trace));
-        if(written != sizeof(new_trace)) {
-            printf("Error writing to file: %d of %ld\n", written,
-                   sizeof(new_trace));
+        written = write(trace_file, &job_trace, sizeof(job_trace_t));
+        if(written != sizeof(job_trace_t)) {
+            printf("Error writing to file: %d of %ld\n", written, sizeof(job_trace_t));
             exit(-1);
         }
 
     }
 
-    printf("\nSuccessfully written file %s : Total number of jobs = %ld\n", filename, njobs);
-
-    /* close connection */
-    mysql_free_result(res);
-    mysql_close(conn);
+    printf("\nSuccessfully written file %s : Total number of jobs = %ld\n", filename, num_rows);
+    mysql_free_result(result_job);
     if (!use_query) {
         free(query);
     }
 
+    // process reservation data
+    if (!use_query && resv_table != NULL && assoc_table != NULL) {
+        snprintf(query, 1024*sizeof(char), "SELECT r.id_resv, r.time_start, r.time_end, r.nodelist, r.resv_name, GROUP_CONCAT(DISTINCT a.acct), r.flags "
+                 "FROM %s AS r INNER JOIN %s AS a ON FIND_IN_SET(a.id_assoc,r.assoclist) "
+                 "WHERE FROM_UNIXTIME(r.time_start) BETWEEN '%s' AND '%s' GROUP BY r.id_resv", resv_table, assoc_table, starttime, endtime);
+
+        if (mysql_query(conn, query)) {
+            finish_with_error(conn);
+        }
+
+        result_resv = mysql_store_result(conn);
+        if (result_resv == NULL) {
+            finish_with_error(conn);
+        }
+
+        num_rows = mysql_num_rows(result_resv);
+        write(trace_file, &num_rows, sizeof(unsigned long long));
+
+        while ((row = mysql_fetch_row(result_resv))) {
+
+            resv_trace.id_resv = atoi(row[0]);
+            resv_trace.time_start = strtoul(row[1], NULL, 0);
+            resv_trace.time_end = strtoul(row[2], NULL, 0);
+            sprintf(resv_trace.nodelist, "%s", row[3]);
+            sprintf(resv_trace.resv_name, "%s", row[4]);
+            sprintf(resv_trace.accts, "%s", row[5]);
+            resv_trace.flags = atoi(row[6]);
+
+            written = write(trace_file, &resv_trace, sizeof(resv_trace_t));
+            if(written != sizeof(resv_trace_t)) {
+                printf("Error writing to file: %d of %ld\n", written, sizeof(resv_trace_t));
+                exit(-1);
+            }
+        }
+        mysql_free_result(result_resv);
+        printf("\nSuccessfully written file %s : Total number of reservationss = %ld\n", filename, num_rows);
+    }
+
+
+    mysql_close(conn);
     exit(0);
 }

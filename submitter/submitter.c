@@ -4,9 +4,9 @@
 #include <assert.h>
 
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <fcntl.h>
 
-#include <sys/types.h>
 #include <pwd.h>
 
 #include <string.h>
@@ -22,11 +22,13 @@ uid_t userid = 0;
 uid_t groupid = 0;
 char *workload_filename = NULL;
 job_trace_t* job_arr;
-unsigned long njobs = 0;
+resv_trace_t* resv_arr;
+unsigned long long njobs = 0;
+unsigned long long nresvs = 0;
 static int daemon_flag = 1;
+char *global_envp[100];
 
-static void
-print_job_specs(job_desc_msg_t* dmesg)
+static void print_job_specs(job_desc_msg_t* dmesg)
 {
     fprintf(logger, "\tdmesg->job_id: %d\n", dmesg->job_id);
     fprintf(logger, "\t\tdmesg->time_limit: %d\n", dmesg->time_limit);
@@ -39,12 +41,8 @@ print_job_specs(job_desc_msg_t* dmesg)
     fprintf(logger, "\t\tdmesg->partition: (%s)\n", dmesg->partition);
     fprintf(logger, "\t\tdmesg->min_nodes: %d\n", dmesg->min_nodes);
     fprintf(logger, "\t\tdmesg->features: (%s)\n", dmesg->features);
-//    fprintf(logger, "\t\tdmesg->reservation: (%s)\n", dmesg->reservation);
+    fprintf(logger, "\t\tdmesg->reservation: (%s)\n", dmesg->reservation);
 //    fprintf(logger, "\t\tdmesg->dependency: (%s)\n", dmesg->dependency);
-//    fprintf(logger, "\t\tdmesg->num_tasks: %d\n", dmesg->num_tasks);
-//    fprintf(logger, "\t\tdmesg->min_cpus: %d\n", dmesg->min_cpus);
-//    fprintf(logger, "\t\tdmesg->cpus_per_task: %d\n", dmesg->cpus_per_task);
-//    fprintf(logger, "\t\tdmesg->ntasks_per_node: %d\n", dmesg->ntasks_per_node);
     fprintf(logger, "\t\tdmesg->env_size: %d\n", dmesg->env_size);
     fprintf(logger, "\t\tdmesg->environment[0]: (%s)\n", dmesg->environment[0]);
     fprintf(logger, "\t\tdmesg->script: (%s)\n", dmesg->script);
@@ -138,8 +136,7 @@ static void userids_from_name()
 }
 
 
-static int
-create_and_submit_job(job_trace_t jobd)
+static int create_and_submit_job(job_trace_t jobd)
 {
     job_desc_msg_t dmesg;
     submit_response_msg_t * respMsg = NULL;
@@ -169,8 +166,6 @@ create_and_submit_job(job_trace_t jobd)
     dmesg.qos = strdup("normal");
     dmesg.partition = strdup(jobd.partition);
 
-    //dmesg.priority = jobd.priority;
-
     dmesg.min_nodes = jobd.nodes_alloc;
     // check if string starts with "gpu:0" meaning using constriant mc
     if (strncmp("gpu:0", jobd.gres_alloc, 5)) {
@@ -183,10 +178,9 @@ create_and_submit_job(job_trace_t jobd)
     dmesg.environment[0] = strdup("HOME=/home/maximem");
     dmesg.env_size = 1;
 
-    //TODO there is no reservation field anymore
-    //dmesg.reservation   = strdup(jobd.reservation);
+    dmesg.reservation   = strdup(jobd.resv_name);
 
-    //TODO there is no dependency field
+    //TODO dependency
     //dmesg.dependency    = strdup(jobd.dependency);
     //dmesg.dependency    = NULL;
 
@@ -226,7 +220,7 @@ create_and_submit_job(job_trace_t jobd)
 static void submit_jobs()
 {
     time_t current_time = 0;
-    unsigned long k = 0;
+    unsigned long long k = 0;
 
     current_time= get_shmemclock();
 
@@ -243,6 +237,133 @@ static void submit_jobs()
         k++;
     }
 }
+
+static int create_and_submit_resv(resv_trace_t resvd)
+{
+    resv_desc_msg_t dmesg;
+    char *output_name;
+    int res;
+
+    dmesg.accounts = strdup(resvd.accts);
+    dmesg.end_time = resvd.time_end;
+    dmesg.flags = resvd.flags;
+    dmesg.name = strdup(resvd.resv_name);
+    dmesg.node_list = strdup(resvd.nodelist);
+    dmesg.partition = strdup("normal");
+    dmesg.start_time = resvd.time_start;
+
+    output_name = slurm_create_reservation(&dmesg);
+    if (output_name == NULL) {
+        res = slurm_update_reservation(&dmesg);
+        if ( res != 0) {
+            fprintf(logger,"Error: slurm_create_reservation and slurm_update_reservation: %s\n", slurm_strerror(res));
+        } else {
+            fprintf(logger, "Update reservation: %s\n",output_name);
+        }
+    } else {
+        fprintf(logger, "Reservation created: %s\n",output_name);
+    }
+    fflush(logger);
+
+    if (dmesg.accounts) free(dmesg.accounts);
+    if (dmesg.name) free(dmesg.name);
+    if (dmesg.node_list) free(dmesg.node_list);
+    if (dmesg.partition) free(dmesg.partition);
+    if (output_name) free(output_name);
+}
+
+// no need to call Slurm RPC, all reservations are set before the clock spins
+static int create_and_submit_resv_norpc(resv_trace_t resvd)
+{
+    resv_desc_msg_t dmesg;
+    char command[2048];
+    char strtime_start[20];
+    char strtime_end[20];
+    int exec_result, child;
+    char flags[1024];
+    flags[0]='\0';
+
+    strftime(strtime_start, sizeof(strtime_start), "%Y-%m-%d %H:%M:%S", localtime(&resvd.time_start));
+    strftime(strtime_end, sizeof(strtime_end), "%Y-%m-%d %H:%M:%S", localtime(&resvd.time_end));
+
+    if (resvd.flags & RESERVE_FLAG_MAINT) {
+        strcat(flags,"MAINT,");
+    }
+    if (resvd.flags & RESERVE_FLAG_DAILY) {
+        strcat(flags,"DAILY,");
+    }
+    if (resvd.flags & RESERVE_FLAG_WEEKLY) {
+        strcat(flags,"WEEKLY,");
+    }
+    if (resvd.flags & RESERVE_FLAG_IGN_JOBS) {
+        strcat(flags,"IGNORE_JOBS,");
+    }
+    if (resvd.flags & RESERVE_FLAG_ANY_NODES) {
+        strcat(flags,"ANY_NODES,");
+    }
+    if (resvd.flags & RESERVE_FLAG_STATIC) {
+        strcat(flags,"STATIC_ALLOC,");
+    }
+    if (resvd.flags & RESERVE_FLAG_PART_NODES) {
+        strcat(flags,"PART_NODES,");
+    }
+    if (resvd.flags & RESERVE_FLAG_OVERLAP) {
+        strcat(flags,"OVERLAP,");
+    }
+//    if (resvd.flags & RESERVE_FLAG_SPEC_NODES) {
+//        strcat(flags,"SPEC_NODES,");
+//    }
+    if (resvd.flags & RESERVE_FLAG_FIRST_CORES) {
+        strcat(flags,"FIRST_CORES,");
+    }
+    if (resvd.flags & RESERVE_FLAG_TIME_FLOAT) {
+        strcat(flags,"TIME_FLOAT,");
+    }
+    if (resvd.flags & RESERVE_FLAG_REPLACE) {
+        strcat(flags,"REPLACE,");
+    }
+    if (resvd.flags & RESERVE_FLAG_PURGE_COMP) {
+        strcat(flags,"PURGE_COMP,");
+    }
+    if (strlen(flags) > 0) {
+        flags[strlen(flags)-1]='\0';
+    }
+
+    sprintf(command, "scontrol create reservation='%s' "
+            "starttime='%s' endtime='%s' nodes='%s' flags='%s' accounts='%s' partitionname='normal'",
+            resvd.resv_name, strtime_start, strtime_end, resvd.nodelist, flags, resvd.accts);
+    child = fork();
+    if(child == 0) { /* the child */
+        if(execve(command, NULL, global_envp) < 0) {
+            fprintf(logger,"Error in execve commad %s\n", command);
+            fflush(logger);
+        }
+    }
+
+    waitpid(child, &exec_result, 0);
+    if(exec_result == 0) {
+        fprintf(logger,"Reservation %s created.\n", resvd.resv_name);
+        fflush(logger);
+        return 0;
+    }
+
+    fprintf(logger,"Error creating reservation %s.\n", resvd.resv_name);
+    fflush(logger);
+
+    return -1;
+}
+
+static void submit_reservations()
+{
+    unsigned long long k = 0;
+    while( k < nresvs ) {
+        fprintf(logger, "[%d] Submitting reservation: time %lu | name %s\n", k, resv_arr[k].time_start, resv_arr[k].resv_name);
+        fflush(logger);
+        create_and_submit_resv(resv_arr[k]);
+        k++;
+    }
+}
+
 
 static int read_job_trace(const char* trace_file_name)
 {
@@ -261,21 +382,26 @@ static int read_job_trace(const char* trace_file_name)
     read(trace_file, &query_length, sizeof(size_t));
     read(trace_file, query, query_length*sizeof(char));
 
-    fstat(trace_file, &stat_buf);
-    nrecs = (stat_buf.st_size-sizeof(size_t)-query_length*sizeof(char)) / sizeof(job_trace_t);
+    read(trace_file, &njobs, sizeof(unsigned long long));
 
-    job_arr = (job_trace_t*)malloc(sizeof(job_trace_t)*nrecs);
+    job_arr = (job_trace_t*)malloc(sizeof(job_trace_t)*njobs);
     if (!job_arr) {
-        printf("Error.  Unable to allocate memory for all job records.\n");
+        printf("Error: unable to allocate memory for all job records.\n");
         return -1;
     }
-    njobs = nrecs;
+    read(trace_file, job_arr, sizeof(job_trace_t)*njobs);
+    fprintf(logger,"Total job records: %lu, start time %lu\n", njobs, job_arr[0].time_submit);
+    fflush(logger);
 
-    while (read(trace_file, &job_arr[idx], sizeof(job_trace_t))) {
-        ++idx;
+
+    read(trace_file, &nresvs, sizeof(unsigned long long));
+    resv_arr = (resv_trace_t*)malloc(sizeof(resv_trace_t)*nresvs);
+    if (!resv_arr) {
+        printf("Error: unable to allocate memory for all reservation records.\n");
+        return -1;
     }
-
-    fprintf(logger,"Trace initialization done. Total trace records: %lu. Start time %lu\n", njobs, job_arr[0].time_submit);
+    read(trace_file, resv_arr, sizeof(resv_trace_t)*nresvs);
+    fprintf(logger,"Total reservation records: %lu\n", nresvs);
     fflush(logger);
 
     close(trace_file);
@@ -295,8 +421,7 @@ submitter -w <workload_trace> -t <template_script>\n\
 
 
 
-static void
-get_args(int argc, char** argv)
+static void get_args(int argc, char** argv)
 {
     static struct option long_options[]  = {
         {"template", 1, 0, 't'},
@@ -366,11 +491,17 @@ void daemonize(int daemon_flag)
 }
 
 
-int main(int argc, char *argv[])
+int main(int argc, char *argv[], char *envp[])
 {
-    unsigned long k = 0;
+    int i;
 
     get_args(argc, argv);
+
+    i = 0;
+    while(envp[i]) {
+        global_envp[i] = envp[i];
+        i++;
+    }
 
     if ( workload_filename == NULL || tfile == NULL) {
         printf("Usage: %s\n", help_msg);
@@ -390,6 +521,9 @@ int main(int argc, char *argv[])
     open_rdonly_shmemclock();
 
     userids_from_name();
+
+    // Reservation are all submitted at once
+    submit_reservations();
 
     //Jobs are submit when the replayed time clock equal their submission time
     submit_jobs();
