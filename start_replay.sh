@@ -27,6 +27,10 @@ TIME_ENDPAD=60
 END_TIME="$(trace_list -n -w $1 | awk '{print $8;}' | sort -nr | head -n 1)"
 END_TIME="$(( $END_TIME + $TIME_ENDPAD ))"
 
+RATE="0.1"
+TICK="1"
+CLOCK_RATE=$(echo "$RATE*$TICK" | bc -l)
+
 # Add initial time
 ticker -s "$START_TIME"
 
@@ -40,15 +44,13 @@ echo
 
 echo -n "Start submitter... "
 rm -f submitter.log
-submitter -w "$WORKLOAD" -t template.script
+submitter -w "$WORKLOAD" -t template.script -r "$CLOCK_RATE"
 sleep 3
 echo "done."
 
 # Make time progress at a faster rate
-RATE="0.1"
-TICK="1"
 DURATION=$(( $END_TIME - $START_TIME ))
-END_REPLAY=$( echo "$DURATION*($RATE/$TICK)" | bc -l)
+END_REPLAY=$( echo "$DURATION*($CLOCK_RATE)" | bc -l)
 echo "Replay ends at $(date --date="${END_REPLAY%.*} seconds")"
 
 ticker -c "$END_TIME,$RATE,$TICK"

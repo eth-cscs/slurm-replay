@@ -41,7 +41,7 @@ job_runner.o: job_runner.c
 	$(CC) $(CCFLAGS) $(INCLUDES) -o $@ -c $<
 
 job_runner: job_runner.o
-	$(CC) $(LDFLAGS) $(LIB_SHMEMCLOCK) $(LIB_SLURM) -o $@ $+
+	$(CC) $(LDFLAGS) $(LIB_SHMEMCLOCK) $(LIB_SLURM) $(LIB_MATH) -o $@ $+
 
 trace_builder_mysql.o: trace_builder_mysql.c
 	$(CC) $(CCFLAGS) $(INCLUDES) -o $@ -c $<

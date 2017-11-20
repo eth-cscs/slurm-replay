@@ -2,9 +2,11 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <getopt.h>
+#include <math.h>
 
 
 #include "shmemclock.h"
+#define ONE_OVER_BILLION 1E-9
 
 char   help_msg[] = "\
 job_runner\n\
@@ -12,12 +14,16 @@ job_runner\n\
       -h, --help     This help message.\n\
       -j, --jobid      Job Id of the runner\n\
       -n, --nnodes     Number of nodes used by the runner\n\
+      -r, --clock_rate Rate of the simulated clock\n\
+      -i, --init_time  Time at which the script was created\n\
       -x, --exitcode   Exit code returned by the runner\n";
 
 int exitcode = 0;
 long int duration = 0;
 long int jobid = -1;
 int nnodes = 0;
+double init_time = 0.0;
+double clock_rate = 0.0;
 
 static void
 get_args(int argc, char** argv)
@@ -27,12 +33,14 @@ get_args(int argc, char** argv)
         {"help",    0, 0, 'h'},
         {"jobid",  1, 0, 'j'},
         {"nnodes",    1, 0, 'n'},
-        {"exitcode",    1, 0, 'x'}
+        {"exitcode",    1, 0, 'x'},
+        {"clock_rate",    1, 0, 'r'},
+        {"init_time",    1, 0, 'i'}
     };
     int opt_char, option_index;
 
     while (1) {
-        if ((opt_char = getopt_long(argc, argv, "d:hj:n:x:", long_options, &option_index)) == -1 )
+        if ((opt_char = getopt_long(argc, argv, "d:hj:n:x:r:i:", long_options, &option_index)) == -1 )
             break;
         switch(opt_char) {
         case ('d'):
@@ -50,6 +58,12 @@ get_args(int argc, char** argv)
         case ('x'):
             exitcode = atoi(optarg);
             break;
+        case ('i'):
+            init_time = strtod(optarg,NULL);
+            break;
+        case ('r'):
+            clock_rate = strtod(optarg,NULL);
+            break;
         };
     }
 }
@@ -59,6 +73,11 @@ int main(int argc, char *argv[])
     time_t cur_time, end_time,start_time;
     char strstart_time[20];
     char strend_time[20];
+    double time_nsec;
+    const int sleep_pad = 5;
+    struct timespec tv;
+    clock_gettime(CLOCK_REALTIME, &tv);
+    time_nsec = tv.tv_sec + tv.tv_nsec * ONE_OVER_BILLION;
 
     open_rdonly_shmemclock();
 
@@ -69,8 +88,15 @@ int main(int argc, char *argv[])
 
     strftime(strstart_time, sizeof(strstart_time), "%Y-%m-%d %H:%M:%S", localtime(&start_time));
     strftime(strend_time, sizeof(strend_time), "%Y-%m-%d %H:%M:%S", localtime(&end_time));
-    printf("Job %ld: %s -- %s -- %ld [s] -- %d nodes, exit=%d\n",jobid, strstart_time, strend_time, duration, nnodes, exitcode );
+    printf("Job %ld: %s -- %s -- %ld [s] -- %d nodes, exit=%d, delta_time=%.6f, clock_rate=%f\n",jobid, strstart_time, strend_time, duration, nnodes, exitcode, time_nsec-init_time, clock_rate );
 
+    // sleep long
+    if (duration*clock_rate > sleep_pad) {
+        printf("Long sleep: %d[s]\n", (int)(floor(duration*clock_rate))-sleep_pad);
+        sleep(floor(duration*clock_rate)-sleep_pad);
+    }
+
+    // near the end of duration
     while(cur_time < end_time) {
         usleep(500);
         cur_time = get_shmemclock();

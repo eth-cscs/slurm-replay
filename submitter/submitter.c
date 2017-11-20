@@ -16,6 +16,7 @@
 
 #include "trace.h"
 #include "shmemclock.h"
+#define ONE_OVER_BILLION 1E-9
 
 FILE *logger = NULL;
 char *tfile = NULL;
@@ -29,6 +30,7 @@ unsigned long long njobs = 0;
 unsigned long long nresvs = 0;
 static int daemon_flag = 1;
 char *global_envp[100];
+double clock_rate = 0.0;
 
 static void log_string(const char* type, char* msg) {
    char log_time[32];
@@ -37,7 +39,7 @@ static void log_string(const char* type, char* msg) {
 
    localtime_r(&t, &timestamp_tm);
    strftime(log_time, 32, "%Y-%m-%dT%T", &timestamp_tm);
-   fprintf(logger,"[%s] %s: %s\n", log_time, type, msg);
+   fprintf(logger,"[%s.000] %s: %s\n", log_time, type, msg);
    fflush(logger);
 }
 
@@ -87,6 +89,8 @@ static void create_script(char* script, int nodes, int tasks, long int jobid, lo
     char val[64];
     size_t len = 0;
     size_t read, k, j, i = 0;
+    struct timespec tv;
+    double time_nsec;
 
     fp = fopen(tfile,"r");
     if (fp == NULL) {
@@ -126,6 +130,14 @@ static void create_script(char* script, int nodes, int tasks, long int jobid, lo
                 }
                 if(strcmp(token,"EXIT_CODE")==0) {
                     sprintf(val,"%d",exitcode);
+                }
+                if(strcmp(token,"CLOCK_RATE")==0) {
+                    sprintf(val,"%f",clock_rate);
+                }
+                if(strcmp(token,"INIT_TIME")==0) {
+                    clock_gettime(CLOCK_REALTIME, &tv);
+                    time_nsec = tv.tv_sec + tv.tv_nsec * ONE_OVER_BILLION;
+                    sprintf(val,"%f",time_nsec);
                 }
                 for(j = 0; j < strlen(val); j++,i++) {
                     script[i] = val[j];
@@ -219,7 +231,7 @@ static int create_and_submit_job(job_trace_t jobd)
     //print_job_specs(&dmesg);
 
     if ( rv = slurm_submit_batch_job(&dmesg, &respMsg) ) {
-        log_error("slurm_submit_batch_job: %s", slurm_strerror(rv));
+        log_error("%d slurm_submit_batch_job: %s", dmesg.job_id, slurm_strerror(rv));
     }
 
     if (respMsg) {
@@ -243,26 +255,6 @@ static int create_and_submit_job(job_trace_t jobd)
 }
 
 
-static void submit_jobs()
-{
-    time_t current_time = 0;
-    unsigned long long k = 0;
-
-    current_time= get_shmemclock();
-
-    while( k < njobs ) {
-        // wait for submission time of next job
-        while(current_time < job_arr[k].time_submit) {
-            current_time= get_shmemclock();
-            usleep(500);
-        }
-
-        //log_info("submitting %d job: time %lu | id %d", k, job_arr[k].time_submit, job_arr[k].id_job);
-        create_and_submit_job(job_arr[k]);
-        k++;
-    }
-}
-
 static int create_and_submit_resv(resv_trace_t resvd)
 {
     resv_desc_msg_t dmesg;
@@ -281,7 +273,7 @@ static int create_and_submit_resv(resv_trace_t resvd)
     if (output_name == NULL) {
         res = slurm_update_reservation(&dmesg);
         if ( res != 0) {
-            log_error("slurm_create_reservation and slurm_update_reservation: %s", slurm_strerror(res));
+            log_error("%d slurm_create_reservation and slurm_update_reservation: %s", resvd.id_resv, slurm_strerror(res));
         } else {
             log_info("updated reservation: %s",output_name);
         }
@@ -296,15 +288,43 @@ static int create_and_submit_resv(resv_trace_t resvd)
     if (output_name) free(output_name);
 }
 
-static void submit_reservations()
+/*static void submit_reservations()
 {
     unsigned long long k = 0;
     while( k < nresvs ) {
-        log_info("submitting %d reservation: time %lu | name %s", k, resv_arr[k].time_start, resv_arr[k].resv_name);
         create_and_submit_resv(resv_arr[k]);
         k++;
     }
+}*/
+
+static void submit_jobs_and_reservations()
+{
+    time_t current_time = 0;
+    unsigned long long kj = 0, kr = 0;
+    const int resv_pad = 5; // let slurm the time to create the reservation before its time_start
+
+    current_time= get_shmemclock();
+
+    while( kj < njobs || kr < nresvs ) {
+        // wait for submission time of next job
+        while(current_time < job_arr[kj].time_submit && current_time < resv_arr[kr].time_start-5 ) {
+            current_time= get_shmemclock();
+            usleep(500);
+        }
+
+        if (current_time >= job_arr[kj].time_submit) {
+           //log_info("submitting %d job: time %lu | id %d", k, job_arr[k].time_submit, job_arr[k].id_job);
+           create_and_submit_job(job_arr[kj]);
+           kj++;
+        }
+        if (current_time >= resv_arr[kr].time_start-5) {
+           //log_info("submitting %d reservation: time %lu | name %s", k, resv_arr[k].time_start, resv_arr[k].resv_name);
+           create_and_submit_resv(resv_arr[kr]);
+           kr++;
+        }
+    }
 }
+
 
 
 static int read_job_trace(const char* trace_file_name)
@@ -357,6 +377,7 @@ submitter -w <workload_trace> -t <template_script>\n\
                    simulate.\n\
       -t, --template filename containing the templatied script used by the jobs\n\
       -D, --nodaemon do not daemonize the process\n\
+      -r, --clockrate clock rate of the simulated clock\n\
       -h, --help           This help message.\n";
 
 
@@ -368,12 +389,13 @@ static void get_args(int argc, char** argv)
         {"wrkldfile", 1, 0, 'w'},
         {"user", 1, 0, 'u'},
         {"nodaemon", 0, 0, 'D'},
+        {"clockrate", 1, 0, 'r'},
         {"help", 0, 0, 'h'}
     };
     int opt_char, option_index;
 
     while (1) {
-        if ((opt_char = getopt_long(argc, argv, "ht:w:u:D", long_options, &option_index)) == -1 )
+        if ((opt_char = getopt_long(argc, argv, "ht:w:u:Dr:", long_options, &option_index)) == -1 )
             break;
         switch(opt_char) {
         case ('t'):
@@ -387,6 +409,9 @@ static void get_args(int argc, char** argv)
             break;
         case ('D'):
             daemon_flag = 0;
+            break;
+        case ('r'):
+            clock_rate = strtod(optarg,NULL);
             break;
         case ('h'):
             printf("%s\n", help_msg);
@@ -461,11 +486,8 @@ int main(int argc, char *argv[], char *envp[])
 
     userids_from_name();
 
-    // Reservation are all submitted at once
-    submit_reservations();
-
-    //Jobs are submit when the replayed time clock equal their submission time
-    submit_jobs();
+    //Jobs and reservations are submit when the replayed time clock equal their submission time
+    submit_jobs_and_reservations();
 
     if (daemon_flag) fclose(logger);
 

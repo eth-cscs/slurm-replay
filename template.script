@@ -6,4 +6,4 @@ export PATH=$SLURM_DIR/bin:$SLURM_DIR/sbin:$SLURM_REPLAY/submitter:$PATH
 export LD_LIBRARY_PATH=$SLURM_DIR/lib:$SLURM_REPLAY/distime
 
 # Do not use srun, steps are not considered
-job_runner -d <DURATION> -x <EXIT_CODE> -j <JOB_ID> -n <JOB_NODES>
+job_runner -d <DURATION> -x <EXIT_CODE> -j <JOB_ID> -n <JOB_NODES> -r <CLOCK_RATE> -i <INIT_TIME>
