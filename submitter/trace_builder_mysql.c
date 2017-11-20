@@ -150,6 +150,7 @@ int main(int argc, char **argv)
 
     if (!use_query) {
         query = malloc(1024*sizeof(char));
+        memset(query,'\0',1024);
 
         /*validate input parameter to build the query*/
         if ((endtime == NULL) || (starttime == NULL) || (job_table == NULL)) {
@@ -259,10 +260,12 @@ int main(int argc, char **argv)
 
     // process reservation data
     if (!use_query && resv_table != NULL && assoc_table != NULL) {
+        memset(query,'\0',1024);
         snprintf(query, 1024*sizeof(char), "SELECT r.id_resv, r.time_start, r.time_end, r.nodelist, r.resv_name, GROUP_CONCAT(DISTINCT a.acct), r.flags "
                  "FROM %s AS r INNER JOIN %s AS a ON FIND_IN_SET(a.id_assoc,r.assoclist) "
-                 "WHERE FROM_UNIXTIME(r.time_start) BETWEEN '%s' AND '%s' GROUP BY r.id_resv", resv_table, assoc_table, starttime, endtime);
+                 "WHERE FROM_UNIXTIME(r.time_start) BETWEEN '%s' AND '%s' GROUP BY r.id_resv ORDER BY r.time_start", resv_table, assoc_table, starttime, endtime);
 
+        printf("\nQuery --> %s\n\n", query);
         if (mysql_query(conn, query)) {
             finish_with_error(conn);
         }

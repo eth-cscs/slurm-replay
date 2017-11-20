@@ -77,6 +77,7 @@ int main(int argc, char *argv[])
     char query[1024];
     unsigned long long num_rows;
     unsigned long long k;
+    memset(query,'\0',1024);
 
     getArgs(argc, argv);
 
@@ -97,7 +98,6 @@ int main(int argc, char *argv[])
     read(trace_file, &num_rows, sizeof(unsigned long long));
 
     if (display_query) {
-        query[strlen(query)-1]='\0';
         printf("%s\n",query);
     }
 
@@ -142,10 +142,10 @@ int main(int argc, char *argv[])
     if (reservation) {
 
         if (!noheader) {
-            printf("\t%8s \t%10s \t%19s \t%19s \t%8s \t%8s\n",
-                   "RESID", "ACCOUNT", "START", "END", "NODELIST", "FLAGS");
-            printf("\t%8s \t%10s \t%19s \t%19s \t%8s \t%8s\n",
-                   "=====", "=======", "=====", "===", "========", "=====");
+            printf("\t%8s \t%10s \%10s \t%19s \t%19s \t%8s \t%8s\n",
+                   "RESID", "ACCOUNT", "NAME", "START", "END", "NODELIST", "FLAGS");
+            printf("\t%8s \t%10s \%10s \t%19s \t%19s \t%8s \t%8s\n",
+                   "=====", "=======", "====", "=====", "===", "========", "=====");
         }
 
         read(trace_file, &num_rows, sizeof(unsigned long long));
@@ -162,9 +162,10 @@ int main(int argc, char *argv[])
                 sprintf(end, "%ld", resv_arr[k].time_end);
             }
 
-            printf("\t%8d \t%10s \t%19s \t%19s \t%8s \t%8d\n",
+            printf("\t%8d \t%10s \t%10s \t%19s \t%19s \t%8s \t%8d\n",
                    resv_arr[k].id_resv,
                    resv_arr[k].accts,
+                   resv_arr[k].resv_name,
                    start,
                    end,
                    resv_arr[k].nodelist,
