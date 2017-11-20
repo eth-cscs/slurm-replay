@@ -44,11 +44,6 @@ submitter -w "$WORKLOAD" -t template.script
 sleep 3
 echo "done."
 
-echo
-echo "Reservations:"
-LD_PRELOAD=libwtime.so scontrol -o show reservation
-echo
-
 # Make time progress at a faster rate
 RATE="0.1"
 TICK="1"
@@ -64,3 +59,6 @@ echo -n "Collecting data... "
 query=$(trace_list -w $WORKLOAD -q | head -n 1)
 trace_builder_mysql -f "replay.$WORKLOAD" -u "maximem" -p "" -h "localhost" -d "slurm_acct_db" -q "$query" -t daint_job_table -r daint_resv_table
 echo "done."
+echo
+echo "ERROR IF ANY:"
+grep -E "\[[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}\] error:" log/slurmctld.log log/slurmd/*.log submitter.log log/slurmdbd.log

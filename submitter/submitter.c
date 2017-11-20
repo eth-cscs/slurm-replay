@@ -8,8 +8,10 @@
 #include <fcntl.h>
 
 #include <pwd.h>
+#include <time.h>
 
 #include <string.h>
+#include <stdarg.h>
 #include <slurm/slurm.h>
 
 #include "trace.h"
@@ -28,25 +30,53 @@ unsigned long long nresvs = 0;
 static int daemon_flag = 1;
 char *global_envp[100];
 
+static void log_string(const char* type, char* msg) {
+   char log_time[32];
+   time_t t = time(NULL);
+   struct tm timestamp_tm;
+
+   localtime_r(&t, &timestamp_tm);
+   strftime(log_time, 32, "%Y-%m-%dT%T", &timestamp_tm);
+   fprintf(logger,"[%s] %s: %s\n", log_time, type, msg);
+   fflush(logger);
+}
+
+static void log_error(char *fmt, ...) {
+   char dest[1024];
+   va_list argptr;
+   va_start(argptr, fmt);
+   vsprintf(dest, fmt, argptr);
+   va_end(argptr);
+   log_string("error", dest);
+}
+
+static void log_info(char *fmt, ...) {
+   char dest[1024];
+   va_list argptr;
+   va_start(argptr, fmt);
+   vsprintf(dest, fmt, argptr);
+   va_end(argptr);
+   log_string("info", dest);
+}
+
 static void print_job_specs(job_desc_msg_t* dmesg)
 {
-    fprintf(logger, "\tdmesg->job_id: %d\n", dmesg->job_id);
-    fprintf(logger, "\t\tdmesg->time_limit: %d\n", dmesg->time_limit);
-    fprintf(logger, "\t\tdmesg->name: (%s)\n", dmesg->name);
-    fprintf(logger, "\t\tdmesg->account: (%s)\n", dmesg->account);
-    fprintf(logger, "\t\tdmesg->user_id: %d\n", dmesg->user_id);
-    fprintf(logger, "\t\tdmesg->group_id: %d\n", dmesg->group_id);
-    fprintf(logger, "\t\tdmesg->work_dir: (%s)\n", dmesg->work_dir);
-    fprintf(logger, "\t\tdmesg->qos: (%s)\n", dmesg->qos);
-    fprintf(logger, "\t\tdmesg->partition: (%s)\n", dmesg->partition);
-    fprintf(logger, "\t\tdmesg->min_nodes: %d\n", dmesg->min_nodes);
-    fprintf(logger, "\t\tdmesg->features: (%s)\n", dmesg->features);
-    fprintf(logger, "\t\tdmesg->reservation: (%s)\n", dmesg->reservation);
-//    fprintf(logger, "\t\tdmesg->dependency: (%s)\n", dmesg->dependency);
-    fprintf(logger, "\t\tdmesg->env_size: %d\n", dmesg->env_size);
-    fprintf(logger, "\t\tdmesg->environment[0]: (%s)\n", dmesg->environment[0]);
-    fprintf(logger, "\t\tdmesg->script: (%s)\n", dmesg->script);
-    fflush(logger);
+    log_info("\tdmesg->job_id: %d", dmesg->job_id);
+    log_info("\t\tdmesg->time_limit: %d", dmesg->time_limit);
+    log_info("\t\tdmesg->name: (%s)", dmesg->name);
+    log_info("\t\tdmesg->account: (%s)", dmesg->account);
+    log_info("\t\tdmesg->user_id: %d", dmesg->user_id);
+    log_info("\t\tdmesg->group_id: %d", dmesg->group_id);
+    log_info("\t\tdmesg->work_dir: (%s)", dmesg->work_dir);
+    log_info("\t\tdmesg->qos: (%s)", dmesg->qos);
+    log_info("\t\tdmesg->partition: (%s)", dmesg->partition);
+    log_info("\t\tdmesg->min_nodes: %d", dmesg->min_nodes);
+    log_info("\t\tdmesg->features: (%s)", dmesg->features);
+    log_info("\t\tdmesg->reservation: (%s)", dmesg->reservation);
+//    log_info("\t\tdmesg->dependency: (%s)", dmesg->dependency);
+    log_info("\t\tdmesg->env_size: %d", dmesg->env_size);
+    log_info("\t\tdmesg->environment[0]: (%s)", dmesg->environment[0]);
+    log_info("\t\tdmesg->script: (%s)", dmesg->script);
 }
 
 static void create_script(char* script, int nodes, int tasks, long int jobid, long int duration, int exitcode)
@@ -60,8 +90,7 @@ static void create_script(char* script, int nodes, int tasks, long int jobid, lo
 
     fp = fopen(tfile,"r");
     if (fp == NULL) {
-        fprintf(logger, "Cannot open template script file.");
-        fflush(logger);
+        log_error("cannot open template script file.");
         exit(1);
     }
 
@@ -129,8 +158,7 @@ static void userids_from_name()
             userid = pwd->pw_uid;
             groupid = pwd->pw_gid;
         } else {
-            fprintf(logger,"Error: get uid and gid of user: %s\n", username);
-            fflush(logger);
+            log_error("get uid and gid of user:%s",username);
         }
     }
 }
@@ -191,13 +219,11 @@ static int create_and_submit_job(job_trace_t jobd)
     //print_job_specs(&dmesg);
 
     if ( rv = slurm_submit_batch_job(&dmesg, &respMsg) ) {
-        fprintf(logger,"Error: slurm_submit_batch_job: %s\n", slurm_strerror(rv));
-        fflush(logger);
+        log_error("slurm_submit_batch_job: %s", slurm_strerror(rv));
     }
 
     if (respMsg) {
-        fprintf(logger, "Job submitted: error_code=%u job_id=%u\n",respMsg->error_code, respMsg->job_id);
-        fflush(logger);
+        log_info("job submitted: error_code=%u job_id=%u",respMsg->error_code, respMsg->job_id);
     }
     // Cleanup
     if (respMsg) slurm_free_submit_response_response_msg(respMsg);
@@ -231,8 +257,7 @@ static void submit_jobs()
             usleep(500);
         }
 
-        fprintf(logger, "[%d] Submitting job: time %lu | id %d\n", k, job_arr[k].time_submit, job_arr[k].id_job);
-        fflush(logger);
+        //log_info("submitting %d job: time %lu | id %d", k, job_arr[k].time_submit, job_arr[k].id_job);
         create_and_submit_job(job_arr[k]);
         k++;
     }
@@ -256,14 +281,13 @@ static int create_and_submit_resv(resv_trace_t resvd)
     if (output_name == NULL) {
         res = slurm_update_reservation(&dmesg);
         if ( res != 0) {
-            fprintf(logger,"Error: slurm_create_reservation and slurm_update_reservation: %s\n", slurm_strerror(res));
+            log_error("slurm_create_reservation and slurm_update_reservation: %s", slurm_strerror(res));
         } else {
-            fprintf(logger, "Update reservation: %s\n",output_name);
+            log_info("updated reservation: %s",output_name);
         }
     } else {
-        fprintf(logger, "Reservation created: %s\n",output_name);
+        log_info("reservation created: %s",output_name);
     }
-    fflush(logger);
 
     if (dmesg.accounts) free(dmesg.accounts);
     if (dmesg.name) free(dmesg.name);
@@ -272,93 +296,11 @@ static int create_and_submit_resv(resv_trace_t resvd)
     if (output_name) free(output_name);
 }
 
-// no need to call Slurm RPC, all reservations are set before the clock spins
-static int create_and_submit_resv_norpc(resv_trace_t resvd)
-{
-    resv_desc_msg_t dmesg;
-    char command[2048];
-    char strtime_start[20];
-    char strtime_end[20];
-    int exec_result, child;
-    char flags[1024];
-    flags[0]='\0';
-
-    strftime(strtime_start, sizeof(strtime_start), "%Y-%m-%d %H:%M:%S", localtime(&resvd.time_start));
-    strftime(strtime_end, sizeof(strtime_end), "%Y-%m-%d %H:%M:%S", localtime(&resvd.time_end));
-
-    if (resvd.flags & RESERVE_FLAG_MAINT) {
-        strcat(flags,"MAINT,");
-    }
-    if (resvd.flags & RESERVE_FLAG_DAILY) {
-        strcat(flags,"DAILY,");
-    }
-    if (resvd.flags & RESERVE_FLAG_WEEKLY) {
-        strcat(flags,"WEEKLY,");
-    }
-    if (resvd.flags & RESERVE_FLAG_IGN_JOBS) {
-        strcat(flags,"IGNORE_JOBS,");
-    }
-    if (resvd.flags & RESERVE_FLAG_ANY_NODES) {
-        strcat(flags,"ANY_NODES,");
-    }
-    if (resvd.flags & RESERVE_FLAG_STATIC) {
-        strcat(flags,"STATIC_ALLOC,");
-    }
-    if (resvd.flags & RESERVE_FLAG_PART_NODES) {
-        strcat(flags,"PART_NODES,");
-    }
-    if (resvd.flags & RESERVE_FLAG_OVERLAP) {
-        strcat(flags,"OVERLAP,");
-    }
-//    if (resvd.flags & RESERVE_FLAG_SPEC_NODES) {
-//        strcat(flags,"SPEC_NODES,");
-//    }
-    if (resvd.flags & RESERVE_FLAG_FIRST_CORES) {
-        strcat(flags,"FIRST_CORES,");
-    }
-    if (resvd.flags & RESERVE_FLAG_TIME_FLOAT) {
-        strcat(flags,"TIME_FLOAT,");
-    }
-    if (resvd.flags & RESERVE_FLAG_REPLACE) {
-        strcat(flags,"REPLACE,");
-    }
-    if (resvd.flags & RESERVE_FLAG_PURGE_COMP) {
-        strcat(flags,"PURGE_COMP,");
-    }
-    if (strlen(flags) > 0) {
-        flags[strlen(flags)-1]='\0';
-    }
-
-    sprintf(command, "scontrol create reservation='%s' "
-            "starttime='%s' endtime='%s' nodes='%s' flags='%s' accounts='%s' partitionname='normal'",
-            resvd.resv_name, strtime_start, strtime_end, resvd.nodelist, flags, resvd.accts);
-    child = fork();
-    if(child == 0) { /* the child */
-        if(execve(command, NULL, global_envp) < 0) {
-            fprintf(logger,"Error in execve commad %s\n", command);
-            fflush(logger);
-        }
-    }
-
-    waitpid(child, &exec_result, 0);
-    if(exec_result == 0) {
-        fprintf(logger,"Reservation %s created.\n", resvd.resv_name);
-        fflush(logger);
-        return 0;
-    }
-
-    fprintf(logger,"Error creating reservation %s.\n", resvd.resv_name);
-    fflush(logger);
-
-    return -1;
-}
-
 static void submit_reservations()
 {
     unsigned long long k = 0;
     while( k < nresvs ) {
-        fprintf(logger, "[%d] Submitting reservation: time %lu | name %s\n", k, resv_arr[k].time_start, resv_arr[k].resv_name);
-        fflush(logger);
+        log_info("submitting %d reservation: time %lu | name %s", k, resv_arr[k].time_start, resv_arr[k].resv_name);
         create_and_submit_resv(resv_arr[k]);
         k++;
     }
@@ -390,8 +332,7 @@ static int read_job_trace(const char* trace_file_name)
         return -1;
     }
     read(trace_file, job_arr, sizeof(job_trace_t)*njobs);
-    fprintf(logger,"Total job records: %lu, start time %lu\n", njobs, job_arr[0].time_submit);
-    fflush(logger);
+    log_info("total job records: %lu, start time %lu", njobs, job_arr[0].time_submit);
 
 
     read(trace_file, &nresvs, sizeof(unsigned long long));
@@ -401,8 +342,7 @@ static int read_job_trace(const char* trace_file_name)
         return -1;
     }
     read(trace_file, resv_arr, sizeof(resv_trace_t)*nresvs);
-    fprintf(logger,"Total reservation records: %lu\n", nresvs);
-    fflush(logger);
+    log_info("total reservation records: %lu", nresvs);
 
     close(trace_file);
 
@@ -512,8 +452,7 @@ int main(int argc, char *argv[], char *envp[])
     daemonize(daemon_flag);
 
     if (read_job_trace(workload_filename) < 0) {
-        fprintf(logger, "Error: a problem was detected when reading trace file.");
-        fflush(logger);
+        log_error("a problem was detected when reading trace file.");
         exit(-1);
     }
 
