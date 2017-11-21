@@ -177,7 +177,7 @@ int main(int argc, char **argv)
                  "t.id_job, t.id_user, t.id_group, r.resv_name, t.mem_req, t.nodelist, t.nodes_alloc, t.partition, t.priority, t.state, "
                  "t.timelimit, t.time_submit, t.time_eligible, t.time_start, t.time_end, t.time_suspended, "
                  "t.gres_req, t.gres_alloc, t.tres_req "
-                 "FROM %s as t LEFT JOIN %s as r ON t.id_resv = r.id_resv "
+                 "FROM %s as t LEFT JOIN %s as r ON t.id_resv = r.id_resv AND t.time_start >= r.time_start and t.time_end <= r.time_end "
                  "WHERE FROM_UNIXTIME(t.time_submit) BETWEEN '%s' AND '%s' AND "
                  "t.time_end > 0 AND t.nodes_alloc > 0 AND t.partition='normal'", job_table, resv_table, starttime, endtime);
     }
@@ -263,7 +263,7 @@ int main(int argc, char **argv)
         memset(query,'\0',1024);
         snprintf(query, 1024*sizeof(char), "SELECT r.id_resv, r.time_start, r.time_end, r.nodelist, r.resv_name, GROUP_CONCAT(DISTINCT a.acct), r.flags "
                  "FROM %s AS r INNER JOIN %s AS a ON FIND_IN_SET(a.id_assoc,r.assoclist) "
-                 "WHERE FROM_UNIXTIME(r.time_start) BETWEEN '%s' AND '%s' GROUP BY r.id_resv ORDER BY r.time_start", resv_table, assoc_table, starttime, endtime);
+                 "WHERE FROM_UNIXTIME(r.time_start) BETWEEN '%s' AND '%s' GROUP BY r.time_start, r.id_resv ORDER BY r.time_start", resv_table, assoc_table, starttime, endtime);
 
         printf("\nQuery --> %s\n\n", query);
         if (mysql_query(conn, query)) {

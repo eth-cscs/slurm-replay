@@ -18,6 +18,9 @@
 #include "shmemclock.h"
 #define ONE_OVER_BILLION 1E-9
 
+#define RESV_CREATE 3
+#define RESV_UPDATE 4
+
 FILE *logger = NULL;
 char *tfile = NULL;
 char *username = NULL;
@@ -31,34 +34,38 @@ unsigned long long nresvs = 0;
 static int daemon_flag = 1;
 char *global_envp[100];
 double clock_rate = 0.0;
+int *resv_action;
 
-static void log_string(const char* type, char* msg) {
-   char log_time[32];
-   time_t t = time(NULL);
-   struct tm timestamp_tm;
+static void log_string(const char* type, char* msg)
+{
+    char log_time[32];
+    time_t t = time(NULL);
+    struct tm timestamp_tm;
 
-   localtime_r(&t, &timestamp_tm);
-   strftime(log_time, 32, "%Y-%m-%dT%T", &timestamp_tm);
-   fprintf(logger,"[%s.000] %s: %s\n", log_time, type, msg);
-   fflush(logger);
+    localtime_r(&t, &timestamp_tm);
+    strftime(log_time, 32, "%Y-%m-%dT%T", &timestamp_tm);
+    fprintf(logger,"[%s.000] %s: %s\n", log_time, type, msg);
+    fflush(logger);
 }
 
-static void log_error(char *fmt, ...) {
-   char dest[1024];
-   va_list argptr;
-   va_start(argptr, fmt);
-   vsprintf(dest, fmt, argptr);
-   va_end(argptr);
-   log_string("error", dest);
+static void log_error(char *fmt, ...)
+{
+    char dest[1024];
+    va_list argptr;
+    va_start(argptr, fmt);
+    vsprintf(dest, fmt, argptr);
+    va_end(argptr);
+    log_string("error", dest);
 }
 
-static void log_info(char *fmt, ...) {
-   char dest[1024];
-   va_list argptr;
-   va_start(argptr, fmt);
-   vsprintf(dest, fmt, argptr);
-   va_end(argptr);
-   log_string("info", dest);
+static void log_info(char *fmt, ...)
+{
+    char dest[1024];
+    va_list argptr;
+    va_start(argptr, fmt);
+    vsprintf(dest, fmt, argptr);
+    va_end(argptr);
+    log_string("info", dest);
 }
 
 static void print_job_specs(job_desc_msg_t* dmesg)
@@ -255,11 +262,13 @@ static int create_and_submit_job(job_trace_t jobd)
 }
 
 
-static int create_and_submit_resv(resv_trace_t resvd)
+static int create_and_submit_resv(resv_trace_t resvd, int action)
 {
     resv_desc_msg_t dmesg;
-    char *output_name;
+    char *output_name = NULL;
     int res;
+
+    slurm_init_resv_desc_msg(&dmesg);
 
     dmesg.accounts = strdup(resvd.accts);
     dmesg.end_time = resvd.time_end;
@@ -267,18 +276,23 @@ static int create_and_submit_resv(resv_trace_t resvd)
     dmesg.name = strdup(resvd.resv_name);
     dmesg.node_list = strdup(resvd.nodelist);
     dmesg.partition = strdup("normal");
-    dmesg.start_time = resvd.time_start;
 
-    output_name = slurm_create_reservation(&dmesg);
-    if (output_name == NULL) {
+    if (action == RESV_CREATE) {
+        dmesg.start_time = resvd.time_start;
+        output_name = slurm_create_reservation(&dmesg);
+        if (output_name == NULL) {
+            log_error("%d slurm_create_reservation", resvd.id_resv);
+        } else {
+            log_info("reservation created: %s",output_name);
+        }
+    }
+    if (action == RESV_UPDATE) {
         res = slurm_update_reservation(&dmesg);
         if ( res != 0) {
-            log_error("%d slurm_create_reservation and slurm_update_reservation: %s", resvd.id_resv, slurm_strerror(res));
+            log_error("%d slurm_update_reservation: %s", resvd.id_resv, slurm_strerror(res));
         } else {
-            log_info("updated reservation: %s",output_name);
+            log_info("updated reservation: %s",resvd.resv_name);
         }
-    } else {
-        log_info("reservation created: %s",output_name);
     }
 
     if (dmesg.accounts) free(dmesg.accounts);
@@ -288,39 +302,29 @@ static int create_and_submit_resv(resv_trace_t resvd)
     if (output_name) free(output_name);
 }
 
-/*static void submit_reservations()
-{
-    unsigned long long k = 0;
-    while( k < nresvs ) {
-        create_and_submit_resv(resv_arr[k]);
-        k++;
-    }
-}*/
-
 static void submit_jobs_and_reservations()
 {
     time_t current_time = 0;
     unsigned long long kj = 0, kr = 0;
-    const int resv_pad = 5; // let slurm the time to create the reservation before its time_start
 
     current_time= get_shmemclock();
 
     while( kj < njobs || kr < nresvs ) {
         // wait for submission time of next job
-        while(current_time < job_arr[kj].time_submit && current_time < resv_arr[kr].time_start-5 ) {
+        while(current_time < job_arr[kj].time_submit && current_time < resv_arr[kr].time_start ) {
             current_time= get_shmemclock();
             usleep(500);
         }
 
         if (current_time >= job_arr[kj].time_submit) {
-           //log_info("submitting %d job: time %lu | id %d", k, job_arr[k].time_submit, job_arr[k].id_job);
-           create_and_submit_job(job_arr[kj]);
-           kj++;
+            //log_info("submitting %d job: time %lu | id %d", k, job_arr[k].time_submit, job_arr[k].id_job);
+            create_and_submit_job(job_arr[kj]);
+            kj++;
         }
-        if (current_time >= resv_arr[kr].time_start-5) {
-           //log_info("submitting %d reservation: time %lu | name %s", k, resv_arr[k].time_start, resv_arr[k].resv_name);
-           create_and_submit_resv(resv_arr[kr]);
-           kr++;
+        if (current_time >= resv_arr[kr].time_start) {
+            //log_info("submitting %d reservation: time %lu | name %s", k, resv_arr[k].time_start, resv_arr[k].resv_name);
+            create_and_submit_resv(resv_arr[kr], resv_action[kr]);
+            kr++;
         }
     }
 }
@@ -334,6 +338,9 @@ static int read_job_trace(const char* trace_file_name)
     int trace_file;
     size_t query_length = 0;
     char query[1024];
+    unsigned long k;
+    long k_create, k_last, k_create_next;
+    int k_id, k_id_next;
 
     trace_file = open(trace_file_name, O_RDONLY);
     if (trace_file < 0) {
@@ -366,6 +373,58 @@ static int read_job_trace(const char* trace_file_name)
 
     close(trace_file);
 
+    //prepare reservation separate create from update
+    resv_action = malloc(nresvs*sizeof(int));
+
+    //get all different reservation types: create or update and set time_end
+    if (nresvs > 0 ) {
+        for(k = 0; k < nresvs; k++) {
+            //log_info("[%d] id=%d",k, resv_arr[k].id_resv);
+            resv_action[k]=0;
+        }
+        k_create = 0;
+        k_last = -1;
+        k_id = resv_arr[k_create].id_resv;
+        k_id_next = -1;
+        while(k_id != -1) {
+            //log_info("k_id=%d",k_id);
+            for(k = 0; k < nresvs; k++) {
+                if (resv_arr[k].id_resv == k_id) {
+                    k_last = k;
+                    //log_info("[%d] k_last=%d",k, k_last);
+                    if (k == k_create) {
+                        //log_info("[%d] k_create=%d",k, k_create);
+                        resv_action[k] = RESV_CREATE;
+                    } else {
+                        //log_info("[%d] k_update=%d", k, k);
+                        resv_action[k] = RESV_UPDATE;
+                    }
+                } else {
+                    if (k_id_next == -1 && resv_action[k] == 0) {
+                        k_id_next = resv_arr[k].id_resv;
+                        k_create_next = k;
+                        //log_info("[%d] k_id_next=%d k_create_next=%d", k, k_id_next, k_create_next);
+                    }
+                }
+            }
+            if (k_create != -1 && k_last != -1 && k_create != k_last) {
+                //log_info("update time of k=%d with time of k=%d", k_create, k_last);
+                resv_arr[k_create].time_end = resv_arr[k_last].time_end;
+                log_info("Change reservation %d time_end (%d, %d)", resv_arr[k_create].id_resv,  resv_arr[k_create].time_start, resv_arr[k_create].time_end);
+            }
+            k_id = k_id_next;
+            k_id_next = -1;
+            k_last = -1;
+            k_create = k_create_next;
+        }
+        /*for(k = 0; k < nresvs; k++) {
+            if (resv_action[k] ==  RESV_CREATE)
+                log_info("[%d] id=%d CR",k, resv_arr[k].id_resv);
+            else
+                log_info("[%d] id=%d UP",k, resv_arr[k].id_resv);
+        }*/
+
+    }
     return 0;
 }
 
@@ -492,6 +551,8 @@ int main(int argc, char *argv[], char *envp[])
     if (daemon_flag) fclose(logger);
 
     free(job_arr);
+    free(resv_arr);
+    free(resv_action);
 
     exit(0);
 
