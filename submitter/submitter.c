@@ -39,7 +39,7 @@ int *resv_action;
 static void log_string(const char* type, char* msg)
 {
     char log_time[32];
-    time_t t = time(NULL);
+    time_t t = get_shmemclock();
     struct tm timestamp_tm;
 
     localtime_r(&t, &timestamp_tm);
@@ -185,6 +185,7 @@ static void userids_from_name()
 
 static int create_and_submit_job(job_trace_t jobd)
 {
+    static unsigned long count = 0;
     job_desc_msg_t dmesg;
     submit_response_msg_t * respMsg = NULL;
     long int duration;
@@ -238,12 +239,14 @@ static int create_and_submit_job(job_trace_t jobd)
     //print_job_specs(&dmesg);
 
     if ( rv = slurm_submit_batch_job(&dmesg, &respMsg) ) {
-        log_error("%d slurm_submit_batch_job: %s", dmesg.job_id, slurm_strerror(rv));
+        log_error("%d slurm_submit_batch_job: %s count=%d", dmesg.job_id, slurm_strerror(rv), count);
     }
 
     if (respMsg) {
-        log_info("job submitted: job_id=%u", respMsg->job_id);
+        log_info("job submitted: job_id=%u count=%d", respMsg->job_id, count);
     }
+    count++;
+
     // Cleanup
     if (respMsg) slurm_free_submit_response_response_msg(respMsg);
 
@@ -264,6 +267,7 @@ static int create_and_submit_job(job_trace_t jobd)
 
 static int create_and_submit_resv(resv_trace_t resvd, int action)
 {
+    static unsigned long count = 0;
     resv_desc_msg_t dmesg;
     char *output_name = NULL;
     int res;
@@ -281,20 +285,21 @@ static int create_and_submit_resv(resv_trace_t resvd, int action)
         dmesg.start_time = resvd.time_start;
         output_name = slurm_create_reservation(&dmesg);
         if (output_name == NULL) {
-            log_error("%d slurm_create_reservation", resvd.id_resv);
+            log_error("%d slurm_create_reservation count=%d", resvd.id_resv, count);
         } else {
-            log_info("reservation created: %s",output_name);
+            log_info("reservation created: %s count=%d",output_name, count);
         }
     }
     if (action == RESV_UPDATE) {
         // do not update time_emd and time_start
         res = slurm_update_reservation(&dmesg);
         if ( res != 0) {
-            log_error("%d slurm_update_reservation: %s", resvd.id_resv, slurm_strerror(res));
+            log_error("%d slurm_update_reservation: %s count=%d", resvd.id_resv, slurm_strerror(res), count);
         } else {
-            log_info("updated reservation: %s",resvd.resv_name);
+            log_info("updated reservation: %s count=%d",resvd.resv_name, count);
         }
     }
+    count++;
 
     if (dmesg.accounts) free(dmesg.accounts);
     if (dmesg.name) free(dmesg.name);
@@ -317,12 +322,12 @@ static void submit_jobs_and_reservations()
             usleep(500);
         }
 
-        if (current_time >= job_arr[kj].time_submit) {
+        if (current_time >= job_arr[kj].time_submit && kj < njobs) {
             //log_info("submitting %d job: time %lu | id %d", k, job_arr[k].time_submit, job_arr[k].id_job);
             create_and_submit_job(job_arr[kj]);
             kj++;
         }
-        if (current_time >= resv_arr[kr].time_start) {
+        if (current_time >= resv_arr[kr].time_start && kr < nresvs) {
             //log_info("submitting %d reservation: time %lu | name %s", k, resv_arr[k].time_start, resv_arr[k].resv_name);
             create_and_submit_resv(resv_arr[kr], resv_action[kr]);
             kr++;
@@ -523,6 +528,9 @@ int main(int argc, char *argv[], char *envp[])
 {
     int i;
 
+    //Open shared priority queue for time clock
+    open_rdonly_shmemclock();
+
     get_args(argc, argv);
 
     i = 0;
@@ -543,9 +551,6 @@ int main(int argc, char *argv[], char *envp[])
         log_error("a problem was detected when reading trace file.");
         exit(-1);
     }
-
-    //Open shared priority queue for time clock
-    open_rdonly_shmemclock();
 
     userids_from_name();
 
