@@ -287,6 +287,7 @@ static int create_and_submit_resv(resv_trace_t resvd, int action)
         }
     }
     if (action == RESV_UPDATE) {
+        // do not update time_emd and time_start
         res = slurm_update_reservation(&dmesg);
         if ( res != 0) {
             log_error("%d slurm_update_reservation: %s", resvd.id_resv, slurm_strerror(res));
@@ -379,7 +380,7 @@ static int read_job_trace(const char* trace_file_name)
     //get all different reservation types: create or update and set time_end
     if (nresvs > 0 ) {
         for(k = 0; k < nresvs; k++) {
-            //log_info("[%d] id=%d",k, resv_arr[k].id_resv);
+            //log_info("[%d] id=%d st=%d et=%d",k, resv_arr[k].id_resv, resv_arr[k].time_start, resv_arr[k].time_end);
             resv_action[k]=0;
         }
         k_create = 0;
@@ -408,9 +409,12 @@ static int read_job_trace(const char* trace_file_name)
                 }
             }
             if (k_create != -1 && k_last != -1 && k_create != k_last) {
-                //log_info("update time of k=%d with time of k=%d", k_create, k_last);
-                resv_arr[k_create].time_end = resv_arr[k_last].time_end;
-                log_info("Change reservation %d time_end (%d, %d)", resv_arr[k_create].id_resv,  resv_arr[k_create].time_start, resv_arr[k_create].time_end);
+                for(k = 0; k < nresvs; k++) {
+                    if (resv_arr[k].id_resv == resv_arr[k_last].id_resv) {
+                       resv_arr[k].time_end = resv_arr[k_last].time_end;
+//                       log_info("Change reservation %d time_end (%d, %d)", resv_arr[k].id_resv,  resv_arr[k].time_start, resv_arr[k].time_end);
+                    }
+                }
             }
             k_id = k_id_next;
             k_id_next = -1;
@@ -419,7 +423,7 @@ static int read_job_trace(const char* trace_file_name)
         }
         /*for(k = 0; k < nresvs; k++) {
             if (resv_action[k] ==  RESV_CREATE)
-                log_info("[%d] id=%d CR",k, resv_arr[k].id_resv);
+                log_info("[%d] id=%d CR  st=%d et=%d",k, resv_arr[k].id_resv, resv_arr[k].time_start, resv_arr[k].time_end);
             else
                 log_info("[%d] id=%d UP",k, resv_arr[k].id_resv);
         }*/
