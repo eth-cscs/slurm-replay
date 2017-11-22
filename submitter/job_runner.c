@@ -102,5 +102,9 @@ int main(int argc, char *argv[])
         cur_time = get_shmemclock();
     }
 
-    exit(exitcode);
+    // exit code are restricted in POSIX C
+    if ( exitcode != 0 ) {
+        return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
 }
