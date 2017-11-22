@@ -24,6 +24,58 @@ list_trace [OPTIONS]\n\
     -r, --reservation             Display reservation information\n\
     -h, --help                    This help message.\n";
 
+
+enum job_states {
+    JOB_PENDING,        /* queued waiting for initiation */
+    JOB_RUNNING,        /* allocated resources and executing */
+    JOB_SUSPENDED,      /* allocated resources, execution suspended */
+    JOB_COMPLETE,       /* completed execution successfully */
+    JOB_CANCELLED,      /* cancelled by user */
+    JOB_FAILED,     /* completed execution unsuccessfully */
+    JOB_TIMEOUT,        /* terminated on reaching time limit */
+    JOB_NODE_FAIL,      /* terminated on node failure */
+    JOB_PREEMPTED,      /* terminated due to preemption */
+    JOB_BOOT_FAIL,      /* terminated due to node boot failure */
+    JOB_DEADLINE,       /* terminated on deadline */
+    JOB_OOM,        /* experienced out of memory error */
+    JOB_END         /* not a real state, last entry in table */
+};
+
+static char *job_state_string(int inx)
+{
+    switch (inx) {
+    case JOB_PENDING:
+        return "PENDING";
+    case JOB_RUNNING:
+        return "RUNNING";
+    case JOB_SUSPENDED:
+        return "SUSPENDED";
+    case JOB_COMPLETE:
+        return "COMPLETED";
+    case JOB_CANCELLED:
+        return "CANCELLED";
+    case JOB_FAILED:
+        return "FAILED";
+    case JOB_TIMEOUT:
+        return "TIMEOUT";
+    case JOB_NODE_FAIL:
+        return "NODE_FAIL";
+    case JOB_PREEMPTED:
+        return "PREEMPTED";
+    case JOB_BOOT_FAIL:
+        return "BOOT_FAIL";
+    case JOB_DEADLINE:
+        return "DEADLINE";
+    case JOB_OOM:
+        return "OUT_OF_MEMORY";
+    default:
+        return "?";
+    }
+}
+
+
+
+
 void getArgs(int argc, char** argv)
 {
     static struct option long_options[] = {
@@ -102,9 +154,9 @@ int main(int argc, char *argv[])
     }
 
     if (!noheader) {
-        printf("\t%10s \t%10s \t%10s \t%19s \t%19s \t%19s \t%19s \t%10s \t%8s \t%8s \t%8s \t%10s \t%10s\n",
+        printf("\t%10s \t%10s \t%10s \t%19s \t%19s \t%19s \t%19s \t%10s \t%8s \t%8s \t%10s \t%10s \t%10s\n",
                "JOBID", "ACCOUNT", "DURATION", "SUBMIT", "ELIGIBLE", "START", "END", "TIMELIMIT", "NODES", "EXITCODE", "STATE", "RESERVATION", "USERID");
-        printf("\t%10s \t%10s \t%10s \t%19s \t%19s \t%19s \t%19s \t%10s \t%8s \t%8s \t%8s \t%10s \t%10s\n",
+        printf("\t%10s \t%10s \t%10s \t%19s \t%19s \t%19s \t%19s \t%10s \t%8s \t%8s \t%10s \t%10s \t%10s\n",
                "=====", "=======", "========", "======", "========", "=====", "===", "=========", "=====", "========", "=====", "===========", "======");
     }
 
@@ -123,7 +175,7 @@ int main(int argc, char *argv[])
             sprintf(end, "%ld", job_arr[k].time_end);
         }
 
-        printf("\t%10d \t%10s \t%10d \t%19s \t%19s \t%19s \t%19s \t%10d \t%8d \t%8d \t%8d \t%10s \t%10d\n",
+        printf("\t%10d \t%10s \t%10d \t%19s \t%19s \t%19s \t%19s \t%10d \t%8d \t%8d \t%10s \t%10s \t%10d\n",
                job_arr[k].id_job,
                job_arr[k].account,
                job_arr[k].time_end - job_arr[k].time_start,
@@ -134,10 +186,10 @@ int main(int argc, char *argv[])
                job_arr[k].timelimit*60,
                job_arr[k].nodes_alloc,
                job_arr[k].exit_code,
-               job_arr[k].state,
+               job_state_string(job_arr[k].state),
                job_arr[k].resv_name,
                job_arr[k].id_user);
-    }
+    } 
 
     if (reservation) {
 

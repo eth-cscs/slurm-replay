@@ -242,7 +242,7 @@ static int create_and_submit_job(job_trace_t jobd)
     }
 
     if (respMsg) {
-        log_info("job submitted: error_code=%u job_id=%u",respMsg->error_code, respMsg->job_id);
+        log_info("job submitted: job_id=%u", respMsg->job_id);
     }
     // Cleanup
     if (respMsg) slurm_free_submit_response_response_msg(respMsg);
