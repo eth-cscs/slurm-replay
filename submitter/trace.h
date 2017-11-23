@@ -36,6 +36,8 @@ typedef struct node_trace {
     unsigned long time_start;
     unsigned long time_end;
     char node_name[TINYTEXT_SIZE];
+    char reason[TINYTEXT_SIZE];
+    int state;
 } node_trace_t;
 
 typedef struct resv_trace {

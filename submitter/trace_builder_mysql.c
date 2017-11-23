@@ -16,6 +16,7 @@ char *starttime = NULL;
 char *job_table = NULL;
 char *resv_table = NULL;
 char *assoc_table = NULL;
+char *event_table = NULL;
 char *user = NULL;
 char *password;
 char *query = NULL;
@@ -45,7 +46,7 @@ Usage: mysql_trace_builder [OPTIONS]\n\
     -t, --job_table  db_job_table    Name of the MySQL table to query to obtain job information\n\
     -r, --resv_table db_resv_table   Name of the MySQL table to query to obtain reservation infomartion\n\
     -a, --assoc_table db_assoc_table   Name of the MySQL table to query to obtain associationss infomartion\n\
-    -v, --verbose                    Increase verbosity of the messages\n\
+    -v, --event_table db_event_table   Name of the MySQL table to query to obtain event information about node availability\n\
     -f, --file       filename        Name of the output trace file being created\n\
     -q, --query      query           Use a SQL query to retrieve the data\n\
     -?, --help                       This help message\n\n\
@@ -67,13 +68,14 @@ get_args(int argc, char** argv)
         {"job_table", required_argument, 0, 't'},
         {"resv_table", required_argument, 0, 'r'},
         {"assoc_table", required_argument, 0, 'a'},
+        {"event_table", required_argument, 0, 'v'},
         {"user", required_argument, 0, 'u'},
         {0, 0, 0, 0}
     };
     int opt_char, option_index;
 
     while(1) {
-        if ((opt_char = getopt_long(argc, argv, "d:e:f:h:?s:t:r:u:p:q:a:", long_options, &option_index)) == -1 )
+        if ((opt_char = getopt_long(argc, argv, "d:e:f:h:?s:t:r:u:p:q:a:v:", long_options, &option_index)) == -1 )
             break;
         switch  (opt_char) {
         case ('p'):
@@ -110,6 +112,9 @@ get_args(int argc, char** argv)
         case ('a'):
             assoc_table = optarg;
             break;
+        case ('v'):
+            event_table = optarg;
+            break;
         case ('u'):
             user = optarg;
             break;
@@ -125,19 +130,23 @@ int main(int argc, char **argv)
     char year[4], month[2], day[2], hours[2], minutes[2], seconds[2];
 
     size_t query_length;
-    unsigned int num_fields;
+    //unsigned int num_fields;
     unsigned long long num_rows;
+    unsigned long long w_num_rows, k;
 
     MYSQL *conn;
     MYSQL_RES *result_job;
     MYSQL_RES *result_resv;
+    MYSQL_RES *result_node;
     MYSQL_ROW row;
     job_trace_t job_trace;
     resv_trace_t resv_trace;
+    node_trace_t fix_node_trace;
+    off_t cur_offset;
 
     get_args(argc, argv);
 
-    if ((user == NULL) || (host == NULL) || (dbname == NULL) || (filename == NULL) || (job_table == NULL) || (resv_table== NULL)) {
+    if ((user == NULL) || (host == NULL) || (dbname == NULL) || (filename == NULL) || (job_table == NULL) || (resv_table == NULL)|| (event_table == NULL)) {
         printf("user, host, dbname and trace file name cannot be NULL!\n");
         print_usage();
         exit(-1);
@@ -192,7 +201,7 @@ int main(int argc, char **argv)
         finish_with_error(conn);
     }
 
-    num_fields = mysql_num_fields(result_job);
+    //num_fields = mysql_num_fields(result_job);
     num_rows = mysql_num_rows(result_job);
 
     /* writing results to file */
@@ -295,9 +304,95 @@ int main(int argc, char **argv)
             }
         }
         mysql_free_result(result_resv);
-        printf("\nSuccessfully written file %s : Total number of reservationss = %ld\n", filename, num_rows);
+        printf("\nSuccessfully written file %s : Total number of reservations = %ld\n", filename, num_rows);
     }
 
+    // process event data
+    if (!use_query && event_table != NULL) {
+        memset(query,'\0',1024);
+        snprintf(query, 1024*sizeof(char), "SELECT e.time_start, e.time_end, e.node_name, e.reason, e.state "
+                 "FROM %s AS e "
+                 "WHERE FROM_UNIXTIME(e.time_start) BETWEEN '%s' AND '%s' ORDER BY e.node_name, e.time_end", event_table, starttime, endtime);
+
+        printf("\nQuery --> %s\n\n", query);
+        if (mysql_query(conn, query)) {
+            finish_with_error(conn);
+        }
+
+        result_node = mysql_store_result(conn);
+        if (result_node == NULL) {
+            finish_with_error(conn);
+        }
+
+
+        num_rows = mysql_num_rows(result_node);
+        cur_offset = lseek(trace_file, 0, SEEK_CUR);
+        w_num_rows = k = 0;
+        write(trace_file, &num_rows, sizeof(unsigned long long));
+
+        memset(&fix_node_trace, 0, sizeof(node_trace_t));
+        while ((row = mysql_fetch_row(result_resv))) {
+            //printf("read %s %s %s\n",row[0], row[1], row[2]);
+            k++;
+            if (fix_node_trace.time_start == 0) {
+                fix_node_trace.time_start = strtoul(row[0], NULL, 0);
+                fix_node_trace.time_end = strtoul(row[1], NULL, 0);
+                sprintf(fix_node_trace.node_name, "%s", row[2]);
+                sprintf(fix_node_trace.reason, "%s", row[3]);
+                fix_node_trace.state = atoi(row[4]);
+            } else {
+                if (fix_node_trace.time_end == strtoul(row[0],NULL,0) &&
+                    strcmp(fix_node_trace.node_name, row[2]) == 0 &&
+                    strcmp(fix_node_trace.reason, row[3]) == 0) {
+                    fix_node_trace.time_end = strtoul(row[1], NULL, 0);
+                    if (atoi(row[4]) > fix_node_trace.state) {
+                        fix_node_trace.state = atoi(row[4]);
+                    }
+                    if (k == num_rows) {
+                        // special case for last one
+                        written = write(trace_file, &fix_node_trace, sizeof(node_trace_t));
+                        if(written != sizeof(node_trace_t)) {
+                            printf("Error writing to file: %d of %ld\n", written, sizeof(node_trace_t));
+                            exit(-1);
+                        }
+                        //printf("write %d %d %s\n",fix_node_trace.time_start, fix_node_trace.time_end, fix_node_trace.node_name);
+                        w_num_rows++;
+                    }
+                } else {
+                    // event to write
+                    written = write(trace_file, &fix_node_trace, sizeof(node_trace_t));
+                    if(written != sizeof(node_trace_t)) {
+                        printf("Error writing to file: %d of %ld\n", written, sizeof(node_trace_t));
+                        exit(-1);
+                    }
+                    //printf("write %d %d %s\n",fix_node_trace.time_start, fix_node_trace.time_end, fix_node_trace.node_name);
+                    w_num_rows++;
+                    fix_node_trace.time_start = strtoul(row[0], NULL, 0);
+                    fix_node_trace.time_end = strtoul(row[1], NULL, 0);
+                    sprintf(fix_node_trace.node_name, "%s", row[2]);
+                    sprintf(fix_node_trace.reason, "%s", row[3]);
+                    fix_node_trace.state = atoi(row[4]);
+                    if (k == num_rows) {
+                        // special case for last one
+                        written = write(trace_file, &fix_node_trace, sizeof(node_trace_t));
+                        if(written != sizeof(node_trace_t)) {
+                            printf("Error writing to file: %d of %ld\n", written, sizeof(node_trace_t));
+                            exit(-1);
+                        }
+                        //printf("write %d %d %s\n",fix_node_trace.time_start, fix_node_trace.time_end, fix_node_trace.node_name);
+                        w_num_rows++;
+                    }
+                }
+            }
+        }
+
+        // update number of node events
+        lseek(trace_file, cur_offset, SEEK_SET);
+        write(trace_file, &w_num_rows, sizeof(unsigned long long));
+
+        mysql_free_result(result_node);
+        printf("\nSuccessfully written file %s : Total number of events = %ld\n", filename, num_rows);
+    }
 
     mysql_close(conn);
     exit(0);

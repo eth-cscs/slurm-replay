@@ -339,8 +339,6 @@ static void submit_jobs_and_reservations()
 
 static int read_job_trace(const char* trace_file_name)
 {
-    struct stat  stat_buf;
-    int nrecs = 0, idx = 0;
     int trace_file;
     size_t query_length = 0;
     char query[1024];
@@ -350,7 +348,7 @@ static int read_job_trace(const char* trace_file_name)
 
     trace_file = open(trace_file_name, O_RDONLY);
     if (trace_file < 0) {
-        printf("Error opening file %s\n", trace_file_name);
+        log_error("opening file %s\n", trace_file_name);
         return -1;
     }
 
@@ -361,7 +359,7 @@ static int read_job_trace(const char* trace_file_name)
 
     job_arr = (job_trace_t*)malloc(sizeof(job_trace_t)*njobs);
     if (!job_arr) {
-        printf("Error: unable to allocate memory for all job records.\n");
+        log_error("unable to allocate memory for all job records.\n");
         return -1;
     }
     read(trace_file, job_arr, sizeof(job_trace_t)*njobs);
@@ -371,7 +369,7 @@ static int read_job_trace(const char* trace_file_name)
     read(trace_file, &nresvs, sizeof(unsigned long long));
     resv_arr = (resv_trace_t*)malloc(sizeof(resv_trace_t)*nresvs);
     if (!resv_arr) {
-        printf("Error: unable to allocate memory for all reservation records.\n");
+        log_error("unable to allocate memory for all reservation records.\n");
         return -1;
     }
     read(trace_file, resv_arr, sizeof(resv_trace_t)*nresvs);
@@ -416,7 +414,7 @@ static int read_job_trace(const char* trace_file_name)
             if (k_create != -1 && k_last != -1 && k_create != k_last) {
                 for(k = 0; k < nresvs; k++) {
                     if (resv_arr[k].id_resv == resv_arr[k_last].id_resv) {
-                       resv_arr[k].time_end = resv_arr[k_last].time_end;
+                        resv_arr[k].time_end = resv_arr[k_last].time_end;
 //                       log_info("Change reservation %d time_end (%d, %d)", resv_arr[k].id_resv,  resv_arr[k].time_start, resv_arr[k].time_end);
                     }
                 }

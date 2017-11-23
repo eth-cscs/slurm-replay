@@ -4,12 +4,14 @@
 #include <assert.h>
 
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <fcntl.h>
 
-#include <sys/types.h>
 #include <pwd.h>
+#include <time.h>
 
 #include <string.h>
+#include <stdarg.h>
 #include <slurm/slurm.h>
 
 #include "trace.h"
@@ -17,176 +19,197 @@
 
 FILE *logger = NULL;
 char *workload_filename = NULL;
-node_trace_t* node_arr;
-unsigned long nodes = 0;
+node_trace_t* node_arr_s;
+node_trace_t* node_arr_e;
+unsigned long long nnodes = 0;
 static int daemon_flag = 1;
+double clock_rate = 0.0;
 
-/*static int
-create_and_submit_job(job_trace_t jobd)
+static void log_string(const char* type, char* msg)
 {
-    job_desc_msg_t dmesg;
-    submit_response_msg_t * respMsg = NULL;
-    long int duration;
-    int tasks;
-    int rv = 0;
-    char script[2048];
-    int TRES_CPU = 1;
-    int TRES_MEM = 2;
-    int TRES_NODE = 4;
+    char log_time[32];
+    time_t t = get_shmemclock();
+    struct tm timestamp_tm;
 
-    slurm_init_job_desc_msg(&dmesg);
-
-    dmesg.time_limit = jobd.timelimit;
-    dmesg.job_id = jobd.id_job;
-    dmesg.name = strdup(jobd.job_name);
-    dmesg.account = strdup(jobd.account);
-    dmesg.user_id = userid;
-    dmesg.group_id = groupid;
-
-    //TODO change work_dir
-    dmesg.work_dir = strdup("/tmp");
-
-    // Let's be conservative and consider only the normal qos, that is the case on most
-    // of the job running on normal partition of Daint
-    assert(strcmp(jobd.partition, "normal") == 0);
-    dmesg.qos = strdup("normal");
-    dmesg.partition = strdup(jobd.partition);
-
-    //dmesg.priority = jobd.priority;
-
-    dmesg.min_nodes = jobd.nodes_alloc;
-    // check if string starts with "gpu:0" meaning using constriant mc
-    if (strncmp("gpu:0", jobd.gres_alloc, 5)) {
-        dmesg.features = strdup("mc");
-    } else {
-        dmesg.features = strdup("gpu");
-    }
-
-    dmesg.environment  = (char**)malloc(sizeof(char*)*2);
-    dmesg.environment[0] = strdup("HOME=/home/maximem");
-    dmesg.env_size = 1;
-
-    //TODO there is no reservation field anymore
-    //dmesg.reservation   = strdup(jobd.reservation);
-
-    //TODO there is no dependency field
-    //dmesg.dependency    = strdup(jobd.dependency);
-    //dmesg.dependency    = NULL;
-
-    duration = jobd.time_end - jobd.time_start;
-    create_script(script, jobd.nodes_alloc, tasks, jobd.id_job, duration, jobd.exit_code);
-    dmesg.script = strdup(script);
-
-    //print_job_specs(&dmesg);
-
-    if ( rv = slurm_submit_batch_job(&dmesg, &respMsg) ) {
-        fprintf(logger,"Error: slurm_submit_batch_job: %s\n", slurm_strerror(rv));
-        fflush(logger);
-    }
-
-    if (respMsg) {
-        fprintf(logger, "Job submitted: error_code=%u job_id=%u\n",respMsg->error_code, respMsg->job_id);
-        fflush(logger);
-    }
-    // Cleanup
-    if (respMsg) slurm_free_submit_response_response_msg(respMsg);
-
-    if (dmesg.name)        free(dmesg.name);
-    if (dmesg.work_dir)    free(dmesg.work_dir);
-    if (dmesg.qos)         free(dmesg.qos);
-    if (dmesg.partition)   free(dmesg.partition);
-    if (dmesg.account)     free(dmesg.account);
-    if (dmesg.reservation) free(dmesg.reservation);
-    if (dmesg.dependency)  free(dmesg.dependency);
-    if (dmesg.script)      free(dmesg.script);
-    free(dmesg.environment[0]);
-    free(dmesg.environment);
-
-    return rv;
+    localtime_r(&t, &timestamp_tm);
+    strftime(log_time, 32, "%Y-%m-%dT%T", &timestamp_tm);
+    fprintf(logger,"[%s.000] %s: %s\n", log_time, type, msg);
+    fflush(logger);
 }
 
+static void log_error(char *fmt, ...)
+{
+    char dest[1024];
+    va_list argptr;
+    va_start(argptr, fmt);
+    vsprintf(dest, fmt, argptr);
+    va_end(argptr);
+    log_string("error", dest);
+}
 
-static void submit_jobs()
+static void log_info(char *fmt, ...)
+{
+    char dest[1024];
+    va_list argptr;
+    va_start(argptr, fmt);
+    vsprintf(dest, fmt, argptr);
+    va_end(argptr);
+    log_string("info", dest);
+}
+
+int time_start_comp(const void *v1, const void *v2)
+{
+    const node_trace_t *p1 = (node_trace_t *)v1;
+    const node_trace_t *p2 = (node_trace_t *)v2;
+    if (p1->time_start < p2->time_start)
+        return -1;
+    else if (p1->time_start > p2->time_start)
+        return 1;
+    else
+        return 0;
+}
+
+int time_end_comp(const void *v1, const void *v2)
+{
+    const node_trace_t *p1 = (node_trace_t *)v1;
+    const node_trace_t *p2 = (node_trace_t *)v2;
+    if (p1->time_end < p2->time_end)
+        return -1;
+    else if (p1->time_end > p2->time_end)
+        return 1;
+    else
+        return 0;
+}
+
+static int update_node_state(node_trace_t noded, int action)
+{
+    static unsigned long count = 0;
+    update_node_msg_t dmesg;
+    char *info;
+    int res;
+
+    slurm_init_update_node_msg(&dmesg);
+
+    dmesg.node_names = strdup(noded.node_name);
+    dmesg.reason = strdup(noded.reason);
+
+    if (action == NODE_STATE_DRAIN) {
+        info = "DRAINED";
+        dmesg.node_state = NODE_STATE_DRAIN;//noded.state;
+    }
+    if (action == NODE_RESUME) {
+        info = "RESUMED";
+        dmesg.node_state = NODE_RESUME;
+    }
+
+    res = slurm_update_node(&dmesg);
+    if ( res != 0) {
+        log_error("slurm_update_node: %s for %s count=%d", slurm_strerror(res), noded.node_name, count);
+    } else {
+        log_info("updated node: %s count=%d %s", noded.node_name,  count, info);
+    }
+    count++;
+
+    if (dmesg.node_names) free(dmesg.node_names);
+    if (dmesg.reason) free(dmesg.reason);
+}
+
+static void control_nodes()
 {
     time_t current_time = 0;
-    unsigned long k = 0;
+    unsigned long long ks = 0;
+    unsigned long long ke = 0;
 
     current_time= get_shmemclock();
 
-    while( k < njobs ) {
-        // wait for submission time of next job
-        while(current_time < job_arr[k].time_submit) {
+    while( ks < nnodes && ke < nnodes ) {
+        // wait for event either drain/maint node or resume node
+        while(current_time < node_arr_s[ks].time_start && current_time < node_arr_e[ke].time_end ) {
             current_time= get_shmemclock();
             usleep(500);
         }
 
-        fprintf(logger, "[%d] Submitting job: time %lu | id %d\n", k, job_arr[k].time_submit, job_arr[k].id_job);
-        fflush(logger);
-        create_and_submit_job(job_arr[k]);
-        k++;
+        if (current_time >= node_arr_s[ks].time_start && ks < nnodes) {
+            //log_info("submitting %d job: time %lu | id %d", k, job_arr[k].time_submit, job_arr[k].id_job);
+            update_node_state(node_arr_s[ks], NODE_STATE_DRAIN);
+            ks++;
+        }
+        if (current_time >= node_arr_e[ke].time_end && ke < nnodes) {
+            //log_info("submitting %d reservation: time %lu | name %s", k, resv_arr[k].time_start, resv_arr[k].resv_name);
+            update_node_state(node_arr_e[ke], NODE_RESUME);
+            ke++;
+        }
     }
 }
 
 static int read_job_trace(const char* trace_file_name)
 {
-    struct stat  stat_buf;
-    int nrecs = 0, idx = 0;
+    unsigned long long njobs, nresvs;
     int trace_file;
     size_t query_length = 0;
     char query[1024];
+    unsigned long k;
+    long k_create, k_last, k_create_next;
+    int k_id, k_id_next;
 
     trace_file = open(trace_file_name, O_RDONLY);
     if (trace_file < 0) {
-        printf("Error opening file %s\n", trace_file_name);
+        log_error("opening file %s\n", trace_file_name);
         return -1;
     }
 
     read(trace_file, &query_length, sizeof(size_t));
-    read(trace_file, query, query_length*sizeof(char));
+    lseek(trace_file, query_length*sizeof(char), SEEK_CUR);
 
-    fstat(trace_file, &stat_buf);
-    nrecs = (stat_buf.st_size-sizeof(size_t)-query_length*sizeof(char)) / sizeof(job_trace_t);
+    read(trace_file, &njobs, sizeof(unsigned long long));
+    lseek(trace_file, sizeof(job_trace_t)*njobs, SEEK_CUR);
 
-    job_arr = (job_trace_t*)malloc(sizeof(job_trace_t)*nrecs);
-    if (!job_arr) {
-        printf("Error.  Unable to allocate memory for all job records.\n");
+    read(trace_file, &nresvs, sizeof(unsigned long long));
+    lseek(trace_file, sizeof(resv_trace_t)*nresvs, SEEK_CUR);
+
+    read(trace_file, &nnodes, sizeof(unsigned long long));
+    node_arr_s = (node_trace_t*)malloc(sizeof(node_trace_t)*nnodes);
+    node_arr_e = (node_trace_t*)malloc(sizeof(node_trace_t)*nnodes);
+    if (!node_arr_s) {
+        log_error("unable to allocate memory for all node state records.\n");
         return -1;
     }
-    njobs = nrecs;
+    read(trace_file, node_arr_s, sizeof(node_trace_t)*nnodes);
+    memcpy(node_arr_e, node_arr_s, sizeof(node_trace_t)*nnodes);
 
-    while (read(trace_file, &job_arr[idx], sizeof(job_trace_t))) {
-        ++idx;
-    }
+    // sort by time_start and time_end
+    qsort(node_arr_s, nnodes, sizeof(node_trace_t), time_start_comp);
+    qsort(node_arr_e, nnodes, sizeof(node_trace_t), time_end_comp);
 
-    fprintf(logger,"Trace initialization done. Total trace records: %lu. Start time %lu\n", njobs, job_arr[0].time_submit);
-    fflush(logger);
-
+    log_info("total node state records: %lu, start time %lu", nnodes, node_arr_s[0].time_start);
     close(trace_file);
 
     return 0;
 }
-*/
+
 char   help_msg[] = "\
-submitter -w <workload_trace> -t <template_script>\n\
+node_controller -w <workload_trace>\n\
       -w, --wrkldfile filename 'filename' is the name of the trace file \n\
-                   containing the information of the node availability \n\
+                   containing the information of the jobs to \n\
+                   simulate.\n\
       -D, --nodaemon do not daemonize the process\n\
+      -r, --clockrate clock rate of the simulated clock\n\
       -h, --help           This help message.\n";
 
 
 
-static void
-get_args(int argc, char** argv)
+static void get_args(int argc, char** argv)
 {
     static struct option long_options[]  = {
         {"wrkldfile", 1, 0, 'w'},
         {"nodaemon", 0, 0, 'D'},
+        {"clockrate", 1, 0, 'r'},
         {"help", 0, 0, 'h'}
     };
     int opt_char, option_index;
 
     while (1) {
-        if ((opt_char = getopt_long(argc, argv, "hw:D", long_options, &option_index)) == -1 )
+        if ((opt_char = getopt_long(argc, argv, "hw:Dr:", long_options, &option_index)) == -1 )
             break;
         switch(opt_char) {
         case ('w'):
@@ -194,6 +217,9 @@ get_args(int argc, char** argv)
             break;
         case ('D'):
             daemon_flag = 0;
+            break;
+        case ('r'):
+            clock_rate = strtod(optarg,NULL);
             break;
         case ('h'):
             printf("%s\n", help_msg);
@@ -238,13 +264,14 @@ void daemonize(int daemon_flag)
 }
 
 
-int main(int argc, char *argv[])
+int main(int argc, char *argv[], char *envp[])
 {
-    unsigned long k = 0;
+    //Open shared priority queue for time clock
+    open_rdonly_shmemclock();
 
     get_args(argc, argv);
 
-    if ( workload_filename == NULL ) {
+    if ( workload_filename == NULL) {
         printf("Usage: %s\n", help_msg);
         exit(-1);
     }
@@ -252,23 +279,18 @@ int main(int argc, char *argv[])
     // goes in daemon state
     daemonize(daemon_flag);
 
-    /*    if (read_job_trace(workload_filename) < 0) {
-            fprintf(logger, "Error: a problem was detected when reading trace file.");
-            fflush(logger);
-            exit(-1);
-        }
+    if (read_job_trace(workload_filename) < 0) {
+        log_error("a problem was detected when reading trace file.");
+        exit(-1);
+    }
 
-        //Open shared priority queue for time clock
-        open_rdonly_shmemclock();
+    //Jobs and reservations are submit when the replayed time clock equal their submission time
+    control_nodes();
 
-        userids_from_name();
-
-        //Jobs are submit when the replayed time clock equal their submission time
-        submit_jobs();
-    */
     if (daemon_flag) fclose(logger);
 
-//    free(job_arr);
+    free(node_arr_s);
+    free(node_arr_e);
 
     exit(0);
 

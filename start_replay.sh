@@ -42,9 +42,10 @@ echo
 sinfo --summarize
 echo
 
-echo -n "Start submitter... "
-rm -f submitter.log
+echo -n "Start submitter and node controller... "
+rm -f submitter.log node_controller.log
 submitter -w "$WORKLOAD" -t template.script -r "$CLOCK_RATE"
+node_controller -w "$WORKLOAD"
 sleep 3
 echo "done."
 
@@ -63,4 +64,4 @@ trace_builder_mysql -f "replay.$WORKLOAD" -u "maximem" -p "" -h "localhost" -d "
 echo "done."
 echo
 echo "ERROR IF ANY:"
-grep -E "\[[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}\] error:" log/slurmctld.log log/slurmd/*.log submitter.log log/slurmdbd.log
+grep -E "\[[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}\] error:" log/slurmctld.log log/slurmd/*.log submitter.log log/slurmdbd.log node_controller.log

@@ -12,6 +12,7 @@
 
 static int time_format = 0;
 static int reservation = 0;
+static int event = 0;
 static int noheader = 0;
 static int display_query = 0;
 char* workload_trace_file = NULL;
@@ -22,6 +23,7 @@ list_trace [OPTIONS]\n\
     -w, --wrkldfile filename      The name of the trace file to view\n\
     -u, --humantime               Display submit time in a human-readable\n\
     -r, --reservation             Display reservation information\n\
+    -e, --event                   Display node event information\n\
     -h, --help                    This help message.\n";
 
 
@@ -83,13 +85,14 @@ void getArgs(int argc, char** argv)
         {"query",          0, 0, 'q'},
         {"noheader",       0, 0, 'n'},
         {"reservation",    0, 0, 'r'},
+        {"event",    0, 0, 'e'},
         {"humantime",    0, 0, 'u'},
         {"help",           0, 0, 'h'},
     };
     int opt_char, option_index;
 
     while (1) {
-        if ( (opt_char = getopt_long(argc, argv, "w:nurhq", long_options,
+        if ( (opt_char = getopt_long(argc, argv, "w:nurhqe", long_options,
                                      &option_index)) == -1 )
             break;
         switch (opt_char) {
@@ -104,6 +107,9 @@ void getArgs(int argc, char** argv)
             break;
         case ('r'):
             reservation = 1;
+            break;
+        case ('e'):
+            event = 1;
             break;
         case ('u'):
             time_format = 1;
@@ -120,6 +126,7 @@ int main(int argc, char *argv[])
     int trace_file = -1;
     job_trace_t *job_arr;
     resv_trace_t *resv_arr;
+    node_trace_t *node_arr;
     char submit[20];
     char start[20];
     char eligible[20];
@@ -189,7 +196,8 @@ int main(int argc, char *argv[])
                job_state_string(job_arr[k].state),
                job_arr[k].resv_name,
                job_arr[k].id_user);
-    } 
+    }
+    free(job_arr);
 
     if (reservation) {
 
@@ -226,7 +234,43 @@ int main(int argc, char *argv[])
         free(resv_arr);
     }
 
-    free(job_arr);
+    if (event) {
+        if (!reservation) {
+            read(trace_file, &num_rows, sizeof(unsigned long long));
+            lseek(trace_file, num_rows*sizeof(resv_trace_t), SEEK_CUR);
+        }
+
+        if (!noheader) {
+            printf("\t%19s \t%19s \t%10s \t%10s \t%8s\n",
+                   "START", "END", "NODENAME", "REASON", "STATE");
+            printf("\t%19s \t%19s \t%10s \t%10s \t%8s\n",
+                   "=====", "===", "========", "======", "=====");
+        }
+
+        read(trace_file, &num_rows, sizeof(unsigned long long));
+
+        node_arr = (node_trace_t*)malloc(sizeof(node_trace_t)*num_rows);
+        read(trace_file, node_arr, sizeof(node_trace_t)*num_rows);
+
+        for(k = 0; k < num_rows; k++) {
+            if (time_format) {
+                strftime(start, sizeof(start), "%Y-%m-%d %H:%M:%S", localtime(&node_arr[k].time_start));
+                strftime(end, sizeof(end), "%Y-%m-%d %H:%M:%S", localtime(&node_arr[k].time_end));
+            } else {
+                sprintf(start, "%ld", node_arr[k].time_start);
+                sprintf(end, "%ld", node_arr[k].time_end);
+            }
+
+            printf("\t%19s \t%19s \t%10s \t%10s \t%8d\n",
+                   start,
+                   end,
+                   node_arr[k].node_name,
+                   node_arr[k].reason,
+                   node_arr[k].state);
+        }
+        free(node_arr);
+    }
+
     return 0;
 }
 
