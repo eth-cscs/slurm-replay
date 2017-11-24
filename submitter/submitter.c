@@ -156,7 +156,6 @@ static void create_script(char* script, int nodes, int tasks, long int jobid, lo
     fclose(fp);
 }
 
-
 static void userids_from_name()
 {
     struct passwd *pwd;
@@ -181,7 +180,6 @@ static void userids_from_name()
         }
     }
 }
-
 
 static int create_and_submit_job(job_trace_t jobd)
 {
@@ -208,14 +206,14 @@ static int create_and_submit_job(job_trace_t jobd)
     //TODO change work_dir
     dmesg.work_dir = strdup("/tmp");
 
-    // Let's be conservative and consider only the normal qos, that is the case on most
+    // TODO: Daint specific, let's be conservative and consider only the normal qos, that is the case on most
     // of the job running on normal partition of Daint
     assert(strcmp(jobd.partition, "normal") == 0);
     dmesg.qos = strdup("normal");
     dmesg.partition = strdup(jobd.partition);
 
     dmesg.min_nodes = jobd.nodes_alloc;
-    // check if string starts with "gpu:0" meaning using constriant mc
+    // TODO: Daint specific, check if string starts with "gpu:0" meaning using constriant mc
     if (strncmp("gpu:0", jobd.gres_alloc, 5)) {
         dmesg.features = strdup("mc");
     } else {
@@ -228,7 +226,7 @@ static int create_and_submit_job(job_trace_t jobd)
 
     dmesg.reservation   = strdup(jobd.resv_name);
 
-    //TODO dependency
+    //TODO dependency are not registered in the database
     //dmesg.dependency    = strdup(jobd.dependency);
     //dmesg.dependency    = NULL;
 
@@ -263,7 +261,6 @@ static int create_and_submit_job(job_trace_t jobd)
 
     return rv;
 }
-
 
 static int create_and_submit_resv(resv_trace_t resvd, int action)
 {

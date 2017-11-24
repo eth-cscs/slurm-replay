@@ -75,9 +75,6 @@ static char *job_state_string(int inx)
     }
 }
 
-
-
-
 void getArgs(int argc, char** argv)
 {
     static struct option long_options[] = {
@@ -161,10 +158,10 @@ int main(int argc, char *argv[])
     }
 
     if (!noheader) {
-        printf("\t%10s \t%10s \t%10s \t%19s \t%19s \t%19s \t%19s \t%10s \t%8s \t%8s \t%10s \t%10s \t%10s\n",
-               "JOBID", "ACCOUNT", "DURATION", "SUBMIT", "ELIGIBLE", "START", "END", "TIMELIMIT", "NODES", "EXITCODE", "STATE", "RESERVATION", "USERID");
-        printf("\t%10s \t%10s \t%10s \t%19s \t%19s \t%19s \t%19s \t%10s \t%8s \t%8s \t%10s \t%10s \t%10s\n",
-               "=====", "=======", "========", "======", "========", "=====", "===", "=========", "=====", "========", "=====", "===========", "======");
+        printf("\t%10s \t%10s \t%10s \t%19s \t%19s \t%19s \t%19s \t%10s \t%8s \t%8s \t%10s \t%10s \t%10s \t%10s\n",
+               "JOBID", "ACCOUNT", "DURATION", "SUBMIT", "ELIGIBLE", "START", "END", "TIMELIMIT", "NODES", "EXITCODE", "STATE", "RESERVATION", "USERID", "NODELIST");
+        printf("\t%10s \t%10s \t%10s \t%19s \t%19s \t%19s \t%19s \t%10s \t%8s \t%8s \t%10s \t%10s \t%10s \t%10s\n",
+               "=====", "=======", "========", "======", "========", "=====", "===", "=========", "=====", "========", "=====", "===========", "======", "========");
     }
 
     job_arr = (job_trace_t*)malloc(sizeof(job_trace_t)*num_rows);
@@ -182,7 +179,7 @@ int main(int argc, char *argv[])
             sprintf(end, "%ld", job_arr[k].time_end);
         }
 
-        printf("\t%10d \t%10s \t%10d \t%19s \t%19s \t%19s \t%19s \t%10d \t%8d \t%8d \t%10s \t%10s \t%10d\n",
+        printf("\t%10d \t%10s \t%10d \t%19s \t%19s \t%19s \t%19s \t%10d \t%8d \t%8d \t%10s \t%10s \t%10d \t%10s\n",
                job_arr[k].id_job,
                job_arr[k].account,
                job_arr[k].time_end - job_arr[k].time_start,
@@ -195,17 +192,18 @@ int main(int argc, char *argv[])
                job_arr[k].exit_code,
                job_state_string(job_arr[k].state),
                job_arr[k].resv_name,
-               job_arr[k].id_user);
+               job_arr[k].id_user,
+               job_arr[k].nodelist);
     }
     free(job_arr);
 
     if (reservation) {
 
         if (!noheader) {
-            printf("\t%8s \t%10s \%10s \t%19s \t%19s \t%8s \t%8s\n",
-                   "RESID", "ACCOUNT", "NAME", "START", "END", "NODELIST", "FLAGS");
-            printf("\t%8s \t%10s \%10s \t%19s \t%19s \t%8s \t%8s\n",
-                   "=====", "=======", "====", "=====", "===", "========", "=====");
+            printf("\t%8s \t%10s \%10s \t%19s \t%19s \t%8s \t%8s \t%10s\n",
+                   "RESID", "ACCOUNT", "NAME", "START", "END", "NODELIST", "FLAGS", "TRES");
+            printf("\t%8s \t%10s \%10s \t%19s \t%19s \t%8s \t%8s \t%10s\n",
+                   "=====", "=======", "====", "=====", "===", "========", "=====", "====");
         }
 
         read(trace_file, &num_rows, sizeof(unsigned long long));
@@ -222,14 +220,15 @@ int main(int argc, char *argv[])
                 sprintf(end, "%ld", resv_arr[k].time_end);
             }
 
-            printf("\t%8d \t%10s \t%10s \t%19s \t%19s \t%8s \t%8d\n",
+            printf("\t%8d \t%10s \t%10s \t%19s \t%19s \t%8s \t%8d \t%10s\n",
                    resv_arr[k].id_resv,
                    resv_arr[k].accts,
                    resv_arr[k].resv_name,
                    start,
                    end,
                    resv_arr[k].nodelist,
-                   resv_arr[k].flags);
+                   resv_arr[k].flags,
+                   resv_arr[k].tres);
         }
         free(resv_arr);
     }
@@ -273,5 +272,3 @@ int main(int argc, char *argv[])
 
     return 0;
 }
-
-

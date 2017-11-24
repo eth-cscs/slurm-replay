@@ -47,6 +47,7 @@ typedef struct resv_trace {
     char nodelist[TEXT_SIZE];
     char resv_name[TEXT_SIZE];
     char accts[TEXT_SIZE];
+    char tres[TEXT_SIZE];
     int flags;
 } resv_trace_t;
 

@@ -270,7 +270,7 @@ int main(int argc, char **argv)
     // process reservation data
     if (!use_query && resv_table != NULL && assoc_table != NULL) {
         memset(query,'\0',1024);
-        snprintf(query, 1024*sizeof(char), "SELECT r.id_resv, r.time_start, r.time_end, r.nodelist, r.resv_name, GROUP_CONCAT(DISTINCT a.acct), r.flags "
+        snprintf(query, 1024*sizeof(char), "SELECT r.id_resv, r.time_start, r.time_end, r.nodelist, r.resv_name, GROUP_CONCAT(DISTINCT a.acct), r.flags, r.tres "
                  "FROM %s AS r INNER JOIN %s AS a ON FIND_IN_SET(a.id_assoc,r.assoclist) "
                  "WHERE FROM_UNIXTIME(r.time_start) BETWEEN '%s' AND '%s' GROUP BY r.time_start, r.id_resv ORDER BY r.time_start", resv_table, assoc_table, starttime, endtime);
 
@@ -296,6 +296,7 @@ int main(int argc, char **argv)
             sprintf(resv_trace.resv_name, "%s", row[4]);
             sprintf(resv_trace.accts, "%s", row[5]);
             resv_trace.flags = atoi(row[6]);
+            sprintf(resv_trace.tres, "%s", row[7]);
 
             written = write(trace_file, &resv_trace, sizeof(resv_trace_t));
             if(written != sizeof(resv_trace_t)) {

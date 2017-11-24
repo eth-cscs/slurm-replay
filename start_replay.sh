@@ -60,7 +60,7 @@ date
 echo -n "Collecting data... "
 # get the replay trace
 query=$(trace_list -w $WORKLOAD -q | head -n 1)
-trace_builder_mysql -f "replay.$WORKLOAD" -u "maximem" -p "" -h "localhost" -d "slurm_acct_db" -q "$query" -t daint_job_table -r daint_resv_table
+trace_builder_mysql -f "replay.$WORKLOAD" -u "maximem" -p "" -h "localhost" -d "slurm_acct_db" -q "$query" -t daint_job_table -r daint_resv_table -v daint_event_table
 echo "done."
 echo
 echo "ERROR IF ANY:"
