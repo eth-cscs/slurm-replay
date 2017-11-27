@@ -9,9 +9,7 @@
 
 #include "shmemclock.h"
 
-time_t *clock_val;
 void *clock_ptr;
-
 
 static inline void _open_shmemclock(int flag1, int flag2)
 {
@@ -34,7 +32,6 @@ static inline void _open_shmemclock(int flag1, int flag2)
 
 void open_rdonly_shmemclock() {
 _open_shmemclock(O_RDONLY, PROT_READ);
-
 }
 
 void open_rdwr_shmemclock() {
@@ -42,17 +39,6 @@ _open_shmemclock(O_RDWR, PROT_READ | PROT_WRITE);
 }
 
 
-inline time_t get_shmemclock()
-{
-    return __atomic_load_n(clock_val, __ATOMIC_SEQ_CST);
-}
-
-inline void set_shmemclock(time_t t)
-{
-    __atomic_store_n(clock_val, t, __ATOMIC_SEQ_CST);
-}
-
-inline time_t incr_shmemclock(int v) {
-    return __atomic_add_fetch(clock_val, v, __ATOMIC_SEQ_CST);
-}
-
+extern time_t get_shmemclock();
+extern void set_shmemclock(time_t t);
+extern time_t incr_shmemclock(int v);

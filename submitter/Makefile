@@ -22,26 +22,26 @@ submitter.o: submitter.c
 	$(CC) $(CCFLAGS) $(INCLUDES) -o $@ -c $<
 
 submitter: submitter.o
-	$(CC) $(LDFLAGS) $(LIB_SHMEMCLOCK) $(LIB_SLURM) -o $@ $+
+	$(CC) $(LDFLAGS) -o $@ $+ $(LIB_SLURM) $(LIB_SHMEMCLOCK)
 
 node_controller.o: node_controller.c
 	$(CC) $(CCFLAGS) $(INCLUDES) -o $@ -c $<
 
 node_controller: node_controller.o
-	$(CC) $(LDFLAGS) $(LIB_SHMEMCLOCK) $(LIB_SLURM) -o $@ $+
+	$(CC) $(LDFLAGS) -o $@ $+ $(LIB_SHMEMCLOCK) $(LIB_SLURM)
 
 
 ticker.o: ticker.c
 	$(CC) $(CCFLAGS) $(INCLUDES) -o $@ -c $<
 
 ticker: ticker.o
-	$(CC) $(LDFLAGS) $(LIB_SHMEMCLOCK) -o $@ $+
+	$(CC) $(LDFLAGS) -o $@ $+ $(LIB_SHMEMCLOCK)
 
 job_runner.o: job_runner.c
 	$(CC) $(CCFLAGS) $(INCLUDES) -o $@ -c $<
 
 job_runner: job_runner.o
-	$(CC) $(LDFLAGS) $(LIB_SHMEMCLOCK) $(LIB_SLURM) $(LIB_MATH) -o $@ $+
+	$(CC) $(LDFLAGS) -o $@ $+ $(LIB_SHMEMCLOCK) $(LIB_SLURM) $(LIB_MATH)
 
 trace_builder_mysql.o: trace_builder_mysql.c
 	$(CC) $(CCFLAGS) $(INCLUDES) -o $@ -c $<
