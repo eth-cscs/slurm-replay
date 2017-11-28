@@ -1,0 +1,417 @@
+diff --git a/auxdir/x_ac_clock.m4 b/auxdir/x_ac_clock.m4
+new file mode 100644
+index 0000000000..56693e2970
+--- /dev/null
++++ b/auxdir/x_ac_clock.m4
+@@ -0,0 +1,60 @@
++##*****************************************************************************
++#  AUTHOR:
++#    Maxime Martinasso <martinasso@cscs.ch>
++#
++#  SYNOPSIS:
++#    X_AC_CLOCK
++#
++#  DESCRIPTION:
++#    Use a pre-define clock for job management, used for replaying traces.
++##*****************************************************************************
++
++AC_DEFUN([X_AC_CLOCK],
++[
++  AC_ARG_WITH(
++    [clock],
++    AS_HELP_STRING(--with-clock=PATH,Specify path to clock installation),
++    [AS_IF([test "x$with_clock" != xno],[_x_ac_clock_dirs="$with_clock"])])
++
++  if [test "x$with_clock" = xno]; then
++     AC_MSG_WARN([support for clock disabled])
++  else
++    AC_CACHE_CHECK(
++      [for clock installation],
++      [x_ac_cv_clock_dir],
++      [
++        for d in $_x_ac_clock_dirs; do
++          test -d "$d" || continue
++          _x_ac_clock_cppflags_save="$CPPFLAGS"
++          CPPFLAGS="-I$d $CPPFLAGS"
++          _x_ac_clock_libs_save="$LIBS"
++          LIBS="-L$d -lshmemclock -lrt $LIBS"
++          AC_LINK_IFELSE(
++              [AC_LANG_SOURCE([[
++              #include <shmemclock.h>
++              int main() { open_rdonly_shmemclock(); }]])],[
++              AS_VAR_SET(x_ac_cv_clock_dir, $d)],[])
++          CPPFLAGS="$_x_ac_clock_cppflags_save"
++          LIBS="$_x_ac_clock_libs_save"
++          test -n "$x_ac_cv_clock_dir" && break
++        done
++      ])
++
++    if test -z "$x_ac_cv_clock_dir"; then
++      AC_MSG_WARN([unable to locate clock installation])
++    else
++      clock_CPPFLAGS="-I$x_ac_cv_clock_dir"
++      if test "$ac_with_rpath" = "yes"; then
++        clock_LDFLAGS="-Wl,-rpath -Wl,$x_ac_cv_clock_dir -L$x_ac_cv_clock_dir"
++      else
++        clock_LDFLAGS="-L$x_ac_cv_clock_dir"
++      fi
++      clock_LIBS="-lshmemclock -lrt"
++      AC_DEFINE(HAVE_clock, 1, [Define to 1 if clock library found])
++    fi
++
++    AC_SUBST(clock_LIBS)
++    AC_SUBST(clock_CPPFLAGS)
++    AC_SUBST(clock_LDFLAGS)
++  fi
++])
+diff --git a/configure.ac b/configure.ac
+index 2f177ec34f..371df692f5 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -222,6 +222,7 @@ AC_DEFINE([H5_NO_DEPRECATED_SYMBOLS], [1], [Make sure we get the 1.8 HDF5 API])
+ AX_CHECK_ZLIB([], [])
+ X_AC_LZ4
+ X_AC_HWLOC
++X_AC_CLOCK
+ X_AC_PMIX
+ X_AC_FREEIPMI
+ X_AC_SLURM_SEMAPHORE
+@@ -521,6 +522,7 @@ AC_CONFIG_FILES([Makefile
+ 		 src/plugins/core_spec/none/Makefile
+ 		 src/plugins/crypto/Makefile
+ 		 src/plugins/crypto/munge/Makefile
++		 src/plugins/crypto/none/Makefile
+ 		 src/plugins/crypto/openssl/Makefile
+ 		 src/plugins/ext_sensors/Makefile
+ 		 src/plugins/ext_sensors/rrd/Makefile
+diff --git a/src/plugins/crypto/Makefile.am b/src/plugins/crypto/Makefile.am
+index c86ce27596..6ec193ba5a 100644
+--- a/src/plugins/crypto/Makefile.am
++++ b/src/plugins/crypto/Makefile.am
+@@ -1,3 +1,3 @@
+ # Makefile for crypto plugins
+ 
+-SUBDIRS = munge openssl
++SUBDIRS = munge openssl none
+diff --git a/src/plugins/crypto/none/Makefile.am b/src/plugins/crypto/none/Makefile.am
+new file mode 100644
+index 0000000000..69283eaeef
+--- /dev/null
++++ b/src/plugins/crypto/none/Makefile.am
+@@ -0,0 +1,13 @@
++# Makefile for crypto/none plugin
++
++AUTOMAKE_OPTIONS = foreign
++
++PLUGIN_FLAGS = -module -avoid-version --export-dynamic
++
++AM_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/src/common
++
++pkglib_LTLIBRARIES = crypto_none.la
++
++# None crypto plugin
++crypto_none_la_SOURCES = crypto_none.c
++crypto_none_la_LDFLAGS = $(SO_LDFLAGS) $(PLUGIN_FLAGS)
+diff --git a/src/plugins/crypto/none/crypto_none.c b/src/plugins/crypto/none/crypto_none.c
+new file mode 100644
+index 0000000000..20d260e676
+--- /dev/null
++++ b/src/plugins/crypto/none/crypto_none.c
+@@ -0,0 +1,154 @@
++/*****************************************************************************\
++ *  crypto_munge.c - Munge based cryptographic signature plugin
++ *****************************************************************************
++ *  Copyright (C) 2007 The Regents of the University of California.
++ *  Copyright (C) 2008-2009 Lawrence Livermore National Security.
++ *  Produced at Lawrence Livermore National Laboratory (cf, DISCLAIMER).
++ *  Written by Mark A. Grondona <mgrondona@llnl.gov>.
++ *  CODE-OCEC-09-009. All rights reserved.
++ *
++ *  This file is part of SLURM, a resource management program.
++ *  For details, see <https://slurm.schedmd.com/>.
++ *  Please also read the included file: DISCLAIMER.
++ *
++ *  SLURM is free software; you can redistribute it and/or modify it under
++ *  the terms of the GNU General Public License as published by the Free
++ *  Software Foundation; either version 2 of the License, or (at your option)
++ *  any later version.
++ *
++ *  In addition, as a special exception, the copyright holders give permission
++ *  to link the code of portions of this program with the OpenSSL library under
++ *  certain conditions as described in each individual source file, and
++ *  distribute linked combinations including the two. You must obey the GNU
++ *  General Public License in all respects for all of the code used other than
++ *  OpenSSL. If you modify file(s) with this exception, you may extend this
++ *  exception to your version of the file(s), but you are not obligated to do
++ *  so. If you do not wish to do so, delete this exception statement from your
++ *  version.  If you delete this exception statement from all source files in
++ *  the program, then also delete it here.
++ *
++ *  SLURM is distributed in the hope that it will be useful, but WITHOUT ANY
++ *  WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
++ *  FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
++ *  details.
++ *
++ *  You should have received a copy of the GNU General Public License along
++ *  with SLURM; if not, write to the Free Software Foundation, Inc.,
++ *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA.
++\*****************************************************************************/
++
++#include "config.h"
++
++#include <inttypes.h>
++#include <munge.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <unistd.h>
++
++#include "slurm/slurm_errno.h"
++
++#include "src/common/slurm_protocol_api.h"
++#include "src/common/xassert.h"
++#include "src/common/xmalloc.h"
++#include "src/common/xstring.h"
++
++#define RETRY_COUNT		20
++#define RETRY_USEC		100000
++
++/*
++ * These variables are required by the generic plugin interface.  If they
++ * are not found in the plugin, the plugin loader will ignore it.
++ *
++ * plugin_name - a string giving a human-readable description of the
++ * plugin.  There is no maximum length, but the symbol must refer to
++ * a valid string.
++ *
++ * plugin_type - a string suggesting the type of the plugin or its
++ * applicability to a particular form of data or method of data handling.
++ * If the low-level plugin API is used, the contents of this string are
++ * unimportant and may be anything.  SLURM uses the higher-level plugin
++ * interface which requires this string to be of the form
++ *
++ *	<application>/<method>
++ *
++ * where <application> is a description of the intended application of
++ * the plugin (e.g., "auth" for SLURM authentication) and <method> is a
++ * description of how this plugin satisfies that application.  SLURM will
++ * only load authentication plugins if the plugin_type string has a prefix
++ * of "auth/".
++ *
++ * plugin_version - an unsigned 32-bit integer containing the Slurm version
++ * (major.minor.micro combined into a single number).
++ */
++const char plugin_name[]        = "Null cryptographic signature plugin";
++const char plugin_type[]        = "crypto/none";
++const uint32_t plugin_version   = SLURM_VERSION_NUMBER;
++
++/*
++ * init() is called when the plugin is loaded, before any other functions
++ * are called.  Put global initialization here.
++ */
++extern int init ( void )
++{
++	verbose("%s loaded", plugin_name);
++	return SLURM_SUCCESS;
++}
++
++/*
++ * fini() is called when the plugin is unloaded,
++ * free any global memory allocations here to avoid memory leaks.
++ */
++extern int fini ( void )
++{
++	verbose("%s unloaded", plugin_name);
++	return SLURM_SUCCESS;
++}
++
++extern void
++crypto_destroy_key(void *key)
++{
++    if (key)
++       xfree(key);
++}
++
++extern void *
++crypto_read_private_key(const char *path)
++{
++    char* private_key;
++    private_key = xmalloc(sizeof(unsigned char));
++
++	return (void *) private_key;
++}
++
++extern void *
++crypto_read_public_key(const char *path)
++{
++    char* public_key;
++    public_key = xmalloc(sizeof(unsigned char));
++
++	return (void *) public_key;
++}
++
++extern const char *
++crypto_str_error(int errnum)
++{
++    return "Errors are possible within the Null cryptographic plugin";
++}
++
++/* NOTE: Caller must xfree the signature returned by sig_pp */
++extern int
++crypto_sign(void * key, char *buffer, int buf_size, char **sig_pp,
++	    unsigned int *sig_size_p)
++{
++    *sig_pp = xmalloc(sizeof(unsigned char));
++	*sig_size_p = 1;
++	return 0;
++}
++
++extern int
++crypto_verify_sign(void * key, char *buffer, unsigned int buf_size,
++		   char *signature, unsigned int sig_size)
++{
++	return SLURM_SUCCESS;
++}
+diff --git a/src/slurmctld/Makefile.am b/src/slurmctld/Makefile.am
+index 1200333532..a063b2527d 100644
+--- a/src/slurmctld/Makefile.am
++++ b/src/slurmctld/Makefile.am
+@@ -4,7 +4,7 @@
+ AUTOMAKE_OPTIONS = foreign
+ CLEANFILES = core.*
+ 
+-AM_CPPFLAGS = -I$(top_srcdir) $(BG_INCLUDES)
++AM_CPPFLAGS = -I$(top_srcdir) $(BG_INCLUDES) $(clock_CPPFLAGS)
+ 
+ # noinst_LTLIBRARIES = libslurmctld.la
+ # libslurmctld_la_LDFLAGS  = $(LIB_LDFLAGS) -module --export-dynamic
+@@ -74,8 +74,8 @@ sbin_PROGRAMS = slurmctld
+ 
+ slurmctld_LDADD = 				    \
+ 	$(top_builddir)/src/common/libdaemonize.la  \
+-	$(top_builddir)/src/api/libslurm.o $(DL_LIBS)
+-slurmctld_LDFLAGS = -export-dynamic $(CMD_LDFLAGS)
++	$(top_builddir)/src/api/libslurm.o $(DL_LIBS) $(clock_LIBS)
++slurmctld_LDFLAGS = -export-dynamic $(CMD_LDFLAGS) $(clock_LDFLAGS)
+ 
+ force:
+ $(slurmctld_LDADD) : force
+diff --git a/src/slurmctld/controller.c b/src/slurmctld/controller.c
+index d76a48b2aa..8c5d911f91 100644
+--- a/src/slurmctld/controller.c
++++ b/src/slurmctld/controller.c
+@@ -114,6 +114,7 @@
+ #include "src/slurmctld/state_save.h"
+ #include "src/slurmctld/trigger_mgr.h"
+ 
++#include <shmemclock.h>
+ 
+ #define CRED_LIFE         60	/* Job credential lifetime in seconds */
+ #define DEFAULT_DAEMONIZE 1	/* Run as daemon by default if set */
+@@ -256,6 +257,9 @@ int main(int argc, char **argv)
+ 	for (i = 3; i < cnt; i++)
+ 		close(i);
+ 
++    // setup discrete time
++    open_rdonly_shmemclock();
++
+ 	/*
+ 	 * Establish initial configuration
+ 	 */
+diff --git a/src/slurmd/slurmd/Makefile.am b/src/slurmd/slurmd/Makefile.am
+index 9ca7b65e6c..e1a82baeff 100644
+--- a/src/slurmd/slurmd/Makefile.am
++++ b/src/slurmd/slurmd/Makefile.am
+@@ -6,16 +6,16 @@ AUTOMAKE_OPTIONS = foreign
+ sbin_PROGRAMS = slurmd
+ 
+ AM_CPPFLAGS = -DLIBSLURM_SO=\"$(libdir)/libslurm.so\" \
+-	-I$(top_srcdir) $(HWLOC_CPPFLAGS)
++	-I$(top_srcdir) $(HWLOC_CPPFLAGS) $(clock_CPPFLAGS)
+ 
+ slurmd_LDADD = 					   \
+ 	$(top_builddir)/src/common/libdaemonize.la \
+ 	$(top_builddir)/src/bcast/libfile_bcast.la \
+ 	../common/libslurmd_common.o $(HWLOC_LIBS) \
+ 	$(top_builddir)/src/api/libslurm.o $(DL_LIBS)  \
+-	../common/libslurmd_reverse_tree_math.la
++	../common/libslurmd_reverse_tree_math.la $(clock_LIBS)
+ 
+-slurmd_LDFLAGS = -export-dynamic $(CMD_LDFLAGS) $(HWLOC_LDFLAGS) $(NUMA_LIBS)
++slurmd_LDFLAGS = -export-dynamic $(CMD_LDFLAGS) $(HWLOC_LDFLAGS) $(NUMA_LIBS) $(clock_LDFLAGS)
+ 
+ SLURMD_SOURCES = \
+ 	slurmd.c slurmd.h \
+diff --git a/src/slurmd/slurmd/slurmd.c b/src/slurmd/slurmd/slurmd.c
+index f3ebd8012f..3ba96e79d9 100644
+--- a/src/slurmd/slurmd/slurmd.c
++++ b/src/slurmd/slurmd/slurmd.c
+@@ -109,6 +109,8 @@
+ #include "src/slurmd/slurmd/slurmd_plugstack.h"
+ #include "src/slurmd/common/xcpuinfo.h"
+ 
++#include <shmemclock.h>
++
+ #define GETOPT_ARGS	"bcCd:Df:hL:Mn:N:vV"
+ 
+ #ifndef MAXHOSTNAMELEN
+@@ -217,6 +219,8 @@ main (int argc, char **argv)
+ 	char time_stamp[256];
+ 	log_options_t lopts = LOG_OPTS_INITIALIZER;
+ 
++    open_rdonly_shmemclock();
++
+ 	/* NOTE: logfile is NULL at this point */
+ 	log_init(argv[0], lopts, LOG_DAEMON, NULL);
+ 
+diff --git a/src/slurmd/slurmstepd/Makefile.am b/src/slurmd/slurmstepd/Makefile.am
+index 33a510f61e..d9df2056f7 100644
+--- a/src/slurmd/slurmstepd/Makefile.am
++++ b/src/slurmd/slurmstepd/Makefile.am
+@@ -5,13 +5,13 @@ AUTOMAKE_OPTIONS = foreign
+ 
+ sbin_PROGRAMS = slurmstepd
+ 
+-AM_CPPFLAGS = -I$(top_srcdir)
++AM_CPPFLAGS = -I$(top_srcdir) $(clock_CPPFLAGS)
+ 
+ slurmstepd_LDADD = 				   \
+ 	$(top_builddir)/src/common/libdaemonize.la \
+ 	../common/libslurmd_common.o $(HWLOC_LDFLAGS) $(HWLOC_LIBS) \
+ 	$(top_builddir)/src/api/libslurm.o $(DL_LIBS) \
+-	$(PAM_LIBS) $(UTIL_LIBS)
++	$(PAM_LIBS) $(UTIL_LIBS) $(clock_LIBS)
+ 
+ slurmstepd_SOURCES = 	        	\
+ 	slurmstepd.c slurmstepd.h	\
+@@ -27,7 +27,7 @@ slurmstepd_SOURCES = 	        	\
+ 	multi_prog.c multi_prog.h	\
+ 	step_terminate_monitor.c step_terminate_monitor.h
+ 
+-slurmstepd_LDFLAGS = -export-dynamic $(CMD_LDFLAGS)
++slurmstepd_LDFLAGS = -export-dynamic $(CMD_LDFLAGS) $(clock_LDFLAGS)
+ 
+ force:
+ $(slurmstepd_LDADD) : force
+diff --git a/src/slurmd/slurmstepd/slurmstepd.c b/src/slurmd/slurmstepd/slurmstepd.c
+index f6c147048a..93e7693ede 100644
+--- a/src/slurmd/slurmstepd/slurmstepd.c
++++ b/src/slurmd/slurmstepd/slurmstepd.c
+@@ -71,6 +71,8 @@
+ #include "src/slurmd/slurmstepd/slurmstepd.h"
+ #include "src/slurmd/slurmstepd/slurmstepd_job.h"
+ 
++#include <shmemclock.h>
++
+ static int _init_from_slurmd(int sock, char **argv, slurm_addr_t **_cli,
+ 			     slurm_addr_t **_self, slurm_msg_t **_msg,
+ 			     int *_ngids, gid_t **_gids);
+@@ -106,6 +108,8 @@ main (int argc, char **argv)
+ 	int rc = 0;
+ 	char *launch_params;
+ 
++    open_rdonly_shmemclock();
++
+ 	if (_process_cmdline (argc, argv) < 0)
+ 		fatal ("Error in slurmstepd command line");
+ 

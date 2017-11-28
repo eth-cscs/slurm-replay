@@ -1,0 +1,12 @@
+diff --git a/src/slurmd/slurmstepd/step_terminate_monitor.c b/src/slurmd/slurmstepd/step_terminate_monitor.c
+index b043421a0e..fca60078f4 100644
+--- a/src/slurmd/slurmstepd/step_terminate_monitor.c
++++ b/src/slurmd/slurmstepd/step_terminate_monitor.c
+@@ -127,6 +127,7 @@ static void *_monitor(void *arg)
+ 		goto done;
+ 
+ 	rc = pthread_cond_timedwait(&cond, &lock, &ts);
++    goto done;
+ 	if (rc == ETIMEDOUT) {
+ 		char entity[24], time_str[24];
+ 		time_t now = time(NULL);
