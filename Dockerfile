@@ -7,6 +7,9 @@ RUN pacman -Sy --noconfirm \
                autoconf automake gcc make mariadb wget patch python gtk2 pkgconf git fakeroot vim sudo bc \
                && rm -rf /var/cache/pacman/pkg
 
+# set timezone to CET
+RUN  ln -sf /usr/share/zoneinfo/CET /etc/localtime
+
 # setup db
 RUN groupadd -r mysql && \
     useradd -r -g mysql mysql && \
