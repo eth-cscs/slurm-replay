@@ -1,6 +1,6 @@
 
 DISTIME_PATH ?= ../distime
-SLURM_PATH ?= ../../slurm_newsim
+SLURM_PATH ?= ../../slurmR
 
 # compiler flags
 CC := gcc

@@ -7,8 +7,8 @@ if [ -z "$WORKLOAD" ]; then
 fi
 
 
-SLURM_DIR="/home/maximem/dev/github/slurm_simulator/slurm_newsim"
-SLURM_REPLAY="/home/maximem/dev/github/slurm_simulator/slurm-replay"
+SLURM_DIR="/home/slurm/slurmR"
+SLURM_REPLAY="/home/slurm/slurm-replay"
 SLURM_REPLAY_LIB="libwtime.so"
 
 export PATH="$SLURM_REPLAY/submitter:$PATH"
@@ -60,7 +60,8 @@ date
 echo -n "Collecting data... "
 # get the replay trace
 query=$(trace_list -w $WORKLOAD -q | head -n 1)
-trace_builder_mysql -f "replay.$WORKLOAD" -u "maximem" -p "" -h "localhost" -d "slurm_acct_db" -q "$query" -t daint_job_table -r daint_resv_table -v daint_event_table
+REPLAY_WORKLOAD="${WORKLOAD##*/}"
+trace_builder_mysql -f "replay.$REPLAY_WORKLOAD" -u "slurm" -p "" -h "localhost" -d "slurm_acct_db" -q "$query" -t daint_job_table -r daint_resv_table -v daint_event_table
 echo "done."
 echo
 echo "ERROR IF ANY:"
