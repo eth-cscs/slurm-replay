@@ -16,8 +16,10 @@ RUN groupadd -r mysql && \
 
 EXPOSE 3306
 
-# create a user slurm with sudo access
-RUN useradd -ms /bin/bash slurm && echo "slurm ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/slurm && chmod 0440 /etc/sudoers.d/slurm
+# create a user slurm with sudo access for using pacman and starting the mysql server
+RUN useradd -ms /bin/bash slurm && \
+    echo "slurm ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/slurm && \
+    chmod 0440 /etc/sudoers.d/slurm
 USER slurm
 WORKDIR /home/slurm
 
@@ -25,9 +27,7 @@ WORKDIR /home/slurm
 RUN git clone https://aur.archlinux.org/munge.git && \
     cd munge && \
     makepkg -s --noconfirm
-#USER root
 RUN sudo pacman -U --noconfirm munge/munge-*.pkg.tar.xz
-#USER slurm
 
 # install replay libraries
 COPY --chown=slurm:slurm . /home/slurm/slurm-replay
@@ -76,6 +76,8 @@ RUN mkdir /home/slurm/data
 #     docker run -it -v /Users/maximem/dev/docker/slurm-replay/data:/home/slurm/data --name slurm-replay slurm-replay
 #
 
+# for convenience
+RUN echo "export PATH=\$PATH:/home/slurm/slurmR/bin:/home/slurm/slurmR/sbin:/home/slurm/slurm-replay/submitter" >> /home/slurm/.bashrc
 WORKDIR /home/slurm/slurm-replay
 
 # invoke shell
