@@ -56,6 +56,9 @@ echo "Replay ends at $(date --date="${END_REPLAY%.*} seconds")"
 
 ticker -c "$END_TIME,$RATE,$TICK"
 
+# let slurm process uncompleted data
+sleep 60
+
 date
 echo -n "Collecting data... "
 # get the replay trace

@@ -70,7 +70,9 @@ get_args(int argc, char** argv)
 
 int main(int argc, char *argv[])
 {
-    time_t cur_time, end_time,start_time;
+    const int one_second = 1000000;
+    int freq;
+    time_t end_time,start_time;
     char strstart_time[20];
     char strend_time[20];
     double time_nsec;
@@ -83,8 +85,8 @@ int main(int argc, char *argv[])
 
     get_args(argc, argv);
 
-    start_time = cur_time = get_shmemclock();
-    end_time = cur_time+duration;
+    start_time = get_shmemclock();
+    end_time = start_time+duration;
 
     strftime(strstart_time, sizeof(strstart_time), "%Y-%m-%d %H:%M:%S", localtime(&start_time));
     strftime(strend_time, sizeof(strend_time), "%Y-%m-%d %H:%M:%S", localtime(&end_time));
@@ -97,9 +99,9 @@ int main(int argc, char *argv[])
     }
 
     // near the end of duration
-    while(cur_time < end_time) {
-        usleep(500);
-        cur_time = get_shmemclock();
+    freq = one_second*clock_rate;
+    while(get_shmemclock() < end_time) {
+        usleep(freq);
     }
 
     // exit code are restricted in POSIX C
