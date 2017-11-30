@@ -11,7 +11,7 @@ typedef struct job_trace {
     int exit_code;
     char job_name[TINYTEXT_SIZE];
     int id_job;
-    int id_qos;
+    char qos_name[TINYTEXT_SIZE];
     int id_user;
     int id_group;
     char resv_name[TINYTEXT_SIZE];
@@ -22,19 +22,19 @@ typedef struct job_trace {
     int priority;
     int state;
     int timelimit;
-    unsigned long time_submit;
-    unsigned long time_eligible;
-    unsigned long time_start;
-    unsigned long time_end;
-    unsigned long time_suspended;
+    long time_submit;
+    long time_eligible;
+    long time_start;
+    long time_end;
+    long time_suspended;
     char gres_req[TEXT_SIZE];
     char gres_alloc[TEXT_SIZE];
     char tres_req[TEXT_SIZE];
 } job_trace_t;
 
 typedef struct node_trace {
-    unsigned long time_start;
-    unsigned long time_end;
+    long time_start;
+    long time_end;
     char node_name[TINYTEXT_SIZE];
     char reason[TINYTEXT_SIZE];
     int state;
@@ -42,8 +42,8 @@ typedef struct node_trace {
 
 typedef struct resv_trace {
     int id_resv;
-    unsigned long time_start;
-    unsigned long time_end;
+    long time_start;
+    long time_end;
     char nodelist[TEXT_SIZE];
     char resv_name[TEXT_SIZE];
     char accts[TEXT_SIZE];

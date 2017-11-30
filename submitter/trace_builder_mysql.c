@@ -183,12 +183,13 @@ int main(int argc, char **argv)
             exit(-1);
         }
         snprintf(query, 1024*sizeof(char), "SELECT t.account, t.cpus_req, t.exit_code, t.job_name, "
-                 "t.id_job, t.id_user, t.id_group, r.resv_name, t.mem_req, t.nodelist, t.nodes_alloc, t.partition, t.priority, t.state, "
+                 "q.name, t.id_user, t.id_group, r.resv_name, t.mem_req, t.nodelist, t.nodes_alloc, t.partition, t.priority, t.state, "
                  "t.timelimit, t.time_submit, t.time_eligible, t.time_start, t.time_end, t.time_suspended, "
                  "t.gres_req, t.gres_alloc, t.tres_req "
                  "FROM %s as t LEFT JOIN %s as r ON t.id_resv = r.id_resv AND t.time_start >= r.time_start and t.time_end <= r.time_end "
+                 "LEFT JOIN qos_table as q ON q.id = t.id_qos "
                  "WHERE FROM_UNIXTIME(t.time_submit) BETWEEN '%s' AND '%s' AND "
-                 "t.time_end > 0 AND t.nodes_alloc > 0 AND t.partition='normal'", job_table, resv_table, starttime, endtime);
+                 "t.time_end > 0 AND t.nodes_alloc > 0", job_table, resv_table, starttime, endtime);
     }
     printf("\nQuery --> %s\n\n", query);
 
@@ -229,7 +230,7 @@ int main(int argc, char **argv)
         job_trace.cpus_req = atoi(row[1]);
         job_trace.exit_code = atoi(row[2]);
         sprintf(job_trace.job_name, "%s", row[3]);
-        job_trace.id_job = atoi(row[4]);
+        sprintf(job_trace.qos_name, "%s", row[4]);
         job_trace.id_user = atoi(row[5]);
         job_trace.id_group = atoi(row[6]);
         if (row[7] != NULL) {
@@ -261,7 +262,7 @@ int main(int argc, char **argv)
 
     }
 
-    printf("\nSuccessfully written file %s : Total number of jobs = %ld\n", filename, num_rows);
+    printf("\nSuccessfully written file %s : Total number of jobs = %llu\n", filename, num_rows);
     mysql_free_result(result_job);
     if (!use_query) {
         free(query);
@@ -305,7 +306,7 @@ int main(int argc, char **argv)
             }
         }
         mysql_free_result(result_resv);
-        printf("\nSuccessfully written file %s : Total number of reservations = %ld\n", filename, num_rows);
+        printf("\nSuccessfully written file %s : Total number of reservations = %llu\n", filename, num_rows);
     }
 
     // process event data
@@ -392,7 +393,7 @@ int main(int argc, char **argv)
         write(trace_file, &w_num_rows, sizeof(unsigned long long));
 
         mysql_free_result(result_node);
-        printf("\nSuccessfully written file %s : Total number of events = %ld\n", filename, num_rows);
+        printf("\nSuccessfully written file %s : Total number of events = %llu\n", filename, num_rows);
     }
 
     mysql_close(conn);

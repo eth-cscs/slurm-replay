@@ -81,7 +81,7 @@ int time_end_comp(const void *v1, const void *v2)
         return 0;
 }
 
-static int update_node_state(node_trace_t noded, int action)
+static void update_node_state(node_trace_t noded, int action)
 {
     static unsigned long count = 0;
     update_node_msg_t dmesg;
@@ -116,17 +116,20 @@ static int update_node_state(node_trace_t noded, int action)
 
 static void control_nodes()
 {
+    const int one_second = 1000000;
+    int freq;
     time_t current_time = 0;
     unsigned long long ks = 0;
     unsigned long long ke = 0;
 
     current_time= get_shmemclock();
+    freq = one_second*clock_rate;
 
     while( ks < nnodes && ke < nnodes ) {
         // wait for event either drain/maint node or resume node
         while(current_time < node_arr_s[ks].time_start && current_time < node_arr_e[ke].time_end ) {
-            current_time= get_shmemclock();
-            usleep(500);
+            current_time = get_shmemclock();
+            usleep(freq);
         }
 
         if (current_time >= node_arr_s[ks].time_start && ks < nnodes) {
@@ -181,7 +184,7 @@ static int read_job_trace(const char* trace_file_name)
     qsort(node_arr_s, nnodes, sizeof(node_trace_t), time_start_comp);
     qsort(node_arr_e, nnodes, sizeof(node_trace_t), time_end_comp);
 
-    log_info("total node state records: %lu, start time %lu", nnodes, node_arr_s[0].time_start);
+    log_info("total node state records: %lu, start time %ld", nnodes, node_arr_s[0].time_start);
     close(trace_file);
 
     return 0;

@@ -206,10 +206,7 @@ static int create_and_submit_job(job_trace_t jobd)
     //TODO change work_dir
     dmesg.work_dir = strdup("/tmp");
 
-    // TODO: Daint specific, let's be conservative and consider only the normal qos, that is the case on most
-    // of the job running on normal partition of Daint
-    assert(strcmp(jobd.partition, "normal") == 0);
-    dmesg.qos = strdup("normal");
+    dmesg.qos = strdup(jobd.qos_name);
     dmesg.partition = strdup(jobd.partition);
 
     dmesg.min_nodes = jobd.nodes_alloc;
@@ -236,7 +233,7 @@ static int create_and_submit_job(job_trace_t jobd)
 
     //print_job_specs(&dmesg);
 
-    if ( rv = slurm_submit_batch_job(&dmesg, &respMsg) ) {
+    if ( (rv = slurm_submit_batch_job(&dmesg, &respMsg)) ) {
         log_error("%d slurm_submit_batch_job: %s count=%d", dmesg.job_id, slurm_strerror(rv), count);
     }
 
@@ -262,7 +259,7 @@ static int create_and_submit_job(job_trace_t jobd)
     return rv;
 }
 
-static int create_and_submit_resv(resv_trace_t resvd, int action)
+static void create_and_submit_resv(resv_trace_t resvd, int action)
 {
     static unsigned long count = 0;
     resv_desc_msg_t dmesg;
@@ -307,16 +304,19 @@ static int create_and_submit_resv(resv_trace_t resvd, int action)
 
 static void submit_jobs_and_reservations()
 {
+    const int one_second = 1000000;
+    int freq;
     time_t current_time = 0;
     unsigned long long kj = 0, kr = 0;
 
-    current_time= get_shmemclock();
+    current_time = get_shmemclock();
 
+    freq = one_second*clock_rate;
     while( kj < njobs || kr < nresvs ) {
         // wait for submission time of next job
         while(current_time < job_arr[kj].time_submit && current_time < resv_arr[kr].time_start ) {
-            current_time= get_shmemclock();
-            usleep(500);
+            current_time = get_shmemclock();
+            usleep(freq);
         }
 
         if (current_time >= job_arr[kj].time_submit && kj < njobs) {
