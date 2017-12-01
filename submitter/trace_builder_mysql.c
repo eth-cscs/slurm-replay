@@ -9,9 +9,9 @@
 #include "trace.h"
 
 typedef struct dependency {
-   int job_ids;
-   int switches;
-   char *dependencies;
+    int job_ids;
+    int switches;
+    char *dependencies;
 } deps_t;
 
 char *endtime = NULL;
@@ -31,11 +31,13 @@ static int use_dependencies = 0;
 char *dep_filename = NULL;
 deps_t *depend;
 
-int cmpfunc(const void * a, const void * b) {
+int cmpfunc(const void * a, const void * b)
+{
     return (int)( ((deps_t*)a)->job_ids - ((deps_t*)b)->job_ids );
 }
 
-static void lookfor(unsigned long jid, unsigned long long n, char *dependencies, int *switches) {
+static void lookfor(unsigned long jid, unsigned long long n, char *dependencies, int *switches)
+{
     deps_t *item = NULL;
     item = (deps_t*) bsearch (&jid, depend, n, sizeof(deps_t), cmpfunc);
     if ( item ) {
@@ -47,28 +49,30 @@ static void lookfor(unsigned long jid, unsigned long long n, char *dependencies,
     }
 }
 
-static unsigned long long count_dependencies_jobs(const char* filename) {
+static unsigned long long count_dependencies_jobs(const char* filename)
+{
     FILE *fp;
     unsigned long long lines = 0;
     char ch;
 
     fp = fopen(filename,"r");
     if (fp == NULL) {
-       printf( "Cannot open template script file.");
-       exit(1);
+        printf( "Cannot open template script file.");
+        exit(1);
     }
 
     while(!feof(fp)) {
-         ch = fgetc(fp);
-         if(ch == '\n') {
-             lines++;
-         }
+        ch = fgetc(fp);
+        if(ch == '\n') {
+            lines++;
+        }
     }
     fclose(fp);
     return lines;
 }
 
-static void load_dependency(const char* filename, unsigned long long n) {
+static void load_dependency(const char* filename, unsigned long long n)
+{
     FILE *fp;
     char* line = NULL;
     char token[2048];
@@ -78,8 +82,8 @@ static void load_dependency(const char* filename, unsigned long long n) {
 
     fp = fopen(filename,"r");
     if (fp == NULL) {
-       printf( "Cannot open template script file.");
-       exit(1);
+        printf( "Cannot open template script file.");
+        exit(1);
     }
 
     ni = 0;
@@ -292,13 +296,13 @@ int main(int argc, char **argv)
             exit(-1);
         }
         sprintf(query, "SELECT t.account, t.exit_code, t.job_name, "
-                 "t.id_job, q.name, t.id_user, t.id_group, r.resv_name, t.nodelist, t.nodes_alloc, t.partition, t.state, "
-                 "t.timelimit, t.time_submit, t.time_eligible, t.time_start, t.time_end, t.time_suspended, "
-                 "t.gres_alloc "
-                 "FROM %s as t LEFT JOIN %s as r ON t.id_resv = r.id_resv AND t.time_start >= r.time_start and t.time_end <= r.time_end "
-                 "LEFT JOIN qos_table as q ON q.id = t.id_qos "
-                 "WHERE FROM_UNIXTIME(t.time_submit) BETWEEN '%s' AND '%s' AND "
-                 "t.time_end > 0 AND t.nodes_alloc > 0", job_table, resv_table, starttime, endtime);
+                "t.id_job, q.name, t.id_user, t.id_group, r.resv_name, t.nodelist, t.nodes_alloc, t.partition, t.state, "
+                "t.timelimit, t.time_submit, t.time_eligible, t.time_start, t.time_end, t.time_suspended, "
+                "t.gres_alloc "
+                "FROM %s as t LEFT JOIN %s as r ON t.id_resv = r.id_resv AND t.time_start >= r.time_start and t.time_end <= r.time_end "
+                "LEFT JOIN qos_table as q ON q.id = t.id_qos "
+                "WHERE FROM_UNIXTIME(t.time_submit) BETWEEN '%s' AND '%s' AND "
+                "t.time_end > 0 AND t.nodes_alloc > 0", job_table, resv_table, starttime, endtime);
     }
     printf("\nQuery --> %s\n\n", query);
 
@@ -386,8 +390,8 @@ int main(int argc, char **argv)
     if (!use_query && resv_table != NULL && assoc_table != NULL) {
         memset(query,'\0',1024);
         sprintf(query, "SELECT r.id_resv, r.time_start, r.time_end, r.nodelist, r.resv_name, GROUP_CONCAT(DISTINCT a.acct), r.flags, r.tres "
-                 "FROM %s AS r INNER JOIN %s AS a ON FIND_IN_SET(a.id_assoc,r.assoclist) "
-                 "WHERE FROM_UNIXTIME(r.time_start) BETWEEN '%s' AND '%s' GROUP BY r.time_start, r.id_resv ORDER BY r.time_start", resv_table, assoc_table, starttime, endtime);
+                "FROM %s AS r INNER JOIN %s AS a ON FIND_IN_SET(a.id_assoc,r.assoclist) "
+                "WHERE FROM_UNIXTIME(r.time_start) BETWEEN '%s' AND '%s' GROUP BY r.time_start, r.id_resv ORDER BY r.time_start", resv_table, assoc_table, starttime, endtime);
 
         printf("\nQuery --> %s\n\n", query);
 
