@@ -80,7 +80,7 @@ RUN mkdir /home/slurm/data
 #
 
 # for convenience
-RUN echo "export PATH=\$PATH:/home/slurm/slurmR/bin:/home/slurm/slurmR/sbin:/home/slurm/slurm-replay/submitter" >> /home/slurm/.bashrc
+RUN echo "export PATH=\$PATH:/home/slurm/slurmR/bin:/home/slurm/slurmR/sbin:/home/slurm/slurm-replay/submitter" >> /home/slurm/.bashrc && echo "export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:/home/slurm/slurmR/lib:/home/slurm/slurm-replay/distime" >> /home/slurm/.bashrc
 WORKDIR /home/slurm/slurm-replay
 
 # invoke shell
