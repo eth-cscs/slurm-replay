@@ -82,7 +82,7 @@ static void print_job_specs(job_desc_msg_t* dmesg)
     log_info("\t\tdmesg->min_nodes: %d", dmesg->min_nodes);
     log_info("\t\tdmesg->features: (%s)", dmesg->features);
     log_info("\t\tdmesg->reservation: (%s)", dmesg->reservation);
-//    log_info("\t\tdmesg->dependency: (%s)", dmesg->dependency);
+    log_info("\t\tdmesg->dependency: (%s)", dmesg->dependency);
     log_info("\t\tdmesg->env_size: %d", dmesg->env_size);
     log_info("\t\tdmesg->environment[0]: (%s)", dmesg->environment[0]);
     log_info("\t\tdmesg->script: (%s)", dmesg->script);
@@ -223,9 +223,8 @@ static int create_and_submit_job(job_trace_t jobd)
 
     dmesg.reservation   = strdup(jobd.resv_name);
 
-    //TODO dependency are not registered in the database
-    //dmesg.dependency    = strdup(jobd.dependency);
-    //dmesg.dependency    = NULL;
+    dmesg.dependency    = strdup(jobd.dependencies);
+    dmesg.req_switch    = jobd.switches;
 
     duration = jobd.time_end - jobd.time_start;
     create_script(script, jobd.nodes_alloc, tasks, jobd.id_job, duration, jobd.exit_code);
