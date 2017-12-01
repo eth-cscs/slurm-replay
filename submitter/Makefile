@@ -35,7 +35,7 @@ ticker.o: ticker.c
 	$(CC) $(CCFLAGS) $(INCLUDES) -o $@ -c $<
 
 ticker: ticker.o
-	$(CC) $(LDFLAGS) -o $@ $+ $(LIB_SHMEMCLOCK)
+	$(CC) $(LDFLAGS) -o $@ $+ $(LIB_SHMEMCLOCK) $(LIB_SLURM)
 
 job_runner.o: job_runner.c
 	$(CC) $(CCFLAGS) $(INCLUDES) -o $@ -c $<

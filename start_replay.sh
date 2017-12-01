@@ -15,17 +15,19 @@ export PATH="$SLURM_REPLAY/submitter:$PATH"
 export PATH="$SLURM_DIR/bin:$SLURM_DIR/sbin:$PATH"
 export LD_LIBRARY_PATH="$SLURM_REPLAY/distime:$SLURM_DIR/lib:$LD_LIBRARY_PATH"
 
-trap "killall -q -9 slurmd slurmctld slurmstepd slurmdbd srun submitter ticker job_runner" SIGINT SIGTERM EXIT
+trap "killall -q -9 slurmd slurmctld slurmstepd slurmdbd srun submitter ticker job_runner node_controller" SIGINT SIGTERM EXIT
 
 rm -Rf /dev/shm/*
 
 TIME_STARTPAD=60
-START_TIME="$(trace_list -n -w $1 | awk '{print $4;}' | sort -n | head -n 1)"
+START_TIME="$(trace_list -n -w "$WORKLOAD" | awk '{print $4;}' | sort -n | head -n 1)"
 START_TIME="$(( $START_TIME - $TIME_STARTPAD ))"
 
 TIME_ENDPAD=60
-END_TIME="$(trace_list -n -w $1 | awk '{print $7;}' | sort -nr | head -n 1)"
+END_TIME="$(trace_list -n -w "$WORKLOAD" | awk '{print $7;}' | sort -nr | head -n 1)"
 END_TIME="$(( $END_TIME + $TIME_ENDPAD ))"
+
+NJOBS="$(trace_list -n -w "$WORKLOAD" | wc -l)"
 
 RATE="0.1"
 TICK="1"
@@ -54,10 +56,11 @@ DURATION=$(( $END_TIME - $START_TIME ))
 END_REPLAY=$( echo "$DURATION*($CLOCK_RATE)" | bc -l)
 echo "Replay ends at $(date --date="${END_REPLAY%.*} seconds")"
 
-ticker -c "$END_TIME,$RATE,$TICK"
+ticker -c "$END_TIME,$RATE,$TICK" -n "$NJOBS"
 
 # let slurm process uncompleted data
 sleep 60
+ticker -o
 
 date
 echo -n "Collecting data... "

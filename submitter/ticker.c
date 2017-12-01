@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <getopt.h>
 #include <string.h>
+#include <slurm/slurm.h>
 
 
 #include "shmemclock.h"
@@ -14,8 +15,10 @@ starter -t <time> -a <action>\n\
                         rate is the number of seconds between each clock ticks\n\
                         tick is the size in simulated seconds of a clock tick\n\
                         Example: -c 144,0.1,2 will increase the clock by 2 simulated seconds every 0.1 seconds until time 144 is reached\n\
-      -g, --gettime     Get time of the clock\n\
-      -s, --settime     Set time of the clock\n\
+      -g, --gettime  Get time of the clock\n\
+      -s, --settime  Set time of the clock\n\
+      -n, --njobs    Number of jobs that had to be completed\n\
+      -o, --over     Indicate if the schedule is over\n\
       -h, --help     This help message.\n";
 
 
@@ -26,6 +29,8 @@ time_t time_evt = 0;
 time_t endtime_evt = 0;
 double rate = 0.1;
 int tick = 1;
+int enable_over = 0;
+unsigned long njobs = 0;
 
 static void
 get_args(int argc, char** argv)
@@ -34,6 +39,8 @@ get_args(int argc, char** argv)
         {"clock",  1, 0, 'c'},
         {"gettime", 0, 0, 'g'},
         {"settime", 1, 0, 's'},
+        {"njobs", 1, 0, 'n'},
+        {"over", 0, 0, 'o'},
         {"help", 0, 0, 'h'}
     };
     int opt_char, option_index, i, k;
@@ -43,7 +50,7 @@ get_args(int argc, char** argv)
     char tick_v[32];
 
     while (1) {
-        if ((opt_char = getopt_long(argc, argv, "c:hgs:", long_options, &option_index)) == -1 )
+        if ((opt_char = getopt_long(argc, argv, "c:hgs:n:o", long_options, &option_index)) == -1 )
             break;
         switch(opt_char) {
         case ('c'):
@@ -89,11 +96,44 @@ get_args(int argc, char** argv)
             enable_set = 1;
             time_evt = strtoul(optarg,NULL,10);
             break;
+        case ('n'):
+            njobs = strtoul(optarg,NULL,10);
+            break;
+        case ('o'):
+            enable_over = 1;
+            break;
         case ('h'):
             printf("%s\n", help_msg);
             exit(0);
         };
     }
+}
+
+static inline int is_schedule()
+{
+    unsigned long jobs_done = 0;
+    stats_info_response_msg_t *stat_info;
+    stats_info_request_msg_t stat_req;
+
+    stat_req.command_id = STAT_COMMAND_GET;
+    slurm_get_statistics(&stat_info, &stat_req);
+    if (stat_info->schedule_queue_len > 0) {
+        return 1;
+    }
+    if (njobs > 0) {
+        if (stat_info->jobs_submitted < njobs) {
+            return 1;
+        }
+        if (stat_info->jobs_started < njobs) {
+            return 1;
+        }
+        jobs_done = stat_info->jobs_completed + stat_info->jobs_failed + stat_info->jobs_canceled;
+        if (jobs_done == njobs) {
+            return 0;
+        }
+    }
+    // we don't know how many jobs
+    return 0;
 }
 
 int main(int argc, char *argv[])
@@ -132,6 +172,21 @@ int main(int argc, char *argv[])
             incr_shmemclock(tick);
         }
 
+        // continue until schedule is over
+        while(is_schedule()) {
+            usleep(freq);
+            incr_shmemclock(tick);
+        }
+    }
+
+    if (enable_over) {
+        tmp_time = get_shmemclock();
+        strftime(strstart_time, sizeof(strstart_time), "%Y-%m-%d %H:%M:%S", localtime(&tmp_time));
+        if (is_schedule()) {
+            printf("%ld -- %s  Schedule is still active\n", tmp_time, strstart_time);
+        } else {
+            printf("%ld -- %s  Schedule is over\n", tmp_time, strstart_time);
+        }
     }
 
     exit(0);
