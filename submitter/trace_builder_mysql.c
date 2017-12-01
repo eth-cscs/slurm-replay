@@ -183,7 +183,7 @@ int main(int argc, char **argv)
             exit(-1);
         }
         snprintf(query, 1024*sizeof(char), "SELECT t.account, t.cpus_req, t.exit_code, t.job_name, "
-                 "q.name, t.id_user, t.id_group, r.resv_name, t.mem_req, t.nodelist, t.nodes_alloc, t.partition, t.priority, t.state, "
+                 "t.id_job, q.name, t.id_user, t.id_group, r.resv_name, t.mem_req, t.nodelist, t.nodes_alloc, t.partition, t.priority, t.state, "
                  "t.timelimit, t.time_submit, t.time_eligible, t.time_start, t.time_end, t.time_suspended, "
                  "t.gres_req, t.gres_alloc, t.tres_req "
                  "FROM %s as t LEFT JOIN %s as r ON t.id_resv = r.id_resv AND t.time_start >= r.time_start and t.time_end <= r.time_end "
@@ -230,29 +230,30 @@ int main(int argc, char **argv)
         job_trace.cpus_req = atoi(row[1]);
         job_trace.exit_code = atoi(row[2]);
         sprintf(job_trace.job_name, "%s", row[3]);
-        sprintf(job_trace.qos_name, "%s", row[4]);
-        job_trace.id_user = atoi(row[5]);
-        job_trace.id_group = atoi(row[6]);
-        if (row[7] != NULL) {
-            sprintf(job_trace.resv_name, "%s", row[7]);
+        job_trace.id_job = atoi(row[4]);
+        sprintf(job_trace.qos_name, "%s", row[5]);
+        job_trace.id_user = atoi(row[6]);
+        job_trace.id_group = atoi(row[7]);
+        if (row[8] != NULL) {
+            sprintf(job_trace.resv_name, "%s", row[8]);
         } else {
             job_trace.resv_name[0] = '\0';;
         }
-        job_trace.mem_req = strtoul(row[8], NULL, 0);
-        sprintf(job_trace.nodelist, "%s", row[9]);
-        job_trace.nodes_alloc = atoi(row[10]);
-        sprintf(job_trace.partition, "%s", row[11]);
-        job_trace.priority = atoi(row[12]);
-        job_trace.state = atoi(row[13]);
-        job_trace.timelimit = atoi(row[14]);
-        job_trace.time_submit = strtoul(row[15], NULL, 0);
-        job_trace.time_eligible = strtoul(row[16], NULL, 0);
-        job_trace.time_start = strtoul(row[17], NULL, 0);
-        job_trace.time_end = strtoul(row[18], NULL, 0);
-        job_trace.time_suspended = strtoul(row[19], NULL, 0);
-        sprintf(job_trace.gres_req, "%s", row[20]);
-        sprintf(job_trace.gres_alloc, "%s", row[21]);
-        sprintf(job_trace.tres_req, "%s", row[22]);
+        job_trace.mem_req = strtoul(row[9], NULL, 0);
+        sprintf(job_trace.nodelist, "%s", row[10]);
+        job_trace.nodes_alloc = atoi(row[11]);
+        sprintf(job_trace.partition, "%s", row[12]);
+        job_trace.priority = atoi(row[13]);
+        job_trace.state = atoi(row[14]);
+        job_trace.timelimit = atoi(row[15]);
+        job_trace.time_submit = strtoul(row[16], NULL, 0);
+        job_trace.time_eligible = strtoul(row[17], NULL, 0);
+        job_trace.time_start = strtoul(row[18], NULL, 0);
+        job_trace.time_end = strtoul(row[19], NULL, 0);
+        job_trace.time_suspended = strtoul(row[20], NULL, 0);
+        sprintf(job_trace.gres_req, "%s", row[21]);
+        sprintf(job_trace.gres_alloc, "%s", row[22]);
+        sprintf(job_trace.tres_req, "%s", row[23]);
 
         written = write(trace_file, &job_trace, sizeof(job_trace_t));
         if(written != sizeof(job_trace_t)) {
