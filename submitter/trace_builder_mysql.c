@@ -8,6 +8,12 @@
 
 #include "trace.h"
 
+typedef struct dependency {
+   int job_ids;
+   int switches;
+   char *dependencies;
+} deps_t;
+
 char *endtime = NULL;
 char *filename = NULL;
 char *host = NULL;
@@ -19,9 +25,106 @@ char *assoc_table = NULL;
 char *event_table = NULL;
 char *user = NULL;
 char *password;
-char *query = NULL;
+char query[1024];
 static int use_query = 0;
+static int use_dependencies = 0;
+char *dep_filename = NULL;
+deps_t *depend;
 
+int cmpfunc(const void * a, const void * b) {
+    return (int)( ((deps_t*)a)->job_ids - ((deps_t*)b)->job_ids );
+}
+
+static void lookfor(unsigned long jid, unsigned long long n, char *dependencies, int *switches) {
+    deps_t *item = NULL;
+    item = (deps_t*) bsearch (&jid, depend, n, sizeof(deps_t), cmpfunc);
+    if ( item ) {
+        strcpy(dependencies, item->dependencies);
+        *switches = item->switches;
+    } else {
+        dependencies[0] = '\0';
+        *switches = 0;
+    }
+}
+
+static unsigned long long count_dependencies_jobs(const char* filename) {
+    FILE *fp;
+    unsigned long long lines = 0;
+    char ch;
+
+    fp = fopen(filename,"r");
+    if (fp == NULL) {
+       printf( "Cannot open template script file.");
+       exit(1);
+    }
+
+    while(!feof(fp)) {
+         ch = fgetc(fp);
+         if(ch == '\n') {
+             lines++;
+         }
+    }
+    fclose(fp);
+    return lines;
+}
+
+static void load_dependency(const char* filename, unsigned long long n) {
+    FILE *fp;
+    char* line = NULL;
+    char token[2048];
+    size_t read, len, dep_len, ni, k, i = 0;
+
+    depend = malloc(n*sizeof(deps_t));
+
+    fp = fopen(filename,"r");
+    if (fp == NULL) {
+       printf( "Cannot open template script file.");
+       exit(1);
+    }
+
+    ni = 0;
+    while ((read = getline(&line, &len, fp)) != -1) {
+        i = 0;
+        k = 0;
+        while( line[i] != '|') {
+            token[k] = line[i];
+            k++;
+            i++;
+        }
+        i++; //skip |
+        token[k] = '\0';
+        depend[ni].job_ids = atoi(token);
+        k = 0;
+        while( line[i] != '|') {
+            token[k] = line[i];
+            k++;
+            i++;
+        }
+        i++; //skip |
+        token[k] = '\0';
+        dep_len = strlen(token);
+        if (dep_len > 0) {
+            depend[ni].dependencies = malloc(dep_len*sizeof(char));
+            strcpy(depend[ni].dependencies,token);
+        } else {
+            depend[ni].dependencies=NULL;
+        }
+        k = 0;
+        while( line[i] != '|') {
+            token[k] = line[i];
+            k++;
+            i++;
+        }
+        token[k] = '\0';
+        if (strlen(token) > 0) {
+            depend[ni].switches = atoi(token);
+        } else {
+            depend[ni].switches = 0;
+        }
+        ni++;
+    }
+    fclose(fp);
+}
 
 void finish_with_error(MYSQL *con)
 {
@@ -48,6 +151,7 @@ Usage: mysql_trace_builder [OPTIONS]\n\
     -a, --assoc_table db_assoc_table   Name of the MySQL table to query to obtain associationss infomartion\n\
     -v, --event_table db_event_table   Name of the MySQL table to query to obtain event information about node availability\n\
     -f, --file       filename        Name of the output trace file being created\n\
+    -x, --dependencies filename      Name of the file containing the dependencies\n\
     -q, --query      query           Use a SQL query to retrieve the data\n\
     -?, --help                       This help message\n\n\
 ");
@@ -69,13 +173,14 @@ get_args(int argc, char** argv)
         {"resv_table", required_argument, 0, 'r'},
         {"assoc_table", required_argument, 0, 'a'},
         {"event_table", required_argument, 0, 'v'},
+        {"dependencies", required_argument, 0, 'x'},
         {"user", required_argument, 0, 'u'},
         {0, 0, 0, 0}
     };
     int opt_char, option_index;
 
     while(1) {
-        if ((opt_char = getopt_long(argc, argv, "d:e:f:h:?s:t:r:u:p:q:a:v:", long_options, &option_index)) == -1 )
+        if ((opt_char = getopt_long(argc, argv, "d:e:f:h:?s:t:r:u:p:q:a:v:x:", long_options, &option_index)) == -1 )
             break;
         switch  (opt_char) {
         case ('p'):
@@ -83,7 +188,7 @@ get_args(int argc, char** argv)
             break;
         case ('q'):
             use_query = 1;
-            query = optarg;
+            strcpy(query,optarg);
             break;
         case ('e'):
             endtime = optarg;
@@ -118,6 +223,10 @@ get_args(int argc, char** argv)
         case ('u'):
             user = optarg;
             break;
+        case ('x'):
+            dep_filename = strdup(optarg);
+            use_dependencies = 1;
+            break;
         };
     }
 }
@@ -133,6 +242,7 @@ int main(int argc, char **argv)
     //unsigned int num_fields;
     unsigned long long num_rows;
     unsigned long long w_num_rows, k;
+    unsigned long long count_dep;
 
     MYSQL *conn;
     MYSQL_RES *result_job;
@@ -158,7 +268,6 @@ int main(int argc, char **argv)
     }
 
     if (!use_query) {
-        query = malloc(1024*sizeof(char));
         memset(query,'\0',1024);
 
         /*validate input parameter to build the query*/
@@ -182,7 +291,7 @@ int main(int argc, char **argv)
             print_usage();
             exit(-1);
         }
-        snprintf(query, 1024*sizeof(char), "SELECT t.account, t.exit_code, t.job_name, "
+        sprintf(query, "SELECT t.account, t.exit_code, t.job_name, "
                  "t.id_job, q.name, t.id_user, t.id_group, r.resv_name, t.nodelist, t.nodes_alloc, t.partition, t.state, "
                  "t.timelimit, t.time_submit, t.time_eligible, t.time_start, t.time_end, t.time_suspended, "
                  "t.gres_alloc "
@@ -219,6 +328,11 @@ int main(int argc, char **argv)
 
     write(trace_file, &num_rows, sizeof(unsigned long long));
 
+    if (use_dependencies) {
+        count_dep = count_dependencies_jobs(dep_filename);
+        load_dependency(dep_filename, count_dep);
+    }
+
     while ((row = mysql_fetch_row(result_job))) {
 
         /*for( i = 0; i < num_fields; i++) {
@@ -243,12 +357,19 @@ int main(int argc, char **argv)
         sprintf(job_trace.partition, "%s", row[10]);
         job_trace.state = atoi(row[11]);
         job_trace.timelimit = atoi(row[12]);
-        job_trace.time_submit = strtoul(row[13], NULL, 0);
-        job_trace.time_eligible = strtoul(row[14], NULL, 0);
-        job_trace.time_start = strtoul(row[15], NULL, 0);
-        job_trace.time_end = strtoul(row[16], NULL, 0);
-        job_trace.time_suspended = strtoul(row[17], NULL, 0);
+        job_trace.time_submit = strtol(row[13], NULL, 0);
+        job_trace.time_eligible = strtol(row[14], NULL, 0);
+        job_trace.time_start = strtol(row[15], NULL, 0);
+        job_trace.time_end = strtol(row[16], NULL, 0);
+        job_trace.time_suspended = strtol(row[17], NULL, 0);
         sprintf(job_trace.gres_alloc, "%s", row[18]);
+
+        if (use_dependencies) {
+            lookfor(job_trace.id_job, num_rows, job_trace.dependencies, &(job_trace.switches));
+        } else {
+            job_trace.dependencies[0] = '\0';
+            job_trace.switches = 0;
+        }
 
         written = write(trace_file, &job_trace, sizeof(job_trace_t));
         if(written != sizeof(job_trace_t)) {
@@ -260,18 +381,16 @@ int main(int argc, char **argv)
 
     printf("\nSuccessfully written file %s : Total number of jobs = %llu\n", filename, num_rows);
     mysql_free_result(result_job);
-    if (!use_query) {
-        free(query);
-    }
 
     // process reservation data
     if (!use_query && resv_table != NULL && assoc_table != NULL) {
         memset(query,'\0',1024);
-        snprintf(query, 1024*sizeof(char), "SELECT r.id_resv, r.time_start, r.time_end, r.nodelist, r.resv_name, GROUP_CONCAT(DISTINCT a.acct), r.flags, r.tres "
+        sprintf(query, "SELECT r.id_resv, r.time_start, r.time_end, r.nodelist, r.resv_name, GROUP_CONCAT(DISTINCT a.acct), r.flags, r.tres "
                  "FROM %s AS r INNER JOIN %s AS a ON FIND_IN_SET(a.id_assoc,r.assoclist) "
                  "WHERE FROM_UNIXTIME(r.time_start) BETWEEN '%s' AND '%s' GROUP BY r.time_start, r.id_resv ORDER BY r.time_start", resv_table, assoc_table, starttime, endtime);
 
         printf("\nQuery --> %s\n\n", query);
+
         if (mysql_query(conn, query)) {
             finish_with_error(conn);
         }
@@ -287,8 +406,8 @@ int main(int argc, char **argv)
         while ((row = mysql_fetch_row(result_resv))) {
 
             resv_trace.id_resv = atoi(row[0]);
-            resv_trace.time_start = strtoul(row[1], NULL, 0);
-            resv_trace.time_end = strtoul(row[2], NULL, 0);
+            resv_trace.time_start = strtol(row[1], NULL, 0);
+            resv_trace.time_end = strtol(row[2], NULL, 0);
             sprintf(resv_trace.nodelist, "%s", row[3]);
             sprintf(resv_trace.resv_name, "%s", row[4]);
             sprintf(resv_trace.accts, "%s", row[5]);
@@ -301,8 +420,8 @@ int main(int argc, char **argv)
                 exit(-1);
             }
         }
-        mysql_free_result(result_resv);
         printf("\nSuccessfully written file %s : Total number of reservations = %llu\n", filename, num_rows);
+        mysql_free_result(result_resv);
     }
 
     // process event data
@@ -333,16 +452,16 @@ int main(int argc, char **argv)
             //printf("read %s %s %s\n",row[0], row[1], row[2]);
             k++;
             if (fix_node_trace.time_start == 0) {
-                fix_node_trace.time_start = strtoul(row[0], NULL, 0);
-                fix_node_trace.time_end = strtoul(row[1], NULL, 0);
+                fix_node_trace.time_start = strtol(row[0], NULL, 0);
+                fix_node_trace.time_end = strtol(row[1], NULL, 0);
                 sprintf(fix_node_trace.node_name, "%s", row[2]);
                 sprintf(fix_node_trace.reason, "%s", row[3]);
                 fix_node_trace.state = atoi(row[4]);
             } else {
-                if (fix_node_trace.time_end == strtoul(row[0],NULL,0) &&
+                if (fix_node_trace.time_end == strtol(row[0],NULL,0) &&
                     strcmp(fix_node_trace.node_name, row[2]) == 0 &&
                     strcmp(fix_node_trace.reason, row[3]) == 0) {
-                    fix_node_trace.time_end = strtoul(row[1], NULL, 0);
+                    fix_node_trace.time_end = strtol(row[1], NULL, 0);
                     if (atoi(row[4]) > fix_node_trace.state) {
                         fix_node_trace.state = atoi(row[4]);
                     }
@@ -365,8 +484,8 @@ int main(int argc, char **argv)
                     }
                     //printf("write %d %d %s\n",fix_node_trace.time_start, fix_node_trace.time_end, fix_node_trace.node_name);
                     w_num_rows++;
-                    fix_node_trace.time_start = strtoul(row[0], NULL, 0);
-                    fix_node_trace.time_end = strtoul(row[1], NULL, 0);
+                    fix_node_trace.time_start = strtol(row[0], NULL, 0);
+                    fix_node_trace.time_end = strtol(row[1], NULL, 0);
                     sprintf(fix_node_trace.node_name, "%s", row[2]);
                     sprintf(fix_node_trace.reason, "%s", row[3]);
                     fix_node_trace.state = atoi(row[4]);
@@ -388,8 +507,12 @@ int main(int argc, char **argv)
         lseek(trace_file, cur_offset, SEEK_SET);
         write(trace_file, &w_num_rows, sizeof(unsigned long long));
 
-        mysql_free_result(result_node);
         printf("\nSuccessfully written file %s : Total number of events = %llu\n", filename, num_rows);
+        mysql_free_result(result_node);
+    }
+
+    if (use_dependencies) {
+        free(depend);
     }
 
     mysql_close(conn);

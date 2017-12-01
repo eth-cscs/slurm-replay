@@ -16,7 +16,7 @@ typedef struct job_trace {
     char nodelist[TEXT_SIZE];
     int nodes_alloc;
     char partition[TINYTEXT_SIZE];
-    char dependencies[TINYTEXT_SIZE];
+    char dependencies[TEXT_SIZE];
     int switches;
     int state;
     int timelimit;
