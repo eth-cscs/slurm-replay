@@ -1,13 +1,11 @@
 #ifndef _TRACE_H_
 #define _TRACE_H_
 
-
 #define TINYTEXT_SIZE 32
 #define TEXT_SIZE 1512
 
 typedef struct job_trace {
     char account[TINYTEXT_SIZE];
-    int cpus_req;
     int exit_code;
     char job_name[TINYTEXT_SIZE];
     int id_job;
@@ -15,11 +13,11 @@ typedef struct job_trace {
     int id_user;
     int id_group;
     char resv_name[TINYTEXT_SIZE];
-    unsigned long mem_req;
     char nodelist[TEXT_SIZE];
     int nodes_alloc;
     char partition[TINYTEXT_SIZE];
-    int priority;
+    char dependencies[TINYTEXT_SIZE];
+    int switches;
     int state;
     int timelimit;
     long time_submit;
@@ -27,9 +25,7 @@ typedef struct job_trace {
     long time_start;
     long time_end;
     long time_suspended;
-    char gres_req[TEXT_SIZE];
     char gres_alloc[TEXT_SIZE];
-    char tres_req[TEXT_SIZE];
 } job_trace_t;
 
 typedef struct node_trace {
