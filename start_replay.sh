@@ -33,11 +33,12 @@ RATE="0.1"
 TICK="1"
 CLOCK_RATE=$(echo "$RATE*$TICK" | bc -l)
 
+CONF_TIME="$(trace_list -n -w "$WORKLOAD" -u | awk '{print $4;}' | sort -n | head -n 1 | sed 's/2017/17/' | tr -d '-')"
 # Add initial time
 ticker -s "$START_TIME"
 
 # Initiate slurm and slurmdb
-./start_slurm.sh "$SLURM_REPLAY/distime" "$SLURM_REPLAY_LIB"
+./start_slurm.sh "$SLURM_REPLAY/distime" "$SLURM_REPLAY_LIB" "$CONF_TIME"
 
 echo "Slurm is configured and ready:"
 echo

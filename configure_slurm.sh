@@ -1,0 +1,55 @@
+#!/bin/bash
+
+FILE="$1"
+
+# Comment lines
+token="BackupController[[:space:]]*= BackupAddr[[:space:]]*= Prolog[[:space:]]*= BurstBufferType[[:space:]]*= PrologSlurmctld[[:space:]]*= Epilog[[:space:]]*= EpilogSlurmctld[[:space:]]*= UnkillableStepProgram[[:space:]]*= JobSubmitPlugins[[:space:]]*="
+for t in $token; do
+   sed -i -e "/$t/ s/^#*/#/" $FILE
+done
+
+# Change the plugin types to none
+sed -i -e "/AuthType[[:space:]]*=/ s/munge/none/" $FILE
+sed -i -e "/CryptoType[[:space:]]*=/ s/munge/none/" $FILE
+sed -i -e "/JobContainerType[[:space:]]*=/ s/cncu/none/" $FILE
+sed -i -e "/ProctrackType[[:space:]]*=/ s/cray/linuxproc/" $FILE
+sed -i -e "/TaskPlugin[[:space:]]*=/ s/task.*/task\/none/" $FILE
+sed -i -e "/JobCompType[[:space:]]*=/ s/jobcomp.*/jobcomp\/none/" $FILE
+sed -i -e "/AcctGatherEnergyType[[:space:]]*=/ s/cray/none/" $FILE
+
+# Set up to local hosts
+sed -i -e "/ControlMachine[[:space:]]*=/ s/daint.*/localhost/" $FILE
+sed -i -e '/ControlMachine[[:space:]]*=/a\
+ControlAddr=localhost\
+SlurmdUser=slurm
+' $FILE
+sed -i -e "s/SlurmUser[[:space:]]*=root/SlurmUser=slurm/" $FILE
+
+# Set up directories
+sed -i -e "/SlurmctldPidFile[[:space:]]*=/ s/SlurmctldPidFile[[:space:]]*=.*/SlurmctldPidFile=\/home\/slurm\/slurmR\/log\/slurmctld.pid/" $FILE
+sed -i -e "/SlurmctldLogFile[[:space:]]*=/ s/SlurmctldLogFile[[:space:]]*=.*/SlurmctldLogFile=\/home\/slurm\/slurmR\/log\/slurmctld.log/" $FILE
+sed -i -e "/SlurmdPidFile[[:space:]]*=/ s/SlurmdPidFile[[:space:]]*=.*/SlurmdPidFile=\/home\/slurm\/slurmR\/log\/slurmd.pid/" $FILE
+sed -i -e "/SlurmdLogFile[[:space:]]*=/ s/SlurmdLogFile[[:space:]]*=.*/SlurmdLogFile=\/home\/slurm\/slurmR\/log\/slurmd\/slurmd.log/" $FILE
+sed -i -e "/SlurmdSpoolDir[[:space:]]*=/ s/SlurmdSpoolDir[[:space:]]*=.*/SlurmdSpoolDir=\/home\/slurm\/slurmR\/log/" $FILE
+sed -i -e "/StateSaveLocation[[:space:]]*=/ s/StateSaveLocation[[:space:]]*=.*/StateSaveLocation=\/home\/slurm\/slurmR\/log\/state/" $FILE
+
+# Accounting
+sed -i -e "/AccountingStorageHost[[:space:]]*=/ s/AccountingStorageHost[[:space:]]*=.*/AccountingStorageHost=localhost/" $FILE
+sed -i -e "/AccountingStorageBackupHost[[:space:]]*=/ s/AccountingStorageBackupHost[[:space:]]*=.*/AccountingStorageBackupHost=localhost/" $FILE
+sed -i -e '/AccountingStorageBackupHost[[:space:]]*=/a\
+AccountingStorageUser=slurm\
+AccountingStoragePass=""
+' $FILE
+
+# Add NodeAddr and NodeHostname
+sed -i -e "/NodeName[[:space:]]*=/s/$/\ NodeAddr=localhost\ NodeHostname=localhost/" $FILE
+sed -i -e "/NodeName[[:space:]]*=/s/#/\ NodeAddr=localhost\ NodeHostname=localhost &/" $FILE
+
+# Other changes
+sed -i -e '/#\ XC\ NODES\ #####/a\
+# Adding frontend\
+FrontendName=localhost FrontendAddr=localhost Port=7000
+' $FILE
+sed -i -e '/DebugFlags=/a\
+PluginDir=/home/slurm/slurmR/lib/slurm
+' $FILE

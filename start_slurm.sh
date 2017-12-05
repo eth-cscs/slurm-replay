@@ -1,10 +1,15 @@
 #!/bin/bash
 
-VERBOSE="-v"
+#VERBOSE="-v"
 
 if [ ! -z "$1" -a ! -z "$2" ]; then
    export LD_LIBRARY_PATH="$1:$LD_LIBRARY_PATH"
    SLURM_REPLAY_LIB="LD_PRELOAD=$2"
+   if [ ! -z "$3" ]; then
+       CONFDATE="$3"
+    fi
+elif [ ! -z "$1" -a -z "$2" ]; then
+       CONFDATE="$1"
 fi
 
 SLURM_DIR="/home/slurm/slurmR"
@@ -20,16 +25,51 @@ mkdir $SLURM_DIR/log/state
 mkdir $SLURM_DIR/log/slurmd
 mkdir $SLURM_DIR/log/archive
 
-./start_slurmdbd.sh
+# Setup configuration
+f=0
+for k in $(ls -1 conf/slurm.conf_*); do
+    t=${k##*_}
+    if (( $t < $CONFDATE )); then
+        f=$t
+    else
+        if (( $f == 0 )); then
+            f=$t
+        fi
+        break
+    fi
+done
+cp "conf/slurm.conf_$f" etc/slurm.conf
+./configure_slurm.sh etc/slurm.conf
 
-# With multiple_slurmd
-#NNODES=$(cat all_nids.txt | wc -l)
-#echo -n  "Starting slurmctld and $NNODES slurmd... "
-#nids="$(cat all_nids.txt | head -n $NNODES | xargs printf "nid%05d ")"
-#parallel eval "$SLURM_REPLAY_LIB slurmd $VERBOSE -c -N {}" ::: $nids
-#sleep 15
-#eval "$SLURM_REPLAY_LIB slurmctld $VERBOSE -c "
-#sleep 15
+f=0
+for k in $(ls -1 conf/gres.conf_*); do
+    t=${k##*_}
+    if (( $t < $CONFDATE )); then
+        f=$t
+    else
+        if (( $f == 0 )); then
+            f=$t
+        fi
+        break
+    fi
+done
+cp "conf/gres.conf_$f" etc/gres.conf
+
+f=0
+for k in $(ls -1 conf/topology.conf_*); do
+    t=${k##*_}
+    if (( $t < $CONFDATE )); then
+        f=$t
+    else
+        if (( $f == 0 )); then
+            f=$t
+        fi
+        break
+    fi
+done
+cp "conf/topology.conf_$f" etc/topology.conf
+
+./start_slurmdbd.sh
 
 # With front-end
 echo -n  "Starting slurmctld and slurmd... "
@@ -41,4 +81,8 @@ nodes=$(sinfo -o %N --noheader)
 scontrol update NodeName=$nodes state=DOWN Reason="complete slurm replay setup"
 scontrol update NodeName=$nodes state=RESUME Reason="complete slurm replay setup"
 scontrol update FrontEnd=localhost state=RESUME Reason="complete slurm replay setup"
+partitions=$(sinfo -o %R --noheader)
+for p in $partitions; do
+    scontrol update PartitionName=$p state=UP
+done;
 echo "done."

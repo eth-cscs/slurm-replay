@@ -37,6 +37,7 @@ mkdir $SLURM_DIR/log/state
 mkdir $SLURM_DIR/log/slurmd
 mkdir $SLURM_DIR/log/archive
 
+cp conf/slurmdbd.conf etc
 slurmdbd $VERBOSE
 sleep 1
 echo "done."

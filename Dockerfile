@@ -65,8 +65,7 @@ RUN cd /home/slurm/slurm-replay/submitter && \
 # configure slurm
 RUN cd /home/slurm/slurm-replay && \
     ln -s ../slurmR/log log && \
-    ln -s ../slurmR/etc etc && \
-    cp conf/*.conf etc
+    ln -s ../slurmR/etc etc
 
 # create volume where traces and databases tables are located
 # use "-v " when starting the container
