@@ -210,11 +210,13 @@ static int create_and_submit_job(job_trace_t jobd)
     dmesg.partition = strdup(jobd.partition);
 
     dmesg.min_nodes = jobd.nodes_alloc;
-    // TODO: Daint specific, check if string starts with "gpu:0" meaning using constriant mc
-    if (strncmp("gpu:0", jobd.gres_alloc, 5)) {
-        dmesg.features = strdup("mc");
-    } else {
-        dmesg.features = strdup("gpu");
+    // TODO: Daint specific, check if string starts with "gpu:0" meaning using constriant mc for all partitions except xfer
+    if (strcmp(jobd.partition, "xfer") != 0) {
+        if (strncmp("gpu:0", jobd.gres_alloc, 5)) {
+            dmesg.features = strdup("mc");
+        } else {
+            dmesg.features = strdup("gpu");
+        }
     }
 
     dmesg.environment  = (char**)malloc(sizeof(char*)*2);
