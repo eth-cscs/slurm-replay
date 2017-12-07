@@ -19,7 +19,7 @@ export LD_LIBRARY_PATH="$SLURM_DIR/lib:$LD_LIBRARY_PATH"
 
 killall -q -9 slurmd slurmctld slurmstepd srun
 
-rm -Rf /tmp/slurm-*.out
+rm -Rf /home/$REPLAY_USER/tmp/slurm-*.out
 rm -Rf $SLURM_DIR/log/*
 mkdir $SLURM_DIR/log/state
 mkdir $SLURM_DIR/log/slurmd

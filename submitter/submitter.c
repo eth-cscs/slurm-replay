@@ -85,6 +85,7 @@ static void print_job_specs(job_desc_msg_t* dmesg)
     log_info("\t\tdmesg->dependency: (%s)", dmesg->dependency);
     log_info("\t\tdmesg->env_size: %d", dmesg->env_size);
     log_info("\t\tdmesg->environment[0]: (%s)", dmesg->environment[0]);
+    log_info("\t\tdmesg->environment[1]: (%s)", dmesg->environment[1]);
     log_info("\t\tdmesg->script: (%s)", dmesg->script);
 }
 
@@ -193,6 +194,7 @@ static int create_and_submit_job(job_trace_t jobd)
     int TRES_CPU = 1;
     int TRES_MEM = 2;
     int TRES_NODE = 4;
+    char env_str[256];
 
     slurm_init_job_desc_msg(&dmesg);
 
@@ -203,8 +205,8 @@ static int create_and_submit_job(job_trace_t jobd)
     dmesg.user_id = userid;
     dmesg.group_id = groupid;
 
-    //TODO change work_dir
-    dmesg.work_dir = strdup("/tmp");
+    sprintf(env_str,"/home/%s/tmp",username);
+    dmesg.work_dir = strdup(env_str);
 
     dmesg.qos = strdup(jobd.qos_name);
     dmesg.partition = strdup(jobd.partition);
@@ -220,8 +222,11 @@ static int create_and_submit_job(job_trace_t jobd)
     }
 
     dmesg.environment  = (char**)malloc(sizeof(char*)*2);
-    dmesg.environment[0] = strdup("HOME=/home/maximem");
-    dmesg.env_size = 1;
+    sprintf(env_str,"HOME=/home/%s",username);
+    dmesg.environment[0] = strdup(env_str);
+    sprintf(env_str,"REPLAY_USER=%s",username);
+    dmesg.environment[1] = strdup(env_str);
+    dmesg.env_size = 2;
 
     dmesg.reservation   = strdup(jobd.resv_name);
 
@@ -255,6 +260,7 @@ static int create_and_submit_job(job_trace_t jobd)
     if (dmesg.dependency)  free(dmesg.dependency);
     if (dmesg.script)      free(dmesg.script);
     free(dmesg.environment[0]);
+    free(dmesg.environment[1]);
     free(dmesg.environment);
 
     return rv;

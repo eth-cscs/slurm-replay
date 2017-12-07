@@ -47,7 +47,7 @@ echo
 
 echo -n "Start submitter and node controller... "
 rm -f submitter.log node_controller.log
-submitter -w "$WORKLOAD" -t template.script -r "$CLOCK_RATE"
+submitter -w "$WORKLOAD" -t template.script -r "$CLOCK_RATE" -u "$REPLAY_USER"
 node_controller -w "$WORKLOAD"
 sleep 3
 echo "done."
@@ -68,7 +68,7 @@ echo -n "Collecting data... "
 # get the replay trace
 query=$(trace_list -w $WORKLOAD -q | head -n 1)
 REPLAY_WORKLOAD="${WORKLOAD##*/}"
-trace_builder_mysql -f "replay.$REPLAY_WORKLOAD" -u "$REPLAY_USER" -p "" -h "localhost" -d "slurm_acct_db" -q "$query" -t daint_job_table -r daint_resv_table -v daint_event_table
+trace_builder_mysql -f "../data/replay.$REPLAY_WORKLOAD" -u "$REPLAY_USER" -p "" -h "localhost" -d "slurm_acct_db" -q "$query" -t daint_job_table -r daint_resv_table -v daint_event_table
 echo "done."
 echo
 echo "ERROR IF ANY:"

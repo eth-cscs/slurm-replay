@@ -72,8 +72,9 @@ RUN cd /home/$REPLAY_USER/slurm-replay/submitter && \
 
 # create volume where traces and databases tables are located
 # use "-v " when starting the container
-RUN mkdir /home/$REPLAY_USER/data &&\
-    mkdir -p /home/$REPLAY_USER/var/lib
+RUN mkdir /home/$REPLAY_USER/data && \
+    mkdir -p /home/$REPLAY_USER/var/lib && \
+    mkdir /home/$REPLAY_USER/tmp
 
 #
 # DOCKER command to run:
