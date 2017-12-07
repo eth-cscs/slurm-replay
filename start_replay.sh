@@ -72,4 +72,7 @@ trace_builder_mysql -f "replay.$REPLAY_WORKLOAD" -u "slurm" -p "" -h "localhost"
 echo "done."
 echo
 echo "ERROR IF ANY:"
-grep -E "\[[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}\] error:" log/slurmctld.log log/slurmd/*.log submitter.log log/slurmdbd.log node_controller.log
+LOGFILE="log/slurmctld.log log/slurmd/*.log submitter.log log/slurmdbd.log node_controller.log"
+grep -E "\[[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}\] error:" $LOGFILE &>error.log
+cat error.log
+cp $LOGFILE error.log ../data
