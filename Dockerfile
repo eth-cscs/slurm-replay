@@ -54,8 +54,8 @@ RUN cd /home/slurm && \
     rm -Rf /home/slurm/slurm-$SLURM_VERSION.tar.bz2 && \
     rm -Rf /home/slurm/slurm-$SLURM_VERSION/ && \
     cd /home/slurm/slurm-replay && \
-    ln -s ../slurmR/log log && \
-    ln -s ../slurmR/etc etc
+    ln -s /home/slurm/slurmR/log log && \
+    ln -s /home/slurm/slurmR/etc etc
 
 
 # default slurm port
