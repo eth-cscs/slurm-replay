@@ -2,17 +2,14 @@
 
 VERBOSE="-v"
 
-# replay user should be set as SlurmUser, SlurmdUser and AccountingStorageUser in the slurm.conf file
-REPLAY_USER=slurm
-
-SLURM_DIR="/home/slurm/slurmR"
+SLURM_DIR="/home/$REPLAY_USER/slurmR"
 export PATH="$SLURM_DIR/bin:$SLURM_DIR/sbin:$PATH"
 
 # Start sql server if not yet started
 if ! pgrep -x "mysqld" > /dev/null
 then
 echo -n  "Starting mysql... "
-sudo mysqld_safe -u mysql &> /dev/null &
+mysqld_safe --datadir="/home/$REPLAY_USER/var/lib" &> /dev/null &
 sleep 5
 echo "done."
 fi
@@ -37,7 +34,14 @@ mkdir $SLURM_DIR/log/state
 mkdir $SLURM_DIR/log/slurmd
 mkdir $SLURM_DIR/log/archive
 
-cp conf/slurmdbd.conf etc
+# configure slurmdbd
+FILE="etc/slurmdbd.conf"
+cp conf/slurmdbd.conf $FILE
+sed -i -e "s/SlurmUser[[:space:]]*=slurm/SlurmUser=$REPLAY_USER/" $FILE
+sed -i -e "s/StorageUser[[:space:]]*=slurm/StorageUser=$REPLAY_USER/" $FILE
+sed -i -e "/PidFile[[:space:]]*=/ s/PidFile[[:space:]]*=.*/PidFile=\/home\/$REPLAY_USER\/slurmR\/log\/slurmdbd.pid/" $FILE
+sed -i -e "/LogFile[[:space:]]*=/ s/LogFile[[:space:]]*=.*/LogFile=\/home\/$REPLAY_USER\/slurmR\/log\/slurmdbd.log/" $FILE
+
 slurmdbd $VERBOSE
 sleep 1
 echo "done."
@@ -49,14 +53,14 @@ sacctmgr -i add cluster Daint >/dev/null
 # mysqldump -u test -p slurmdbd_test acct_table acct_coord_table qos_table tres_table user_table daint_assoc_table > slurmdb_tbl.sql
 mysql -u root slurm_acct_db < ../data/slurmdb_tbl.sql
 
-if [ -f "../data/userreplay_assoc_tbl.sql" ]; then
-    mysql -u root slurm_acct_db < ../data/userreplay_assoc_tbl.sql
+if [ -f "../data/${REPLAY_USER}_assoc_tbl.sql" ]; then
+    mysql -u root slurm_acct_db < ../data/${REPLAY_USER}_assoc_tbl.sql
 else
-    echo -n " it will take several seconds... "
+    echo -n " that will take several seconds... "
     # add replay user to all accounts
     DAINT_ACCOUNTS=$(mysql -u root slurm_acct_db -Bse "select distinct a.name from acct_table as a join daint_assoc_table as c on a.name = c.acct;")
     sacctmgr -i add user "$REPLAY_USER" Account=$(echo "$DAINT_ACCOUNTS" | tr -s "\n" ",") Cluster=daint >/dev/null
-    mysqldump -u "$REPLAY_USER" slurm_acct_db daint_assoc_table > ../data/userreplay_assoc_tbl.sql
+    mysqldump -u "$REPLAY_USER" slurm_acct_db daint_assoc_table > ../data/${REPLAY_USER}_assoc_tbl.sql
 fi
 sleep 5
 echo "done."

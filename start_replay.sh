@@ -7,8 +7,8 @@ if [ -z "$WORKLOAD" ]; then
 fi
 
 
-SLURM_DIR="/home/slurm/slurmR"
-SLURM_REPLAY="/home/slurm/slurm-replay"
+SLURM_DIR="/home/$REPLAY_USER/slurmR"
+SLURM_REPLAY="/home/$REPLAY_USER/slurm-replay"
 SLURM_REPLAY_LIB="libwtime.so"
 
 export PATH="$SLURM_REPLAY/submitter:$PATH"
@@ -17,7 +17,7 @@ export LD_LIBRARY_PATH="$SLURM_REPLAY/distime:$SLURM_DIR/lib:$LD_LIBRARY_PATH"
 
 trap "killall -q -9 slurmd slurmctld slurmstepd slurmdbd srun submitter ticker job_runner node_controller" SIGINT SIGTERM EXIT
 
-rm -Rf /dev/shm/*
+rm -Rf /dev/shm/ShmemClock*
 
 TIME_STARTPAD=60
 START_TIME="$(trace_list -n -w "$WORKLOAD" | awk '{print $4;}' | sort -n | head -n 1)"
@@ -68,7 +68,7 @@ echo -n "Collecting data... "
 # get the replay trace
 query=$(trace_list -w $WORKLOAD -q | head -n 1)
 REPLAY_WORKLOAD="${WORKLOAD##*/}"
-trace_builder_mysql -f "replay.$REPLAY_WORKLOAD" -u "slurm" -p "" -h "localhost" -d "slurm_acct_db" -q "$query" -t daint_job_table -r daint_resv_table -v daint_event_table
+trace_builder_mysql -f "replay.$REPLAY_WORKLOAD" -u "$REPLAY_USER" -p "" -h "localhost" -d "slurm_acct_db" -q "$query" -t daint_job_table -r daint_resv_table -v daint_event_table
 echo "done."
 echo
 echo "ERROR IF ANY:"

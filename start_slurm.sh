@@ -12,7 +12,7 @@ elif [ ! -z "$1" -a -z "$2" ]; then
        CONFDATE="$1"
 fi
 
-SLURM_DIR="/home/slurm/slurmR"
+SLURM_DIR="/home/$REPLAY_USER/slurmR"
 
 export PATH="$SLURM_DIR/bin:$SLURM_DIR/sbin:$PATH"
 export LD_LIBRARY_PATH="$SLURM_DIR/lib:$LD_LIBRARY_PATH"
