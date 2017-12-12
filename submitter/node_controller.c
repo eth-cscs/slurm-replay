@@ -260,7 +260,7 @@ void daemonize(int daemon_flag)
         close(STDOUT_FILENO);
         close(STDERR_FILENO);
 
-        logger = fopen("node_controller.log", "w+");
+        logger = fopen("log/node_controller.log", "w+");
     } else {
         logger = stdout;
     }

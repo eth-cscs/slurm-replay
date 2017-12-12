@@ -32,7 +32,6 @@ resv_trace_t* resv_arr;
 unsigned long long njobs = 0;
 unsigned long long nresvs = 0;
 static int daemon_flag = 1;
-char *global_envp[100];
 double clock_rate = 0.0;
 int *resv_action;
 
@@ -519,27 +518,19 @@ void daemonize(int daemon_flag)
         close(STDOUT_FILENO);
         close(STDERR_FILENO);
 
-        logger = fopen("submitter.log", "w+");
+        logger = fopen("log/submitter.log", "w+");
     } else {
         logger = stdout;
     }
 }
 
 
-int main(int argc, char *argv[], char *envp[])
+int main(int argc, char *argv[])
 {
-    int i;
-
     //Open shared priority queue for time clock
     open_rdonly_shmemclock();
 
     get_args(argc, argv);
-
-    i = 0;
-    while(envp[i]) {
-        global_envp[i] = envp[i];
-        i++;
-    }
 
     if ( workload_filename == NULL || tfile == NULL) {
         printf("Usage: %s\n", help_msg);

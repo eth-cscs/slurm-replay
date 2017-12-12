@@ -9,6 +9,11 @@ export PATH="$SLURM_DIR/bin:$SLURM_DIR/sbin:$PATH"
 if ! pgrep -x "mysqld" > /dev/null
 then
 echo -n  "Starting mysql... "
+if [ ! -f "/home/$REPLAY_USER/var/lib/mysql-bin.index" ]; then
+rm -Rf /home/$REPLAY_USER/var/lib/*
+rm -Rf /home/$REPLAY_USER/run/mysqld/*
+mysql_install_db --user="$REPLAY_USER" --basedir="/usr" --datadir="/home/$REPLAY_USER/var/lib" &> /dev/null
+fi
 mysqld_safe --datadir="/home/$REPLAY_USER/var/lib" &> /dev/null &
 sleep 5
 echo "done."

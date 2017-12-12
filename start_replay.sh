@@ -15,7 +15,9 @@ export PATH="$SLURM_REPLAY/submitter:$PATH"
 export PATH="$SLURM_DIR/bin:$SLURM_DIR/sbin:$PATH"
 export LD_LIBRARY_PATH="$SLURM_REPLAY/distime:$SLURM_DIR/lib:$LD_LIBRARY_PATH"
 
-trap "killall -q -9 slurmd slurmctld slurmstepd slurmdbd srun submitter ticker job_runner node_controller" SIGINT SIGTERM EXIT
+PROCESS_TOKILL="mysqld_safe mysqld slurmd slurmctld slurmstepd slurmdbd srun submitter ticker job_runner node_controller"
+killall -q -9 $PROCESS_TOKILL
+trap "killall -q -9 $PROCESS_TOKILL" SIGINT SIGTERM EXIT
 
 rm -Rf /dev/shm/ShmemClock*
 
@@ -60,7 +62,7 @@ echo "Replay ends at $(date --date="${END_REPLAY%.*} seconds")"
 ticker -c "$END_TIME,$RATE,$TICK" -n "$NJOBS"
 
 # let slurm process uncompleted data
-sleep 60
+sleep 15
 ticker -o
 
 date
@@ -73,6 +75,6 @@ echo "done."
 echo
 echo "ERROR IF ANY:"
 LOGFILE="log/slurmctld.log log/slurmd/*.log submitter.log log/slurmdbd.log node_controller.log"
-grep -E "\[[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}\] error:" $LOGFILE &>error.log
-cat error.log
-cp $LOGFILE error.log ../data
+grep -E "\[[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}\] error:" $LOGFILE &> ../data/error.log
+cat ../data/error.log
+cp $LOGFILE ../data
