@@ -56,16 +56,16 @@ sacctmgr -i add cluster Daint >/dev/null
 
 # Command to obtain data:
 # mysqldump -u test -p slurmdbd_test acct_table acct_coord_table qos_table tres_table user_table daint_assoc_table > slurmdb_tbl.sql
-mysql -u root slurm_acct_db < ../data/slurmdb_tbl.sql
+mysql -u root slurm_acct_db < ../data/slurmdb_tbl_slurm-${SLURM_VERSION}.sql
 
-if [ -f "../data/${REPLAY_USER}_assoc_tbl.sql" ]; then
-    mysql -u root slurm_acct_db < ../data/${REPLAY_USER}_assoc_tbl.sql
+if [ -f "../data/${REPLAY_USER}_assoc_tbl_slurm-${SLURM_VERSION}.sql" ]; then
+    mysql -u root slurm_acct_db < ../data/${REPLAY_USER}_assoc_tbl_slurm-${SLURM_VERSION}.sql
 else
     echo -n " that will take several seconds... "
     # add replay user to all accounts
     DAINT_ACCOUNTS=$(mysql -u root slurm_acct_db -Bse "select distinct a.name from acct_table as a join daint_assoc_table as c on a.name = c.acct;")
     sacctmgr -i add user "$REPLAY_USER" Account=$(echo "$DAINT_ACCOUNTS" | tr -s "\n" ",") Cluster=daint >/dev/null
-    mysqldump -u "$REPLAY_USER" slurm_acct_db daint_assoc_table > ../data/${REPLAY_USER}_assoc_tbl.sql
+    mysqldump -u "$REPLAY_USER" slurm_acct_db daint_assoc_table > ../data/${REPLAY_USER}_assoc_tbl_slurm-${SLURM_VERSION}.sql
 fi
 sleep 5
 echo "done."

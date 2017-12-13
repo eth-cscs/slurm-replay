@@ -15,7 +15,7 @@ export PATH="$SLURM_REPLAY/submitter:$PATH"
 export PATH="$SLURM_DIR/bin:$SLURM_DIR/sbin:$PATH"
 export LD_LIBRARY_PATH="$SLURM_REPLAY/distime:$SLURM_DIR/lib:$LD_LIBRARY_PATH"
 
-PROCESS_TOKILL="mysqld_safe mysqld slurmd slurmctld slurmstepd slurmdbd srun submitter ticker job_runner node_controller"
+PROCESS_TOKILL="slurmd slurmctld slurmstepd slurmdbd srun submitter ticker job_runner node_controller"
 killall -q -9 $PROCESS_TOKILL
 trap "killall -q -9 $PROCESS_TOKILL" SIGINT SIGTERM EXIT
 
