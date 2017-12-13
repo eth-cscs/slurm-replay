@@ -5,6 +5,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <getopt.h>
+#include <time.h>
 
 #include "trace.h"
 
@@ -240,7 +241,9 @@ int main(int argc, char **argv)
 
     int c,written;
     int trace_file;
-    char year[4], month[2], day[2], hours[2], minutes[2], seconds[2];
+    struct tm tmVar;
+    time_t time_start;
+    time_t time_end;
 
     size_t query_length;
     //unsigned int num_fields;
@@ -281,28 +284,30 @@ int main(int argc, char **argv)
             exit(-1);
         }
 
-        if ( sscanf(endtime, "%4s-%2s-%2s %2s:%2s:%2s", year, month, day, hours,
-                    minutes, seconds) != 6 ) {
-            printf("ERROR validate endtime\n");
+        if ( strptime(starttime, "%Y-%m-%d %H:%M:%S", &tmVar) != NULL ) {
+            time_start = mktime(&tmVar);
+        } else {
+            printf("ERROR: starttime not valid.\n");
             print_usage();
             exit(-1);
         }
 
-
-        if ( sscanf(starttime, "%4s-%2s-%2s %2s:%2s:%2s", year, month, day,
-                    hours, minutes, seconds) != 6 ) {
-            printf("ERROR validate starttime\n");
+        if ( strptime(endtime, "%Y-%m-%d %H:%M:%S", &tmVar) != NULL ) {
+            time_end = mktime(&tmVar);
+        } else {
+            printf("ERROR: endtime not valid.\n");
             print_usage();
             exit(-1);
         }
+
         sprintf(query, "SELECT t.account, t.exit_code, t.job_name, "
                 "t.id_job, q.name, t.id_user, t.id_group, r.resv_name, t.nodelist, t.nodes_alloc, t.partition, t.state, "
                 "t.timelimit, t.time_submit, t.time_eligible, t.time_start, t.time_end, t.time_suspended, "
                 "t.gres_alloc "
                 "FROM %s as t LEFT JOIN %s as r ON t.id_resv = r.id_resv AND t.time_start >= r.time_start and t.time_end <= r.time_end "
                 "LEFT JOIN qos_table as q ON q.id = t.id_qos "
-                "WHERE FROM_UNIXTIME(t.time_submit) BETWEEN '%s' AND '%s' AND "
-                "t.time_end > 0 AND t.nodes_alloc > 0", job_table, resv_table, starttime, endtime);
+                "WHERE t.time_submit < %lu AND t.time_end > %lu AND t.time_start < %lu AND "
+                "t.nodes_alloc > 0", job_table, resv_table, time_end, time_start, time_end);
     }
     printf("\nQuery --> %s\n\n", query);
 
@@ -362,9 +367,21 @@ int main(int argc, char **argv)
         job_trace.state = atoi(row[11]);
         job_trace.timelimit = atoi(row[12]);
         job_trace.time_submit = strtol(row[13], NULL, 0);
+        if (job_trace.time_submit < time_start) {
+           job_trace.time_submit = time_start;
+        }
         job_trace.time_eligible = strtol(row[14], NULL, 0);
+        if (job_trace.time_eligible < time_start) {
+           job_trace.time_eligible = time_start;
+        }
         job_trace.time_start = strtol(row[15], NULL, 0);
+        if (job_trace.time_start < time_start) {
+           job_trace.time_start = time_start;
+        }
         job_trace.time_end = strtol(row[16], NULL, 0);
+        if (job_trace.time_end > time_end) {
+           job_trace.time_end = time_end;
+        }
         job_trace.time_suspended = strtol(row[17], NULL, 0);
         sprintf(job_trace.gres_alloc, "%s", row[18]);
 
@@ -391,7 +408,8 @@ int main(int argc, char **argv)
         memset(query,'\0',1024);
         sprintf(query, "SELECT r.id_resv, r.time_start, r.time_end, r.nodelist, r.resv_name, GROUP_CONCAT(DISTINCT a.acct), r.flags, r.tres "
                 "FROM %s AS r INNER JOIN %s AS a ON FIND_IN_SET(a.id_assoc,r.assoclist) "
-                "WHERE FROM_UNIXTIME(r.time_start) BETWEEN '%s' AND '%s' GROUP BY r.time_start, r.id_resv ORDER BY r.time_start", resv_table, assoc_table, starttime, endtime);
+                "WHERE r.time_start < %lu AND r.time_end > %lu "
+                "GROUP BY r.time_start, r.id_resv ORDER BY r.time_start", resv_table, assoc_table, time_end, time_start);
 
         printf("\nQuery --> %s\n\n", query);
 
@@ -411,7 +429,13 @@ int main(int argc, char **argv)
 
             resv_trace.id_resv = atoi(row[0]);
             resv_trace.time_start = strtol(row[1], NULL, 0);
+            if (resv_trace.time_start < time_start) {
+                resv_trace.time_start = time_start;
+            }
             resv_trace.time_end = strtol(row[2], NULL, 0);
+            if (resv_trace.time_end > time_end) {
+                resv_trace.time_end = time_end;
+            }
             sprintf(resv_trace.nodelist, "%s", row[3]);
             sprintf(resv_trace.resv_name, "%s", row[4]);
             sprintf(resv_trace.accts, "%s", row[5]);
@@ -433,7 +457,8 @@ int main(int argc, char **argv)
         memset(query,'\0',1024);
         snprintf(query, 1024*sizeof(char), "SELECT e.time_start, e.time_end, e.node_name, e.reason, e.state "
                  "FROM %s AS e "
-                 "WHERE FROM_UNIXTIME(e.time_start) BETWEEN '%s' AND '%s' ORDER BY e.node_name, e.time_end", event_table, starttime, endtime);
+                 "WHERE e.time_start < %lu AND e.time_end > %lu AND e.node_name <> '' "
+                 "ORDER BY e.node_name, e.time_end", event_table, time_end, time_start);
 
         printf("\nQuery --> %s\n\n", query);
         if (mysql_query(conn, query)) {
@@ -471,6 +496,12 @@ int main(int argc, char **argv)
                     }
                     if (k == num_rows) {
                         // special case for last one
+                        if (fix_node_trace.time_start < time_start) {
+                            fix_node_trace.time_start = time_start;
+                        }
+                        if (fix_node_trace.time_end > time_end) {
+                            fix_node_trace.time_end = time_end;
+                        }
                         written = write(trace_file, &fix_node_trace, sizeof(node_trace_t));
                         if(written != sizeof(node_trace_t)) {
                             printf("Error writing to file: %d of %ld\n", written, sizeof(node_trace_t));
@@ -481,6 +512,12 @@ int main(int argc, char **argv)
                     }
                 } else {
                     // event to write
+                    if (fix_node_trace.time_start < time_start) {
+                        fix_node_trace.time_start = time_start;
+                    }
+                    if (fix_node_trace.time_end > time_end) {
+                        fix_node_trace.time_end = time_end;
+                    }
                     written = write(trace_file, &fix_node_trace, sizeof(node_trace_t));
                     if(written != sizeof(node_trace_t)) {
                         printf("Error writing to file: %d of %ld\n", written, sizeof(node_trace_t));
@@ -495,6 +532,12 @@ int main(int argc, char **argv)
                     fix_node_trace.state = atoi(row[4]);
                     if (k == num_rows) {
                         // special case for last one
+                        if (fix_node_trace.time_start < time_start) {
+                            fix_node_trace.time_start = time_start;
+                        }
+                        if (fix_node_trace.time_end > time_end) {
+                            fix_node_trace.time_end = time_end;
+                        }
                         written = write(trace_file, &fix_node_trace, sizeof(node_trace_t));
                         if(written != sizeof(node_trace_t)) {
                             printf("Error writing to file: %d of %ld\n", written, sizeof(node_trace_t));
