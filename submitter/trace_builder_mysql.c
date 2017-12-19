@@ -276,6 +276,7 @@ int main(int argc, char **argv)
 
     if (!use_query) {
         memset(query,'\0',1024);
+        memset(&tmVar, 0, sizeof(struct tm));
 
         /*validate input parameter to build the query*/
         if ((endtime == NULL) || (starttime == NULL) || (job_table == NULL)) {
