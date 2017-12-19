@@ -143,6 +143,8 @@ int main(int argc, char *argv[])
     char strstart_time[20];
     char strend_time[20];
     time_t tmp_time;
+    long maxtick = 0;
+    long k;
 
     get_args(argc, argv);
 
@@ -167,15 +169,32 @@ int main(int argc, char *argv[])
         printf("Clock: start='%s|%ld', end='%s|%ld', duration=%ld[s], rate=%.5f[s] for 1 replayed second\n",strstart_time, tmp_time, strend_time, endtime_evt, endtime_evt-tmp_time, rate/tick);
         fflush(stdin);
         freq = one_second*rate;
-        while(get_shmemclock() < endtime_evt) {
+        maxtick=endtime_evt-tmp_time;
+        k = 0;
+        while(k < maxtick) {
             usleep(freq);
             incr_shmemclock(tick);
+            k++;
         }
 
-        // continue until schedule is over
-        while(is_schedule()) {
-            usleep(freq);
-            incr_shmemclock(tick);
+        tmp_time = get_shmemclock();
+        if (tmp_time < endtime_evt) {
+            strftime(strstart_time, sizeof(strstart_time), "%Y-%m-%d %H:%M:%S", localtime(&tmp_time));
+            printf("Exausted ticks - time not reached %ld -- %s\n", tmp_time, strstart_time);
+            while(get_shmemclock() < endtime_evt) {
+                usleep(freq);
+                incr_shmemclock(tick);
+            }
+        }
+
+        if (is_schedule()) {
+            tmp_time = get_shmemclock();
+            strftime(strstart_time, sizeof(strstart_time), "%Y-%m-%d %H:%M:%S", localtime(&tmp_time));
+            printf("Schedule not finished - time %ld -- %s\n", tmp_time, strstart_time);
+            while(is_schedule()) {
+                usleep(freq);
+                incr_shmemclock(tick);
+            }
         }
     }
 
