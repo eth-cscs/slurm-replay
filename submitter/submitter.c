@@ -320,7 +320,7 @@ static void submit_jobs_and_reservations()
     freq = one_second*clock_rate;
     while( kj < njobs || kr < nresvs ) {
         // wait for submission time of next job
-        while(current_time < job_arr[kj].time_submit && current_time < resv_arr[kr].time_start ) {
+        while((current_time < job_arr[kj].time_submit || kj >= njobs) && (current_time < resv_arr[kr].time_start || kr >= nresvs)) {
             current_time = get_shmemclock();
             usleep(freq);
         }
