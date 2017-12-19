@@ -1,11 +1,30 @@
 #!/bin/bash
 
-WORKLOAD="$1"
+
+while getopts ":w:r:" opt; do
+case $opt in
+    w)
+       WORKLOAD="$OPTARG"
+    ;;
+    r)
+       RATE="$OPTARG"
+    ;;
+    :)
+       echo "Option -$OPTARG requires an argument."
+       exit 1
+    ;;
+esac
+done
+
 if [ -z "$WORKLOAD" ]; then
     echo "Please provide a trace file"
     exit 1
 fi
-
+if [ -z "$RATE" ]; then
+    RATE="0.1"
+fi
+TICK="1"
+CLOCK_RATE=$(echo "$RATE*$TICK" | bc -l)
 
 SLURM_DIR="/home/$REPLAY_USER/slurmR"
 SLURM_REPLAY="/home/$REPLAY_USER/slurm-replay"
@@ -30,10 +49,6 @@ END_TIME="$(trace_list -n -w "$WORKLOAD" | awk '{print $7;}' | sort -nr | head -
 END_TIME="$(( $END_TIME + $TIME_ENDPAD ))"
 
 NJOBS="$(trace_list -n -w "$WORKLOAD" | wc -l)"
-
-RATE="0.1"
-TICK="1"
-CLOCK_RATE=$(echo "$RATE*$TICK" | bc -l)
 
 CONF_TIME="$(trace_list -n -w "$WORKLOAD" -u | awk '{print $4;}' | sort -n | head -n 1 | sed 's/2017/17/' | tr -d '-')"
 # Add initial time
@@ -65,16 +80,21 @@ ticker -c "$END_TIME,$RATE,$TICK" -n "$NJOBS"
 sleep 15
 ticker -o
 
-date
 echo -n "Collecting data... "
-# get the replay trace
+# get the query and remove where close
 query=$(trace_list -w $WORKLOAD -q | head -n 1)
-REPLAY_WORKLOAD="${WORKLOAD##*/}"
-trace_builder_mysql -f "../data/replay.$REPLAY_WORKLOAD" -u "$REPLAY_USER" -p "" -h "localhost" -d "slurm_acct_db" -q "$query" -t daint_job_table -r daint_resv_table -v daint_event_table
+query="${query%WHERE*};"
+REPLAY_WORKLOAD="../data/replay.${WORKLOAD##*/}"
+CT=0
+while [ -f "$REPLAY_WORKLOAD.$CT" ]; do
+    CT=$(( $CT + 1 ))
+done
+REPLAY_WORKLOAD="$REPLAY_WORKLOAD.$CT"
+trace_builder_mysql -f "$REPLAY_WORKLOAD" -u "$REPLAY_USER" -p "" -h "localhost" -d "slurm_acct_db" -q "$query" -t daint_job_table -r daint_resv_table -v daint_event_table
 echo "done."
 echo
 echo "ERROR IF ANY:"
-LOGFILE="log/slurmctld.log log/slurmd/*.log submitter.log log/slurmdbd.log node_controller.log"
+LOGFILE="log/slurmctld.log log/slurmd/*.log log/submitter.log log/slurmdbd.log log/node_controller.log"
 grep -E "\[[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}\] error:" $LOGFILE &> ../data/error.log
 cat ../data/error.log
 cp $LOGFILE ../data
