@@ -79,7 +79,7 @@ RUN mkdir /home/$REPLAY_USER/data && \
 #     docker run --rm -it -v /Users/maximem/dev/docker/slurm-replay/data:/home/$REPLAY_USER/data --name slurm-replay slurm-replay
 #
 # SHIFTER command to run:
-#    shifter --image mmxcscs/slurm-replay:maximem_slurm-17.02.9 --writable-volatile /home/maximem/slurmR/log --writable-volatile /home/maximem/slurmR/etc  --writable-volatile /home/maximem/var --writable-volatile /home/maximem/var/lib --writable-volatile /home/maximem/run --writable-volatile /home/maximem/run/mysqld --writable-volatile /home/maximem/tmp --volume /users/maximem/dev/data:/home/maximem/data /bin/bash
+#    shifter --image mmxcscs/slurm-replay:maximem_slurm-17.02.9 --writable-volatile /home/maximem/slurmR/log --writable-volatile /home/maximem/slurmR/etc  --writable-volatile /home/maximem/var --writable-volatile /home/maximem/var/lib --writable-volatile /home/maximem/run --writable-volatile /home/maximem/run/mysqld --writable-volatile /home/maximem/tmp --writable-volatile /home/maximem/slurm-replay/submitter --volume /users/maximem/dev/data:/home/maximem/data /bin/bash
 #
 
 # for convenience

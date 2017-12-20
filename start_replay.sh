@@ -44,7 +44,8 @@ TIME_STARTPAD=60
 START_TIME="$(trace_list -n -w "$WORKLOAD" | awk '{print $4;}' | sort -n | head -n 1)"
 START_TIME="$(( $START_TIME - $TIME_STARTPAD ))"
 
-TIME_ENDPAD=60
+# endpad depends on clock rate to allow slurmdbd to update job stats in the db (time_end,...)
+TIME_ENDPAD=$( echo "60/$RATE" | bc )
 END_TIME="$(trace_list -n -w "$WORKLOAD" | awk '{print $7;}' | sort -nr | head -n 1)"
 END_TIME="$(( $END_TIME + $TIME_ENDPAD ))"
 
@@ -72,7 +73,7 @@ echo "done."
 # Make time progress at a faster rate
 DURATION=$(( $END_TIME - $START_TIME ))
 END_REPLAY=$( echo "$DURATION*($CLOCK_RATE)" | bc -l)
-echo "Replay ends at $(date --date="${END_REPLAY%.*} seconds")"
+echo "Replay tentative ending time is $(date --date="${END_REPLAY%.*} seconds")"
 
 ticker -c "$END_TIME,$RATE,$TICK" -n "$NJOBS"
 
