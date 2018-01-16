@@ -14,8 +14,8 @@ RUN pacman -Sy --noconfirm autoconf automake gcc make mariadb wget patch python 
 
 # For debugging
 # before to commit the container use the option docker run --cap-add sys_ptrace to be able to attach a debugger
-RUN pacman -Sy --noconfirm gdb valgrind strace && \
-               rm -rf /var/cache/pacman/pkg
+#RUN pacman -Sy --noconfirm gdb valgrind strace && \
+#               rm -rf /var/cache/pacman/pkg
 
 # set timezone to CET
 RUN  ln -sf /usr/share/zoneinfo/CET /etc/localtime
