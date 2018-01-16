@@ -1,0 +1,118 @@
+
+//
+//  Read the data
+//
+#proc getdata
+	file: @DATAFILE
+	fieldnames: dom normal_gpu normal_mc debug_gpu debug_mc high_gpu high_mc
+
+//
+//  Define the plot area
+//
+#proc	areadef
+	title:        Average Queue Wait Time (@MONTH @YEAR)
+	titledetails: size=14  align=L adjust=-0.5,0.25
+	xrange:       1 @DIM
+	yrange:       0 80
+	frame:        no
+ 
+//
+//  Details for the X axis
+//
+#proc	xaxis
+	location:     min
+	stubs:        increment 1
+	stubdetails:  adjust=0,+0.05 
+	stubvert:     yes
+	tics:         none
+	axisline:     no
+	label:        Day of Month
+
+//
+//  Details for the Y axis
+//
+#proc	yaxis
+	stubs:        increment 5
+	gridskip:     min
+	grid:         yes
+	ticincrement: 5
+	label:        Hours
+
+#proc	lineplot
+	xfield:	     dom
+	yfield:      normal_gpu
+	linedetails: width=2 color=red
+	legendlabel: normal(gpu)
+	pointsymbol: shape=diamond fillcolor=red
+
+#proc	lineplot
+	xfield:	     dom
+	yfield:      normal_mc
+	linedetails: width=2 color=green
+	legendlabel: normal(mc)
+	pointsymbol: shape=diamond fillcolor=green
+
+#proc	lineplot
+	xfield:	     dom
+	yfield:      debug_gpu
+	linedetails: width=2 color=blue
+	legendlabel: debug(gpu)
+	pointsymbol: shape=diamond fillcolor=blue
+
+#proc	lineplot
+	xfield:	     dom
+	yfield:      debug_mc
+	linedetails: width=2 color=orange
+	legendlabel: debug(mc)
+	pointsymbol: shape=diamond fillcolor=orange
+
+#proc	lineplot
+	xfield:	     dom
+	yfield:      high_gpu
+	linedetails: width=2 color=purple
+	legendlabel: high(gpu)
+	pointsymbol: shape=diamond fillcolor=purple
+
+#proc	lineplot
+	xfield:	     dom
+	yfield:      high_mc
+	linedetails: width=2 color=skyblue
+	legendlabel: high(mc)
+	pointsymbol: shape=diamond fillcolor=skyblue
+
+
+#proc   line
+	points:     min(s)  24(s) max(s)  24(s)
+
+#proc   annotate
+	textdetails:  size=8 style=I
+	outline:      no
+	location:     max-2.2(s) 24(s)
+	text:         Maximum Wait Goal
+
+//
+// Legend
+//
+#proc	legend
+	format:       down
+	location:     max+0.25 max
+	seglen:       0.1
+
+//
+// CSCS Confidiential Notice
+//
+#proc annotate
+	textdetails: size=8 style=I
+	location:    min min-0.4
+	text:        CSCS Confidential
+
+#proc annotate
+	textdetails: size=8 style=I
+	location:    max-0.4 max+0.2
+	text:        CSCS Confidential
+
+#proc annotate
+	textdetails: size=8 style=I
+	location:    max-0.5 min-0.4
+	text:        (QueueWait)
+

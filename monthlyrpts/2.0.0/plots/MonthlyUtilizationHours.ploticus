@@ -1,0 +1,105 @@
+
+//
+//  Read the data
+//
+#proc getdata
+	file: @DATAFILE
+	fieldnames: month hd_hours hd_pcnt hc_hours hc_pcnt md_hours md_pcnt mc_hours mc_pcnt
+
+//
+//  Define the plot area
+//
+#proc	areadef
+	title:        Daint Monthly Utilization (hours)
+	titledetails: size=14  align=L adjust=-0.5,0.25
+	xscaletype:   date mm/yyyy
+	xrange:       @STARTDATE @ENDDATE
+	yrange:       0 4000000
+	frame:        no
+ 
+//
+//  Details for the X axis
+//
+#proc	xaxis
+	location:     min
+	stubs:        increment 1
+	stubdetails:  adjust=0,+0.05 
+	stubvert:     yes
+	stubformat:   Mmm/yy
+	tics:         yes
+	axisline:     no
+	labeldistance: 0.6
+	label:        Month
+
+//
+//  Details for the Y axis
+//
+#proc	yaxis
+	stubs:        increment 250000
+	stubformat:   %7.0f
+	gridskip:     min
+	grid:         yes
+//	ticincrement: 5000
+	tics:         yes
+//	minortics:    yes
+//	minorticinc:  5000
+	label:        Node Hours
+	labeldistance: 0.65(s)
+
+#proc	lineplot
+	xfield:	     month
+	yfield:      hc_hours
+	linedetails: width=2 color=oceanblue
+	legendlabel: Hybrid Consumed
+	pointsymbol: shape=diamond fillcolor=oceanblue
+
+#proc	lineplot
+	xfield:	     month
+	yfield:      hd_hours
+	linedetails: width=2 color=darkblue
+	legendlabel: Hybrid Delivered
+	pointsymbol: shape=diamond fillcolor=darkblue
+
+#proc	lineplot
+	xfield:	     month
+	yfield:      mc_hours
+	linedetails: width=2 color=brightgreen
+	legendlabel: Multicore Consumed
+	pointsymbol: shape=diamond fillcolor=brightgreen
+
+#proc	lineplot
+	xfield:	     month
+	yfield:      md_hours
+	linedetails: width=2 color=teal
+	legendlabel: Multicore Delivered
+	pointsymbol: shape=diamond fillcolor=teal
+
+//
+// Legend
+//
+#proc	legend
+	format:       down
+        location:     max+0.25 max
+	seglen:       0.1
+
+//
+// CSCS Confidential Notice
+//
+//#proc   annotate
+//        textdetails:  size=8 style=I
+//        location:     min min-0.6
+//        text:         CSCS Confidential
+
+//#proc   annotate
+//        textdetails:  size=8 style=I
+//        location:     max-0.4 max+0.2
+//        text:         CSCS Confidential
+
+//
+//  Plot name
+//
+#proc   annotate
+        textdetails:  size=8 style=I
+        location:     max-0.5 min-0.6
+        text:         (MonthlyUtilizationHours)
+

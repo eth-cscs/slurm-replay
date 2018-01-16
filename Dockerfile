@@ -9,13 +9,13 @@ ENV REPLAY_USER $REPLAY_USER
 
 # install packages
 # Note do not install sudo - sudo does not work within Shifter
-RUN pacman -Sy --noconfirm autoconf automake gcc make mariadb wget patch python gtk2 pkgconf git fakeroot vim bc && \
+RUN pacman -Sy --noconfirm autoconf automake gcc make mariadb wget patch python gtk2 pkgconf git fakeroot vim bc groff && \
                rm -rf /var/cache/pacman/pkg
 
 # For debugging
 # before to commit the container use the option docker run --cap-add sys_ptrace to be able to attach a debugger
-#RUN pacman -Sy --noconfirm gdb valgrind strace && \
-#               rm -rf /var/cache/pacman/pkg
+RUN pacman -Sy --noconfirm gdb valgrind strace && \
+               rm -rf /var/cache/pacman/pkg
 
 # set timezone to CET
 RUN  ln -sf /usr/share/zoneinfo/CET /etc/localtime
@@ -75,16 +75,28 @@ RUN mkdir /home/$REPLAY_USER/data && \
     mkdir /home/$REPLAY_USER/tmp
 
 #
+# DOCKER build command:
+#     docker build -t mmxcscs/slurm-replay:maximem_slurm-17.02.9 --build-arg REPLAY_USER=maximem .
 # DOCKER command to run:
-#     docker run --rm -it -v /Users/maximem/dev/docker/slurm-replay/data:/home/$REPLAY_USER/data --name slurm-replay slurm-replay
+#     docker run --rm -it -v /Users/maximem/dev/docker/slurm-replay/data:/home/maximem/data mmxcscs/slurm-replay:maximem_slurm-17.02.9
 #
 # SHIFTER command to run:
 #    shifter --image mmxcscs/slurm-replay:maximem_slurm-17.02.9 --writable-volatile /home/maximem/slurmR/log --writable-volatile /home/maximem/slurmR/etc  --writable-volatile /home/maximem/var --writable-volatile /home/maximem/var/lib --writable-volatile /home/maximem/run --writable-volatile /home/maximem/run/mysqld --writable-volatile /home/maximem/tmp --writable-volatile /home/maximem/slurm-replay/submitter --volume /users/maximem/dev/data:/home/maximem/data /bin/bash
 #
 
+# Install monthly report tools from CSCS
+COPY monthlyrpts /home/$REPLAY_USER/slurm-replay
+RUN cd /home/$REPLAY_USER/slurm-replay/monthlyrpts/2.0.0/src && \
+    make && make install\
+    echo "export PATH=\$PATH:/home/$REPLAY_USER/slurm-replay/monthlyrpts/2.0.0/src" >> /home/$REPLAY_USER/.bashrc && \
+    echo "export MONTHLYRPTS_ROOT=/home/maximem/slurm-replay/monthlyrpts/2.0.0" >> /home/$REPLAY_USER/.bashrc && \
+    echo "export MONTHLYRPTS_RPTS=/home/maximem/slurm-replay/monthlyrpts/2.0.0/reports" >> /home/$REPLAY_USER/.bashrc && \
+    echo "export MONTHLYRPTS_PLOTS=/home/maximem/slurm-replay/monthlyrpts/2.0.0/plots" >> /home/$REPLAY_USER/.bashrc
+
+
 # for convenience
 WORKDIR /home/$REPLAY_USER/slurm-replay
-RUN echo "export PATH=\$PATH:/home/$REPLAY_USER/slurmR/bin:/home/$REPLAY_USER/slurmR/sbin:/home/$REPLAY_USER/slurm-replay/submitter" >> /home/$REPLAY_USER/.bashrc && \
+RUN echo "export PATH=\$PATH:/home/$REPLAY_USER/slurmR/bin:/home/$REPLAY_USER/slurmR/sbin:/home/$REPLAY_USER/slurm-replay/submitter:/home/$REPLAY_USER/slurm-replay/monthlyrpts/2.0.0/bin" >> /home/$REPLAY_USER/.bashrc && \
     echo "export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:/home/$REPLAY_USER/slurmR/lib:/home/$REPLAY_USER/slurm-replay/distime" >> /home/$REPLAY_USER/.bashrc && \
     echo "alias vi='vim'" >> /home/$REPLAY_USER/.bashrc
 

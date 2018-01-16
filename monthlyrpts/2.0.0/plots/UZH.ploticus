@@ -1,0 +1,205 @@
+//
+//  Read the data
+//
+#proc getdata
+	file: @DATAFILE
+	fieldnames: dom uzh0 uzh1 uzh2 uzh3 uzh4 uzh5 uzh6 uzh7 uzh8 uzh9 uzh10 uzh11 uzh12 uzh13 uzh14 uzh15 uzh16 uzh17 uzh18 uzh19 uzh20 uzhp
+
+//
+//  Define the plot area
+//
+#proc	areadef
+	title:        UZH Multicore Individual Project Usage (@MONTH @YEAR)
+	titledetails: size=14  align=L adjust=-0.5,0.25
+	xrange:       1 @DIM
+	yrange:       0 20000
+	frame:        no
+ 
+//
+//  Details for the X axis
+//
+#proc	xaxis
+	location:     min
+	stubs:        increment 1
+	stubdetails:  adjust=0,+0.05 
+	stubvert:     yes
+	tics:         none
+	axisline:     no
+	label:        Day of Month
+
+//
+//  Details for the Y axis
+//
+#proc	yaxis
+	stubs:        increment 1000
+	gridskip:     min
+	grid:         yes
+	ticincrement: 1000
+	label:        Node Hours
+	labeldistance: 0.65(s)
+
+#proc	lineplot
+	xfield:	     dom
+	yfield:      uzh0
+	linedetails: width=2 color=purple
+	legendlabel: uzh0
+
+#proc	lineplot
+	xfield:	     dom
+	yfield:      uzh1
+	linedetails: width=2 color=lavender
+	legendlabel: uzh1
+
+#proc	lineplot
+	xfield:	     dom
+	yfield:      uzh2
+	linedetails: width=2 color=powderblue
+	legendlabel: uzh2
+
+#proc	lineplot
+	xfield:	     dom
+	yfield:      uzh3
+	linedetails: width=2 color=darkblue
+	legendlabel: uzh3
+
+#proc	lineplot
+	xfield:	     dom
+	yfield:      uzh4
+	linedetails: width=2 color=blue
+	legendlabel: uzh4
+
+#proc	lineplot
+	xfield:	     dom
+	yfield:      uzh5
+	linedetails: width=2 color=skyblue
+	legendlabel: uzh5
+
+#proc	lineplot
+	xfield:	     dom
+	yfield:      uzh6
+	linedetails: width=2 color=brightgreen
+	legendlabel: uzh6
+
+#proc	lineplot
+	xfield:	     dom
+	yfield:      uzh7
+	linedetails: width=2 color=drabgreen
+	legendlabel: uzh7
+
+#proc	lineplot
+	xfield:	     dom
+	yfield:      uzh8
+	linedetails: width=2 color=orange
+	legendlabel: uzh8
+
+#proc	lineplot
+	xfield:	     dom
+	yfield:      uzh9
+	linedetails: width=2 color=tan1
+	legendlabel: uzh9
+
+#proc	lineplot
+	xfield:	     dom
+	yfield:      uzh10
+	linedetails: width=2 color=claret
+	legendlabel: uzh10
+
+#proc	lineplot
+	xfield:	     dom
+	yfield:      uzh11
+	linedetails: width=2 color=coral
+	legendlabel: uzh11
+
+#proc	lineplot
+	xfield:	     dom
+	yfield:      uzh12
+	linedetails: width=2 color=gray(0.3)
+	legendlabel: uzh12
+
+#proc	lineplot
+	xfield:	     dom
+	yfield:      uzh13
+	linedetails: width=2 color=tan2
+	legendlabel: uzh13
+
+#proc	lineplot
+	xfield:	     dom
+	yfield:      uzh14
+	linedetails: width=2 color=pink
+	legendlabel: uzh14
+
+#proc	lineplot
+	xfield:	     dom
+	yfield:      uzh15
+	linedetails: width=2 color=redorange
+	legendlabel: uzh15
+
+#proc	lineplot
+	xfield:	     dom
+	yfield:      uzh16
+	linedetails: width=2 color=teal
+	legendlabel: uzh16
+
+#proc	lineplot
+	xfield:	     dom
+	yfield:      uzh17
+	linedetails: width=2 color=lightorange
+	legendlabel: uzh17
+
+#proc	lineplot
+	xfield:	     dom
+	yfield:      uzh18
+	linedetails: width=2 color=gray(0.6)
+	legendlabel: uzh18
+
+#proc	lineplot
+	xfield:	     dom
+	yfield:      uzh19
+	linedetails: width=2 color=magenta
+	legendlabel: uzh19
+
+#proc	lineplot
+	xfield:	     dom
+	yfield:      uzh20
+	linedetails: width=2 color=brightgreen
+	legendlabel: uzh20
+
+#proc	lineplot
+	xfield:	     dom
+	yfield:      uzhp
+	linedetails: width=2 color=red
+	legendlabel: uzhp
+	pointsymbol: shape=diamond fillcolor=red
+
+#proc	line
+	points: min(s) @DAILYGOAL(s) max(s) @DAILYGOAL(s)
+
+#proc	annotate
+	textdetails:  size=8 style=I
+	outline:      no
+	location:     max-2.0(s) @DAILYGOAL(s)
+	text:         Daily Goal
+
+#proc	legend
+	format:       down
+        location:     max+0.25 max
+	seglen:       0.1
+
+//
+// CSCS Confidiential Notice
+//
+#proc annotate
+	textdetails: size=8 style=I
+	location:    min min-0.4
+	text:        CSCS Confidential
+
+#proc annotate
+	textdetails: size=8 style=I
+	location:    max-0.4 max+0.2
+	text:        CSCS Confidential
+
+#proc annotate
+	textdetails: size=8 style=I
+	location:    max-0.5 min-0.4
+	text:        (UZH)
+

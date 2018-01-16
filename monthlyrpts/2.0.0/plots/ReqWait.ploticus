@@ -1,0 +1,117 @@
+//
+//  Read the data
+//
+#proc getdata
+	file: @DATAFILE
+	fieldnames: jobid submit eligible start end elapsed timelimit queuewait nodes nodetp partition
+
+//
+//  Define the plot area
+//
+#proc	areadef
+	title:        @CUSTOMER Queue Wait Time vs Requested Time (@MONTH @YEAR)
+	titledetails: size=14  align=L adjust=-0.5,0.25
+//	xrange:       0 4320
+	xrange:       0 14400
+	yrange:       0 1500
+	frame:        no
+ 
+//
+//  Details for the X axis
+//
+#proc	xaxis
+	location:     min
+	stubs:        increment 360
+	stubdetails:  adjust=0,+0.05 
+	stubvert:     yes
+//	tics:         none
+	axisline:     no
+	label:        Queue Wait Time in Minutes
+	labeldistance: 0.5
+
+//
+//  Details for the Y axis
+//
+#proc	yaxis
+	stubs:        increment 60
+	gridskip:     min
+	grid:         yes
+	ticincrement: 10
+	label:        Requested Time in Minutes
+	labeldistance:  0.5
+
+//
+//  Plot the data
+//
+#proc	scatterplot
+	xfield:	     queuewait
+	yfield:      timelimit
+	select:      @@partition = low
+	legendlabel: Low
+	symbol:      shape=pixdiamond color=red radius=0.02
+
+#proc	scatterplot
+	xfield:	     queuewait
+	yfield:      timelimit
+	select:      @@partition != low
+	legendlabel: All but Low
+	symbol:      shape=pixdiamond color=blue radius=0.02
+
+#proc	line
+	linedetails: width=1 color=coral
+	points: 1440(s) min(s) 1440(s) max(s)
+
+#proc	line
+	linedetails: width=1 color=coral
+	points: 2880(s) min(s) 2880(s) max(s)
+
+#proc	line
+	linedetails: width=1 color=coral
+	points: 4320(s) min(s) 4320(s) max(s)
+
+#proc	line
+	linedetails: width=1 color=coral
+	points: 5760(s) min(s) 5760(s) max(s)
+
+#proc	line
+	linedetails: width=1 color=coral
+	points: 7200(s) min(s) 7200(s) max(s)
+
+#proc	line
+	linedetails: width=1 color=coral
+	points: 8640(s) min(s) 8640(s) max(s)
+
+#proc	line
+	linedetails: width=1 color=coral
+	points: 10080(s) min(s) 10080(s) max(s)
+
+#proc	line
+	linedetails: width=1 color=coral
+	points: 11520(s) min(s) 11520(s) max(s)
+
+#proc	line
+	linedetails: width=1 color=coral
+	points: 12960(s) min(s) 12960(s) max(s)
+
+#proc	legend
+	format:     down
+	location:   max+0.25 max
+
+//
+// CSCS Confidiential Notice
+//
+#proc annotate
+	textdetails: size=8 style=I
+	location:    min min-0.5          // Lower Left
+	text:        CSCS Confidential
+
+#proc annotate
+	textdetails: size=8 style=I
+	location:    max-0.4 max+0.2      // Upper Right
+	text:        CSCS Confidential
+
+#proc annotate
+	textdetails: size=8 style=I
+	location:    max-0.5 min-0.5      // Lower Right
+	text:        (@CUSTOMER ReqWait)
+

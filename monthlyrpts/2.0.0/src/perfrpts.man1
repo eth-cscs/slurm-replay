@@ -1,0 +1,124 @@
+.TH perfrpts 1 "30 March 2017" "CSCS" "User Commands"
+.SH NAME
+perfrpts \- generate monthly performance reports
+.SH SYNOPSIS
+.B perfrpts [\-y \fIyear\fR] [\-m \fImonth\fR] [-DGLPZ] [\-v] [\-h | \-V]
+.SH DESCRIPTION
+.B perfrpts
+generates all the data files and plots for the CSCS monthly performance
+report and monthly status report.  The data is pulled directly from the
+CSCS and Slurm databases.
+.SH OPTIONS
+.TP 13
+.B \-y \fIyear\fR
+The year for the month to report on specified as a 4 digit number. The default is
+the current year.
+.TP 13
+.B \-m \fImonth\fR
+The month of the year to report on specified as a number
+from 1 to 12 where 1 is January and 12 is December. The default is the current month.
+.TP 13
+.B \-D
+Generate only the data files.
+.TP 13
+.B \-G
+General reports. (Availability, Allocation, Utilization, JobProfile, QueueWait, StartCounts, SubmitCounts, EndCounts)
+.TP 13
+.B \-L
+Large memory job reports. (LargeMemSubmitCounts, LargeMemStartCounts, LargeMemEndCounts)
+.TP 13
+.B \-P
+Generate only the plots.  The data files will not be
+re-generated.
+.TP 13
+.B \-Z
+Reports specifically for the customer UZH. (UZHQueueWait, UZHUtilization, JobProfile)
+.TP 13
+.B \-v
+Display verbose messaging.
+.TP 13
+.B \-h
+Display help text.
+.TP 13
+.B \-V
+Display the version number.
+.SH REPORT(S)
+.TP 15
+.B Allocation
+Quarterly allocation report showing allocated hours vs maximum theoretically possibly. 
+Monthly hours delivered/consumed report showing how many raw hours were delivered and
+how many of those hours were consumed by users. 
+Generates the following data files: Utilization.dat.
+.TP 15
+.B Availability
+Generates the following plot files: Availability and CSCS_Availability.
+Generates the following data files: Outages.dat.
+.TP 15
+.B EndCounts
+Generates the following plots: EndCounts. 
+Generates the following data files: EndCounts.
+.TP 15
+.B JobProfile
+Generates the following plot files: JobPlot5000, JobPlot260, UZHJobPlot5000, UZHJobPlot260, ReqWait, 
+JobReq, and UZHJobReq. 
+Generates the following data files: JobProfile.dat and UZHJobProfile.dat.
+.TP 15
+.B LargeMemEndCounts
+Generates the following plots: LargeMemEndCounts.  
+Generates the following data files: LargeMemEndCounts.dat.
+.TP 15
+.B LargeMemStartCounts
+foo
+Generates the following plots: LargeMemStartCounts.  
+Generates the following data files: LargeMemStartCounts.dat.
+.TP 15
+.B LargeMemSubmitCounts
+foo
+Generates the following plots: LargeMemSubmitCounts.  
+Generates the following data files: LargeMemSubmitCounts.dat.
+.TP 15
+.B QueueWait
+foo
+Generates the following plots: QueueWait.
+Generates the following data files: QueueWait.dat.
+.TP 15
+.B StartCounts
+foo
+Generates the following plots: StartCounts.
+Generates the following data files: StartCounts.dat.
+.TP 15
+.B SubmitCounts
+foo
+Generates the following plots: SubmitCounts.
+Generates the following data files: SubmitCounts.dat.
+.TP 15
+.B Utilization
+foo
+Generates the following plots: Utilization, UtilizationPcnt, GPUUtilization, MCUtilization, and CSCS_Utilization.
+Generates the following data files: Utilization.dat.
+.TP 15
+.B UZHQueueWait
+foo
+Generates the following plots: UZHQueueWait.
+Generates the following data files: UZHQueueWait.dat.
+.TP 15
+.B UZHUtilization
+foo
+Generates the following plots: UZHUtilization.
+Generates the following data files:  UZHUtilization.dat.
+.SH ERROR(S)
+Upon fatal internal error,
+.B perfrpts
+will identify the location of the failure and the reason
+for the failure and then exit. The messages produced
+will contain the reason for the error, the errno number,
+and the message for the identified error number.  Futhermore,
+to assist in diagnosis, the source file, source function, and 
+line number in the source file are identified.
+Description of why error.
+.SH AUTHOR(S)
+Nicholas Cardo, CSCS
+.SH ACKNOWLEDGMENT(S)
+Centro Svizzero di Calcolo Scientifico
+.br
+Swiss National Supercomputing Center

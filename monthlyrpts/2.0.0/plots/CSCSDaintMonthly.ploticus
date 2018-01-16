@@ -1,0 +1,154 @@
+
+#proc getdata
+//file: "../avail/Availability.dat"
+file: @DATAFILE
+fieldnames: date maintenance graceful failure events gross scheduled
+
+//
+//  Define the plot area
+//
+#proc	areadef
+//	title:        Piz Daint System Downtime/Availability Report
+//	titledetails: size=14  align=L adjust=-0.5,0.25
+	xscaletype:   date mm/yyyy
+	//xrange:       09/2015 02/2017
+	xrange:       @STARTDATE @ENDDATE
+	yrange:       0 100
+	frame:        no
+	#saveas:      A
+ 
+//
+//  Details for the X axis
+//
+#proc	xaxis
+	location:     min-0.2
+	stubs:        increment 1 month
+//	stubformat:   Mmm
+	stubformat:   yyyy_mm
+	stubdetails:  adjust=0,+0.05 
+	stubvert:     yes
+	tics:         none
+	axisline:     no
+
+//
+//  Details for the Y axis
+//
+#proc	yaxis
+	stubs:        increment 10
+	gridskip:     min
+	grid:         yes
+	ticincrement: 5
+	label:        Sum of downtime [h]
+	location:     min-0.10 
+
+#proc	drawcommands
+	commands:
+		movs @STARTDATE 0
+		lins @ENDDATE 0
+
+#include @OUTAGES
+
+#proc	annotate
+	location: max+0.60 +0.82
+	text:	# of Events
+
+//
+//  Maintenance
+//
+#proc	bars
+	color:        green
+	lenfield:     2
+	locfield:     1
+	barwidth:     0.10
+	legendlabel:  Maintenance
+
+//
+//  Graceful
+//
+#proc	bars
+	color:        blue
+	lenfield:     3
+	locfield:     1
+	barwidth:     0.10
+	stackfields:  2
+	legendlabel:  Graceful
+
+//
+//  Failure
+//
+#proc	bars
+	color:        red
+	lenfield:     4
+	locfield:     1
+	barwidth:     0.10
+	stackfields:  2 3
+	legendlabel:  Failure
+
+//
+//  Define the plot area
+//
+#proc	areadef
+//	title:        Ticket Count by Queue
+//	titledetails: size=14  align=C
+	#clone:       A
+//	xscaletype:   date mm/yyyy
+	xrange:       @STARTDATE @ENDDATE
+	yrange:       0 100
+//	frame:        yes
+
+//
+//  Details for the Y axis
+//
+#proc	yaxis
+	stubs:        increment 10
+	gridskip:     min
+	ticincrement: 5
+	location:     max+0.10
+	ticlen:      -0.08
+	stubdetails: adjust=0.45,0
+	label:       Available Percent [%]
+	labeldistance: -0.5
+
+//#proc	yaxis
+//	stubs:        increment 10
+//	gridskip:     min
+//	grid:         yes
+//	ticincrement: 5
+//	label:        Sum of Downtimes [h]
+//	location:     max+0.10 
+
+
+//#proc   annotate
+//        textdetails:  size=8 style=I
+//        outline:       yes
+//        boxmargin:    0.05
+//        location:     02/2014(s) 0(s)
+//        backcolor:    skyblue
+//        text:         daint_cnt
+
+#proc	lineplot
+	xfield:	     date
+	yfield:      gross
+	linedetails: width=3 color=purple
+//	linedetails: no
+	legendlabel: Overall
+	pointsymbol: shape=diamond fillcolor=purple
+
+#proc	lineplot
+	xfield:	     date
+	yfield:      scheduled
+	linedetails: width=3 color=green
+//	linedetails: no
+	legendlabel: Scheduled
+	pointsymbol: shape=diamond fillcolor=green
+
+//
+// Legend
+//
+#proc	legend
+	location:     max+1.05 min+2.0
+//	format:       across
+	seglen:       0.2
+//	colortext:    yes
+//	frame:        bevel
+

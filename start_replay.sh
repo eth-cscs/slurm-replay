@@ -34,9 +34,10 @@ export PATH="$SLURM_REPLAY/submitter:$PATH"
 export PATH="$SLURM_DIR/bin:$SLURM_DIR/sbin:$PATH"
 export LD_LIBRARY_PATH="$SLURM_REPLAY/distime:$SLURM_DIR/lib:$LD_LIBRARY_PATH"
 
-PROCESS_TOKILL="slurmd slurmctld slurmstepd slurmdbd srun submitter ticker job_runner node_controller"
-killall -q -9 $PROCESS_TOKILL
-trap "killall -q -9 $PROCESS_TOKILL" SIGINT SIGTERM EXIT
+# Do not enable when using on a batch system, killing srun will kill the sbatch job
+#PROCESS_TOKILL="slurmd slurmctld slurmstepd slurmdbd srun submitter ticker job_runner node_controller"
+#killall -q -9 $PROCESS_TOKILL
+#trap "killall -q -9 $PROCESS_TOKILL" SIGINT SIGTERM EXIT
 
 rm -Rf /dev/shm/ShmemClock*
 
@@ -77,8 +78,7 @@ echo "Replay tentative ending time is $(date --date="${END_REPLAY%.*} seconds")"
 
 ticker -c "$END_TIME,$RATE,$TICK" -n "$NJOBS"
 
-# let slurm process uncompleted data
-sleep 15
+sleep 5
 ticker -o
 
 echo -n "Collecting data... "
@@ -99,3 +99,10 @@ LOGFILE="log/slurmctld.log log/slurmd/*.log log/submitter.log log/slurmdbd.log l
 grep -E "\[[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}\] error:" $LOGFILE &> ../data/error.log
 cat ../data/error.log
 cp $LOGFILE ../data
+
+# Gather statistics from slurm
+#echo "Slurm schedule statistics"
+#echo "sreport"
+#START_DATE=$(date -d @$START_TIME +%Y-%m-%dT%H:%M)
+#END_DATE=$(date -d @$END_TIME +%Y-%m-%dT%H:%M)
+

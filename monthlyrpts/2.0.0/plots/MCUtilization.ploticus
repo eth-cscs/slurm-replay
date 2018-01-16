@@ -1,0 +1,102 @@
+
+//
+//  Read the data
+//
+#proc getdata
+	file: @DATAFILE
+	fieldnames: dom normalg normalm debugg debugm highg highm lowg lowm prepost xfer large gput mct
+
+//
+//  Define the plot area
+//
+#proc	areadef
+	title:        Daily MC Node Utilization Breakdown (@MONTH @YEAR)
+	titledetails: size=14  align=L adjust=-0.5,0.25
+	xrange:       1 @DIM
+	yrange:       0 120000
+	frame:        no
+ 
+//
+//  Details for the X axis
+//
+#proc	xaxis
+	location:     min
+	stubs:        increment 1
+	stubdetails:  adjust=0,+0.05 
+	stubvert:     yes
+	tics:         none
+	axisline:     no
+	label:        Day of Month
+
+//
+//  Details for the Y axis
+//
+#proc	yaxis
+	stubs:        increment 5000
+	gridskip:     min
+	grid:         yes
+	ticincrement: 500
+	label:        Node Hours
+	labeldistance: 0.65(s)
+
+#proc	lineplot
+	xfield:	     dom
+	yfield:      normalm
+	linedetails: width=2 color=green
+	legendlabel: normal
+	pointsymbol: shape=diamond fillcolor=green
+
+#proc	lineplot
+	xfield:	     dom
+	yfield:      debugm
+	linedetails: width=2 color=orange
+	legendlabel: debug
+	pointsymbol: shape=diamond fillcolor=orange
+
+#proc	lineplot
+	xfield:	     dom
+	yfield:      highm
+	linedetails: width=2 color=skyblue
+	legendlabel: high
+	pointsymbol: shape=diamond fillcolor=skyblue
+
+#proc	lineplot
+	xfield:	     dom
+	yfield:      lowm
+	linedetails: width=2 color=coral
+	legendlabel: low
+	pointsymbol: shape=diamond fillcolor=coral
+
+#proc	lineplot
+	xfield:	     dom
+	yfield:      prepost
+	linedetails: width=2 color=tan2
+	legendlabel: prepost
+	pointsymbol: shape=diamond fillcolor=tan2
+
+//
+// Legend
+//
+#proc	legend
+	format:       down
+        location:     max+0.25 max
+	seglen:       0.1
+
+//
+// CSCS Confidiential Notice
+//
+#proc annotate
+	textdetails: size=8 style=I
+	location:    min min-0.4
+	text:        CSCS Confidential
+
+#proc annotate
+	textdetails: size=8 style=I
+	location:    max-0.4 max+0.2
+	text:        CSCS Confidential
+
+#proc annotate
+	textdetails: size=8 style=I
+	location:    max-0.5 min-0.4
+	text:        (MCUtilization)
+
