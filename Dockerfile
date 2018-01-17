@@ -87,7 +87,7 @@ RUN mkdir /home/$REPLAY_USER/data && \
 # Install monthly report tools from CSCS
 COPY monthlyrpts /home/$REPLAY_USER/slurm-replay
 RUN cd /home/$REPLAY_USER/slurm-replay/monthlyrpts/2.0.0/src && \
-    make && make install\
+    make && make install && \
     echo "export PATH=\$PATH:/home/$REPLAY_USER/slurm-replay/monthlyrpts/2.0.0/src" >> /home/$REPLAY_USER/.bashrc && \
     echo "export MONTHLYRPTS_ROOT=/home/maximem/slurm-replay/monthlyrpts/2.0.0" >> /home/$REPLAY_USER/.bashrc && \
     echo "export MONTHLYRPTS_RPTS=/home/maximem/slurm-replay/monthlyrpts/2.0.0/reports" >> /home/$REPLAY_USER/.bashrc && \
