@@ -17,7 +17,8 @@ SLURM_DIR="/home/$REPLAY_USER/slurmR"
 export PATH="$SLURM_DIR/bin:$SLURM_DIR/sbin:$PATH"
 export LD_LIBRARY_PATH="$SLURM_DIR/lib:$LD_LIBRARY_PATH"
 
-killall -q -9 slurmd slurmctld slurmstepd srun
+# Do not enable when using on a batch system, killing srun will kill the sbatch job
+#killall -q -9 slurmd slurmctld slurmstepd srun
 
 rm -Rf /home/$REPLAY_USER/tmp/slurm-*.out
 rm -Rf $SLURM_DIR/log/*
