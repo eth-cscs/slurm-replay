@@ -409,7 +409,7 @@ int main(int argc, char **argv)
         memset(query,'\0',1024);
         sprintf(query, "SELECT r.id_resv, r.time_start, r.time_end, r.nodelist, r.resv_name, GROUP_CONCAT(DISTINCT a.acct), r.flags, r.tres "
                 "FROM %s AS r INNER JOIN %s AS a ON FIND_IN_SET(a.id_assoc,r.assoclist) "
-                "WHERE r.time_start < %lu AND r.time_end > %lu "
+                "WHERE r.time_start < %lu AND r.time_end > %lu  AND r.time_end - r.time_start < 15770000 "
                 "GROUP BY r.time_start, r.id_resv ORDER BY r.time_start", resv_table, assoc_table, time_end, time_start);
 
         printf("\nQuery --> %s\n\n", query);
