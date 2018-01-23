@@ -16,7 +16,7 @@ INCLUDES := -I$(DISTIME_PATH) -I$(SLURM_PATH)/include
 # Target rules
 all: clean build
 
-build: submitter ticker job_runner trace_builder_mysql trace_list trace_compare node_controller
+build: submitter ticker job_runner trace_builder_mysql trace_list trace_compare trace_metrics node_controller
 
 submitter.o: submitter.c
 	$(CC) $(CCFLAGS) $(INCLUDES) -o $@ -c $<
@@ -55,6 +55,12 @@ trace_compare.o: trace_compare.c
 trace_compare: trace_compare.o
 	$(CC) $(LDFLAGS) $(LIB_MATH) -o $@ $+
 
+trace_metrics.o: trace_metrics.c
+	$(CC) $(CCFLAGS) $(INCLUDES) -o $@ -c $<
+
+trace_metrics: trace_metrics.o
+	$(CC) $(LDFLAGS) $(LIB_MATH) -o $@ $+
+
 trace_list.o: trace_list.c
 	$(CC) $(CCFLAGS) $(INCLUDES) -o $@ -c $<
 
@@ -68,4 +74,5 @@ clean:
 	rm -f job_runner job_runner.o
 	rm -f trace_builder_mysql trace_builder_mysql.o
 	rm -f trace_compare trace_compare.o
+	rm -f trace_metrics trace_metrics.o
 	rm -f trace_list trace_list.o
