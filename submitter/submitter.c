@@ -209,13 +209,19 @@ static int create_and_submit_job(job_trace_t jobd)
 
     dmesg.qos = strdup(jobd.qos_name);
     dmesg.partition = strdup(jobd.partition);
+    if (strcmp("normal",jobd.partition) != 0 && strcmp("xfer",jobd.partition) != 0) {
+        log_info("job skipped: job_id=%u partition=%s count=%d", jobd.id_job, jobd.partition, count);
+        return 0;
+    }
 
     dmesg.min_nodes = jobd.nodes_alloc;
-    // TODO: Daint specific, check if string starts with "gpu:0" meaning using constriant mc for all partitions except xfer
-    if (strcmp(jobd.partition, "xfer") != 0) {
-        if (strncmp("gpu:0", jobd.gres_alloc, 5) == 0) {
+    // TODO: Daint specific, check if string starts with "gpu:0" meaning using constraint mc for all partitions except xfer
+    if (strncmp("gpu:0", jobd.gres_alloc, 5) == 0) {
+       if (strcmp(jobd.partition, "xfer") != 0) {
             dmesg.features = strdup("mc");
-        } else {
+       }
+    } else {
+        if (strncmp("gpu:", jobd.gres_alloc, 4) == 0) {
             dmesg.features = strdup("gpu");
         }
     }
@@ -236,10 +242,9 @@ static int create_and_submit_job(job_trace_t jobd)
     create_script(script, jobd.nodes_alloc, tasks, jobd.id_job, duration, jobd.exit_code);
     dmesg.script = strdup(script);
 
-    //print_job_specs(&dmesg);
-
     if ( (rv = slurm_submit_batch_job(&dmesg, &respMsg)) ) {
         log_error("%d slurm_submit_batch_job: %s count=%d", dmesg.job_id, slurm_strerror(rv), count);
+        print_job_specs(&dmesg);
     }
 
     if (respMsg) {
@@ -285,7 +290,7 @@ static void create_and_submit_resv(resv_trace_t resvd, int action)
         dmesg.start_time = resvd.time_start;
         output_name = slurm_create_reservation(&dmesg);
         if (output_name == NULL) {
-            log_error("%d slurm_create_reservation count=%d", resvd.id_resv, count);
+            log_error("%d slurm_create_reservation: %s count=%d", resvd.id_resv, resvd.resv_name, count);
         } else {
             log_info("reservation created: %s count=%d",output_name, count);
         }
@@ -294,7 +299,7 @@ static void create_and_submit_resv(resv_trace_t resvd, int action)
         // do not update time_emd and time_start
         res = slurm_update_reservation(&dmesg);
         if ( res != 0) {
-            log_error("%d slurm_update_reservation: %s count=%d", resvd.id_resv, slurm_strerror(res), count);
+            log_error("%d slurm_update_reservation: %s %s count=%d", resvd.id_resv, resvd.resv_name, slurm_strerror(res), count);
         } else {
             log_info("updated reservation: %s count=%d",resvd.resv_name, count);
         }
