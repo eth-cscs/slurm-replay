@@ -67,7 +67,8 @@ static inline double euclidean_dist(time_t x, time_t y)
 int main(int argc, char *argv[])
 {
     struct stat stat_buf;
-    int work_file, replay_file, j, min_jobs, nwork_jobs, nreplay_jobs;
+    int work_file, replay_file;
+    unsigned long long j, min_jobs, nwork_jobs, nreplay_jobs;
     double dist;
     time_t t1, t2;
     job_trace_t jwt; // job_work_trace
@@ -97,19 +98,13 @@ int main(int argc, char *argv[])
         exit(-1);
     }
 
-
-    // skip queries
     read(work_file, &query_length, sizeof(size_t));
     read(work_file, query, query_length*sizeof(char));
-
-    fstat(work_file, &stat_buf);
-    nwork_jobs = (stat_buf.st_size-sizeof(size_t)-query_length*sizeof(char)) / sizeof(job_trace_t);
+    read(work_file, &nwork_jobs, sizeof(unsigned long long));
 
     read(replay_file, &query_length, sizeof(size_t));
     read(replay_file, query, query_length*sizeof(char));
-
-    fstat(replay_file, &stat_buf);
-    nreplay_jobs = (stat_buf.st_size-sizeof(size_t)-query_length*sizeof(char)) / sizeof(job_trace_t);
+    read(replay_file, &nreplay_jobs, sizeof(unsigned long long));
 
 
     min_jobs = nreplay_jobs;
@@ -130,9 +125,12 @@ int main(int argc, char *argv[])
             if ( jwt.nodes_alloc != jrt.nodes_alloc ) {
                 printf("[%d] Number of nodes differ: %d <> %d\n",jwt.id_job, jwt.nodes_alloc, jrt.nodes_alloc);
             }
-            if ( jwt.state != jrt.state ) {
-                printf("[%d] Job state differ: %d <> %d\n",jwt.id_job, jwt.state, jrt.state);
+            if ( strcmp(jwt.nodelist, jrt.nodelist) != 0 ) {
+                printf("[%d] List of nodes differ.\n",jwt.id_job);
             }
+            /*if ( jwt.state != jrt.state ) {
+                printf("[%d] Job state differ: %d <> %d\n",jwt.id_job, jwt.state, jrt.state);
+            }*/
         }
 
         // makepsan
@@ -148,7 +146,6 @@ int main(int argc, char *argv[])
         if (jrt.time_end > jrt_max_end) {
             jrt_max_end = jrt.time_end;
         }
-
 
         t1 = jwt.time_end - jwt.time_start;
         t2 = jrt.time_end - jrt.time_start;
@@ -182,8 +179,8 @@ int main(int argc, char *argv[])
         }
     }
 
-    printf("Makespan of workload: %d\n", jwt_max_end - jwt_min_start);
-    printf("Makespan of replay: %d\n", jrt_max_end - jrt_min_start);
-    printf("Makespan differences: %d\n", (jwt_max_end - jwt_min_start) -  (jrt_max_end - jrt_min_start));
+    printf("Makespan of workload: %ld\n", jwt_max_end - jwt_min_start);
+    printf("Makespan of replay: %ld\n", jrt_max_end - jrt_min_start);
+    printf("Makespan differences: %ld\n", (jwt_max_end - jwt_min_start) -  (jrt_max_end - jrt_min_start));
     return 0;
 }
