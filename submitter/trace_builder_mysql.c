@@ -244,6 +244,7 @@ int main(int argc, char **argv)
     struct tm tmVar;
     time_t time_start;
     time_t time_end;
+    int CET = -3600;
 
     size_t query_length;
     //unsigned int num_fields;
@@ -286,15 +287,16 @@ int main(int argc, char **argv)
         }
 
         if ( strptime(starttime, "%Y-%m-%d %H:%M:%S", &tmVar) != NULL ) {
-            time_start = mktime(&tmVar);
+            time_start = mktime(&tmVar)+CET;
         } else {
             printf("ERROR: starttime not valid.\n");
             print_usage();
             exit(-1);
         }
 
+        memset(&tmVar, 0, sizeof(struct tm));
         if ( strptime(endtime, "%Y-%m-%d %H:%M:%S", &tmVar) != NULL ) {
-            time_end = mktime(&tmVar);
+            time_end = mktime(&tmVar)+CET;
         } else {
             printf("ERROR: endtime not valid.\n");
             print_usage();
@@ -308,7 +310,8 @@ int main(int argc, char **argv)
                 "FROM %s as t LEFT JOIN %s as r ON t.id_resv = r.id_resv AND t.time_start >= r.time_start and t.time_end <= r.time_end "
                 "LEFT JOIN qos_table as q ON q.id = t.id_qos "
                 "WHERE t.time_submit < %lu AND t.time_end > %lu AND t.time_start < %lu AND "
-                "t.nodes_alloc > 0", job_table, resv_table, time_end, time_start, time_end);
+                "t.nodes_alloc > 0 AND (t.partition = 'normal' OR t.partition = 'xfer')",
+                job_table, resv_table, time_end, time_start, time_end);
     }
     printf("\nQuery --> %s\n\n", query);
 
@@ -386,6 +389,7 @@ int main(int argc, char **argv)
         job_trace.time_suspended = strtol(row[17], NULL, 0);
         sprintf(job_trace.gres_alloc, "%s", row[18]);
 
+        //printf("[%d] submit=%ld start=%ld end=%ld\n", job_trace.id_job,  job_trace.time_submit, job_trace.time_start, job_trace.time_end);
         if (use_dependencies) {
             lookfor(job_trace.id_job, num_rows, job_trace.dependencies, &(job_trace.switches));
         } else {
