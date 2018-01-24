@@ -216,12 +216,13 @@ static int create_and_submit_job(job_trace_t jobd)
 
     dmesg.min_nodes = jobd.nodes_alloc;
     // TODO: Daint specific, check if string starts with "gpu:0" meaning using constraint mc for all partitions except xfer
-    if (strncmp("gpu:0", jobd.gres_alloc, 5) == 0) {
+    // Note that sometime the string "gpu" is changed to the number "7696487" in the prodcution db.
+    if (strncmp("gpu:0", jobd.gres_alloc, 5) == 0 || strncmp("7696487:0", jobd.gres_alloc,9) == 0) {
        if (strcmp(jobd.partition, "xfer") != 0) {
             dmesg.features = strdup("mc");
        }
     } else {
-        if (strncmp("gpu:", jobd.gres_alloc, 4) == 0) {
+        if (strncmp("gpu:", jobd.gres_alloc, 4) == 0 || strncmp("7696487:", jobd.gres_alloc,8) == 0) {
             dmesg.features = strdup("gpu");
         }
     }

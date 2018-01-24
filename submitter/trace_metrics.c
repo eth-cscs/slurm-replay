@@ -200,7 +200,7 @@ int main(int argc, char *argv[])
         memcpy(&job_arr_all[njobs_all], &job_arr[j], sizeof(job_trace_t));
         njobs_all++;
         if (strcmp(job_arr[j].partition, "xfer") != 0) {
-            if (strncmp("gpu:0", job_arr[j].gres_alloc, 5) == 0) {
+            if (strncmp("gpu:0", job_arr[j].gres_alloc, 5) == 0 || strncmp("7696487:0", job_arr[j].gres_alloc,9) == 0) {
                 memcpy(&job_arr_mc[njobs_mc], &job_arr[j], sizeof(job_trace_t));
                 njobs_mc++;
             } else {
