@@ -27,48 +27,62 @@ mkdir $SLURM_DIR/log/slurmd
 mkdir $SLURM_DIR/log/archive
 
 # Setup configuration
-f=0
-for k in $(ls -1 conf/slurm.conf_*); do
-    t=${k##*_}
-    if (( $t < $CONFDATE )); then
+if (( $CONFDATE < 170901 )); then
+    echo "!!! WARNING using old version of slurm config files !!!"
+    f=0
+    for k in $(ls -1 conf/slurm.conf_*); do
+        t=${k##*_}
+        if (( $t < $CONFDATE )); then
         f=$t
-    else
+        else
         if (( $f == 0 )); then
             f=$t
         fi
         break
-    fi
-done
-cp "conf/slurm.conf_$f" etc/slurm.conf
-./configure_slurm.sh etc/slurm.conf
+        fi
+    done
+    cp "conf/slurm.conf_$f" etc/slurm.conf
+    ./configure_slurm.sh etc/slurm.conf
 
-f=0
-for k in $(ls -1 conf/gres.conf_*); do
-    t=${k##*_}
-    if (( $t < $CONFDATE )); then
+    f=0
+    for k in $(ls -1 conf/gres.conf_*); do
+        t=${k##*_}
+        if (( $t < $CONFDATE )); then
         f=$t
-    else
+        else
         if (( $f == 0 )); then
             f=$t
         fi
         break
-    fi
-done
-cp "conf/gres.conf_$f" etc/gres.conf
+        fi
+    done
+    cp "conf/gres.conf_$f" etc/gres.conf
 
-f=0
-for k in $(ls -1 conf/topology.conf_*); do
-    t=${k##*_}
-    if (( $t < $CONFDATE )); then
+    f=0
+    for k in $(ls -1 conf/topology.conf_*); do
+        t=${k##*_}
+        if (( $t < $CONFDATE )); then
         f=$t
-    else
+        else
         if (( $f == 0 )); then
             f=$t
         fi
         break
-    fi
-done
-cp "conf/topology.conf_$f" etc/topology.conf
+        fi
+    done
+    cp "conf/topology.conf_$f" etc/topology.conf
+else
+    echo "Slurm configuration from git:"
+        cd slurmcfg
+    git checkout daint &>/dev/null
+    t=20${CONFDATE:0:2}-${CONFDATE:2:2}-${CONFDATE:4:2}
+    git checkout $(git rev-list -1 --until="$t" daint)
+    cd ..
+    cp "slurmcfg/slurm.conf" etc/slurm.conf
+    cp "slurmcfg/gres.conf" etc/gres.conf
+    cp "slurmcfg/topology.conf" etc/topology.conf
+    ./configure_slurm.sh etc/slurm.conf
+fi
 
 ./start_slurmdbd.sh
 

@@ -9,13 +9,9 @@ ENV REPLAY_USER $REPLAY_USER
 
 # install packages
 # Note do not install sudo - sudo does not work within Shifter
-RUN pacman -Sy --noconfirm autoconf automake gcc make mariadb wget patch python gtk2 pkgconf git fakeroot vim bc groff && \
+RUN pacman -Sy --noconfirm autoconf automake gcc make mariadb wget patch python gtk2 pkgconf git fakeroot vim bc groff \
+                           gdb valgrind strace && \
                rm -rf /var/cache/pacman/pkg
-
-# For debugging
-# before to commit the container use the option docker run --cap-add sys_ptrace to be able to attach a debugger
-#RUN pacman -Sy --noconfirm gdb valgrind strace && \
-#               rm -rf /var/cache/pacman/pkg
 
 # set timezone to CET
 RUN  ln -sf /usr/share/zoneinfo/CET /etc/localtime
@@ -77,8 +73,12 @@ RUN mkdir /home/$REPLAY_USER/data && \
 #
 # DOCKER build command:
 #     docker build -t mmxcscs/slurm-replay:maximem_slurm-17.02.9 --build-arg REPLAY_USER=maximem .
+#
 # DOCKER command to run:
 #     docker run --rm -it -v /Users/maximem/dev/docker/slurm-replay/data:/home/maximem/data mmxcscs/slurm-replay:maximem_slurm-17.02.9
+# NOTE FOR DEBUGGING:
+#     before to commit the container use the option docker run --cap-add sys_ptrace to be able to attach a debugger
+#
 #
 # SHIFTER command to run:
 #    shifter --image mmxcscs/slurm-replay:maximem_slurm-17.02.9 --writable-volatile /home/maximem/slurmR/log --writable-volatile /home/maximem/slurmR/etc  --writable-volatile /home/maximem/var --writable-volatile /home/maximem/var/lib --writable-volatile /home/maximem/run --writable-volatile /home/maximem/run/mysqld --writable-volatile /home/maximem/tmp --writable-volatile /home/maximem/slurm-replay/submitter --volume /users/maximem/dev/data:/home/maximem/data /bin/bash
