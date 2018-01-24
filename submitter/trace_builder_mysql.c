@@ -371,19 +371,19 @@ int main(int argc, char **argv)
         job_trace.state = atoi(row[11]);
         job_trace.timelimit = atoi(row[12]);
         job_trace.time_submit = strtol(row[13], NULL, 0);
-        if (job_trace.time_submit < time_start) {
+        if (!use_query && job_trace.time_submit < time_start) {
             job_trace.time_submit = time_start;
         }
         job_trace.time_eligible = strtol(row[14], NULL, 0);
-        if (job_trace.time_eligible < time_start) {
+        if (!use_query && job_trace.time_eligible < time_start) {
             job_trace.time_eligible = time_start;
         }
         job_trace.time_start = strtol(row[15], NULL, 0);
-        if (job_trace.time_start < time_start) {
+        if (!use_query && job_trace.time_start < time_start) {
             job_trace.time_start = time_start;
         }
         job_trace.time_end = strtol(row[16], NULL, 0);
-        if (job_trace.time_end > time_end) {
+        if (!use_query && job_trace.time_end > time_end) {
             job_trace.time_end = time_end;
         }
         job_trace.time_suspended = strtol(row[17], NULL, 0);
