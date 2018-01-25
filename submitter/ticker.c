@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <getopt.h>
 #include <string.h>
+#include <fcntl.h>
 #include <slurm/slurm.h>
 
 
@@ -22,6 +23,7 @@ starter -t <time> -a <action>\n\
       -h, --help     This help message.\n";
 
 
+char *accel_filename = NULL;
 int enable_set = 0;
 int enable_get = 0;
 int enable_clock = 0;
@@ -40,6 +42,7 @@ get_args(int argc, char** argv)
         {"gettime", 0, 0, 'g'},
         {"settime", 1, 0, 's'},
         {"njobs", 1, 0, 'n'},
+        {"accel", 1, 0, 'a'},
         {"over", 0, 0, 'o'},
         {"help", 0, 0, 'h'}
     };
@@ -50,7 +53,7 @@ get_args(int argc, char** argv)
     char tick_v[32];
 
     while (1) {
-        if ((opt_char = getopt_long(argc, argv, "c:hgs:n:o", long_options, &option_index)) == -1 )
+        if ((opt_char = getopt_long(argc, argv, "c:hgs:n:oa:", long_options, &option_index)) == -1 )
             break;
         switch(opt_char) {
         case ('c'):
@@ -102,6 +105,9 @@ get_args(int argc, char** argv)
         case ('o'):
             enable_over = 1;
             break;
+        case ('a'):
+            accel_filename = strdup(optarg);
+            break;
         case ('h'):
             printf("%s\n", help_msg);
             exit(0);
@@ -117,38 +123,38 @@ static inline int is_schedule()
 
     stat_req.command_id = STAT_COMMAND_GET;
     slurm_get_statistics(&stat_info, &stat_req);
-    if (stat_info->schedule_queue_len > 0) {
-        return 1;
-    }
-    if (njobs > 0) {
-        if (stat_info->jobs_submitted < njobs) {
-            return 1;
-        }
-        if (stat_info->jobs_started < njobs) {
-            return 1;
-        }
-        jobs_done = stat_info->jobs_completed + stat_info->jobs_failed + stat_info->jobs_canceled;
-        if (jobs_done == njobs) {
-            return 0;
-        }
-    }
-    // we don't know how many jobs
-    return 0;
+    jobs_done = stat_info->jobs_completed + stat_info->jobs_failed + stat_info->jobs_canceled;
+    return njobs - jobs_done;
 }
 
 int main(int argc, char *argv[])
 {
     const int one_second = 1000000;
-    int freq;
+    int freq, freq_slow, freq_fast;
+    int accel_file;
+    unsigned long naccel_time = 0;
+    long *accel_times = NULL;
     char strstart_time[20];
     char strend_time[20];
-    time_t tmp_time;
+    time_t tmp_time, amount_slow, amount_fast;
     long maxtick = 0;
-    long k;
+    long k, j;
 
     get_args(argc, argv);
 
     open_rdwr_shmemclock();
+
+    if (accel_filename != NULL) {
+        accel_file = open(accel_filename, O_RDONLY);
+        if (accel_file < 0) {
+            printf("Error: opening file %s\n", accel_filename);
+            return -1;
+        }
+        read(accel_file, &naccel_time, sizeof(unsigned long long));
+        accel_times = (long*)malloc(naccel_time*sizeof(long));
+        read(accel_file, accel_times, naccel_time*sizeof(long));
+        close(accel_file);
+    }
 
     if (enable_set) {
         strftime(strstart_time, sizeof(strstart_time), "%Y-%m-%d %H:%M:%S", localtime(&time_evt));
@@ -166,9 +172,32 @@ int main(int argc, char *argv[])
         tmp_time = get_shmemclock();
         strftime(strstart_time, sizeof(strstart_time), "%Y-%m-%d %H:%M:%S", localtime(&tmp_time));
         strftime(strend_time, sizeof(strend_time), "%Y-%m-%d %H:%M:%S", localtime(&endtime_evt));
-        printf("Clock: start='%s|%ld', end='%s|%ld', duration=%ld[s], rate=%.5f[s] for 1 replayed second\n",strstart_time, tmp_time, strend_time, endtime_evt, endtime_evt-tmp_time, rate/tick);
+        printf("Clock: njobs=%lu start='%s|%ld', end='%s|%ld', duration=%ld[s], rate=(%.5f|%.5f)[s] for 1 replayed second\n", njobs, strstart_time, tmp_time, strend_time, endtime_evt, endtime_evt-tmp_time, rate/tick, (rate/2.0)/tick);
         fflush(stdin);
-        freq = one_second*rate;
+        freq_slow = one_second*rate;
+        freq_fast = one_second*(rate/2.0);
+        freq = freq_fast;
+        if (accel_filename != NULL) {
+            amount_slow = amount_fast = 0;
+            for(j = 0; j < naccel_time; j++) {
+                maxtick = accel_times[j] - tmp_time;
+                k = 0;
+                while(k < maxtick) {
+                    usleep(freq);
+                    incr_shmemclock(tick);
+                    k++;
+                }
+                tmp_time = get_shmemclock();
+                if (freq == freq_slow) {
+                   amount_slow += k;
+                   freq = freq_fast;
+                } else {
+                   amount_fast += k;
+                   freq = freq_slow;
+                }
+            }
+            freq = freq_slow;
+        }
         maxtick=endtime_evt-tmp_time;
         k = 0;
         while(k < maxtick) {
@@ -177,7 +206,7 @@ int main(int argc, char *argv[])
             k++;
         }
 
-        tmp_time = get_shmemclock();
+        /*tmp_time = get_shmemclock();
         if (tmp_time < endtime_evt) {
             strftime(strstart_time, sizeof(strstart_time), "%Y-%m-%d %H:%M:%S", localtime(&tmp_time));
             printf("Exausted ticks - time not reached %ld -- %s\n", tmp_time, strstart_time);
@@ -185,7 +214,7 @@ int main(int argc, char *argv[])
                 usleep(freq);
                 incr_shmemclock(tick);
             }
-        }
+        }*/
 
         if (is_schedule()) {
             tmp_time = get_shmemclock();
@@ -194,7 +223,12 @@ int main(int argc, char *argv[])
             while(is_schedule()) {
                 usleep(freq);
                 incr_shmemclock(tick);
+                k++;
             }
+        }
+        if (accel_filename != NULL) {
+            amount_slow+=k;
+            printf("Ticks breakdown - fast: %ld - slow: %ld\n", amount_fast, amount_slow);
         }
     }
 

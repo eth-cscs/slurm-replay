@@ -26,6 +26,7 @@ fi
 TICK="1"
 CLOCK_RATE=$(echo "$RATE*$TICK" | bc -l)
 
+TMP_DIR="/home/$REPLAY_USER/tmp"
 SLURM_DIR="/home/$REPLAY_USER/slurmR"
 SLURM_REPLAY="/home/$REPLAY_USER/slurm-replay"
 SLURM_REPLAY_LIB="libwtime.so"
@@ -35,9 +36,9 @@ export PATH="$SLURM_DIR/bin:$SLURM_DIR/sbin:$PATH"
 export LD_LIBRARY_PATH="$SLURM_REPLAY/distime:$SLURM_DIR/lib:$LD_LIBRARY_PATH"
 
 # Do not enable when using on a batch system, killing srun will kill the sbatch job
-#PROCESS_TOKILL="slurmd slurmctld slurmstepd slurmdbd srun submitter ticker job_runner node_controller"
-#killall -q -9 $PROCESS_TOKILL
-#trap "killall -q -9 $PROCESS_TOKILL" SIGINT SIGTERM EXIT
+PROCESS_TOKILL="slurmd slurmctld slurmstepd slurmdbd submitter ticker job_runner node_controller"
+killall -q -9 $PROCESS_TOKILL
+trap "killall -q -9 $PROCESS_TOKILL" SIGINT SIGTERM EXIT
 
 rm -Rf /dev/shm/ShmemClock*
 
@@ -45,8 +46,7 @@ TIME_STARTPAD=60
 START_TIME="$(trace_list -n -w "$WORKLOAD" | awk '{print $4;}' | sort -n | head -n 1)"
 START_TIME="$(( $START_TIME - $TIME_STARTPAD ))"
 
-# endpad depends on clock rate to allow slurmdbd to update job stats in the db (time_end,...)
-TIME_ENDPAD=$( echo "60/$RATE" | bc )
+TIME_ENDPAD=60
 END_TIME="$(trace_list -n -w "$WORKLOAD" | awk '{print $7;}' | sort -nr | head -n 1)"
 END_TIME="$(( $END_TIME + $TIME_ENDPAD ))"
 
@@ -65,8 +65,9 @@ sinfo --summarize
 echo
 
 echo -n "Start submitter and node controller... "
-rm -f submitter.log node_controller.log
-submitter -w "$WORKLOAD" -t template.script -r "$CLOCK_RATE" -u "$REPLAY_USER"
+rm -f submitter.log node_controller.log "$TMP_DIR/accel_time"
+touch "$TMP_DIR/accel_time"
+submitter -w "$WORKLOAD" -t template.script -r "$CLOCK_RATE" -u "$REPLAY_USER" -m "$TMP_DIR/accel_time"
 node_controller -w "$WORKLOAD"
 sleep 3
 echo "done."
@@ -76,10 +77,10 @@ DURATION=$(( $END_TIME - $START_TIME ))
 END_REPLAY=$( echo "$DURATION*($CLOCK_RATE)" | bc -l)
 echo "Replay tentative ending time is $(date --date="${END_REPLAY%.*} seconds")"
 
-ticker -c "$END_TIME,$RATE,$TICK" -n "$NJOBS"
+ticker -c "$END_TIME,$RATE,$TICK" -n "$NJOBS" -a "$TMP_DIR/accel_time"
 
 sleep 5
-ticker -o
+ticker -o -n "$NJOBS"
 
 echo -n "Collecting data... "
 # get the query and remove where close

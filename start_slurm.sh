@@ -18,7 +18,7 @@ export PATH="$SLURM_DIR/bin:$SLURM_DIR/sbin:$PATH"
 export LD_LIBRARY_PATH="$SLURM_DIR/lib:$LD_LIBRARY_PATH"
 
 # Do not enable when using on a batch system, killing srun will kill the sbatch job
-#killall -q -9 slurmd slurmctld slurmstepd srun
+killall -q -9 slurmd slurmctld slurmstepd
 
 rm -Rf /home/$REPLAY_USER/tmp/slurm-*.out
 rm -Rf $SLURM_DIR/log/*
@@ -73,14 +73,14 @@ if (( $CONFDATE < 170901 )); then
     cp "conf/topology.conf_$f" etc/topology.conf
 else
     echo "Slurm configuration from git:"
-        cd slurmcfg
+    cd ../data/slurmcfg
     git checkout daint &>/dev/null
     t=20${CONFDATE:0:2}-${CONFDATE:2:2}-${CONFDATE:4:2}
     git checkout $(git rev-list -1 --until="$t" daint)
-    cd ..
-    cp "slurmcfg/slurm.conf" etc/slurm.conf
-    cp "slurmcfg/gres.conf" etc/gres.conf
-    cp "slurmcfg/topology.conf" etc/topology.conf
+    cd /home/$REPLAY_USER/slurm-replay
+    cp "../data/slurmcfg/slurm.conf" etc/slurm.conf
+    cp "../data/slurmcfg/gres.conf" etc/gres.conf
+    cp "../data/slurmcfg/topology.conf" etc/topology.conf
     ./configure_slurm.sh etc/slurm.conf
 fi
 
