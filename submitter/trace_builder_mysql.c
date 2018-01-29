@@ -310,7 +310,7 @@ int main(int argc, char **argv)
                 "FROM %s as t LEFT JOIN %s as r ON t.id_resv = r.id_resv AND t.time_start >= r.time_start and t.time_end <= r.time_end "
                 "LEFT JOIN qos_table as q ON q.id = t.id_qos "
                 "WHERE t.time_submit < %lu AND t.time_end > %lu AND t.time_start < %lu AND "
-                "t.nodes_alloc > 0 AND (t.partition = 'normal' OR t.partition = 'xfer')",
+                "t.nodes_alloc > 0 AND t.partition IN ('normal','xfer','large','low','debug','prepost','2go')",
                 job_table, resv_table, time_end, time_start, time_end);
     }
     printf("\nQuery --> %s\n\n", query);
