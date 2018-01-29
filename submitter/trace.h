@@ -1,7 +1,7 @@
 #ifndef _TRACE_H_
 #define _TRACE_H_
 
-#define TINYTEXT_SIZE 32
+#define TINYTEXT_SIZE 128
 #define TEXT_SIZE 1512
 
 typedef struct job_trace {
