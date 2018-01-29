@@ -27,6 +27,7 @@ char *username = NULL;
 uid_t userid = 0;
 uid_t groupid = 0;
 char *workload_filename = NULL;
+char *time_filename = NULL;
 job_trace_t* job_arr;
 resv_trace_t* resv_arr;
 unsigned long long njobs = 0;
@@ -216,12 +217,13 @@ static int create_and_submit_job(job_trace_t jobd)
 
     dmesg.min_nodes = jobd.nodes_alloc;
     // TODO: Daint specific, check if string starts with "gpu:0" meaning using constraint mc for all partitions except xfer
-    if (strncmp("gpu:0", jobd.gres_alloc, 5) == 0) {
+    // Note that sometime the string "gpu" is changed to the number "7696487" in the prodcution db.
+    if (strncmp("gpu:0", jobd.gres_alloc, 5) == 0 || strncmp("7696487:0", jobd.gres_alloc,9) == 0) {
        if (strcmp(jobd.partition, "xfer") != 0) {
             dmesg.features = strdup("mc");
        }
     } else {
-        if (strncmp("gpu:", jobd.gres_alloc, 4) == 0) {
+        if (strncmp("gpu:", jobd.gres_alloc, 4) == 0 || strncmp("7696487:", jobd.gres_alloc,8) == 0) {
             dmesg.features = strdup("gpu");
         }
     }
@@ -322,6 +324,9 @@ static void submit_jobs_and_reservations()
 
     current_time = get_shmemclock();
 
+    log_info("total job records: %lu, start time %ld", njobs, job_arr[0].time_submit);
+    log_info("total reservation records: %lu", nresvs);
+
     freq = one_second*clock_rate;
     while( kj < njobs || kr < nresvs ) {
         // wait for submission time of next job
@@ -345,18 +350,21 @@ static void submit_jobs_and_reservations()
 
 
 
-static int read_job_trace(const char* trace_file_name)
+static int read_job_trace(const char* trace_filename, const char* time_filename)
 {
-    int trace_file;
+    int trace_file, time_file;
+    int delta = 0;
+    long *time_arr = NULL;
     size_t query_length = 0;
     char query[1024];
-    unsigned long k;
+    unsigned long k, j;
     long k_create, k_last, k_create_next;
     int k_id, k_id_next;
+    unsigned long long time_njobs;
 
-    trace_file = open(trace_file_name, O_RDONLY);
+    trace_file = open(trace_filename, O_RDONLY);
     if (trace_file < 0) {
-        log_error("opening file %s\n", trace_file_name);
+        log_error("opening file %s\n", trace_filename);
         return -1;
     }
 
@@ -371,7 +379,37 @@ static int read_job_trace(const char* trace_file_name)
         return -1;
     }
     read(trace_file, job_arr, sizeof(job_trace_t)*njobs);
-    log_info("total job records: %lu, start time %lu", njobs, job_arr[0].time_submit);
+
+    // create the file containing the list of time for slowdown
+    delta = 60;
+    time_arr = (long*)malloc(sizeof(long)*(njobs*2));
+    j = 0;
+    for(k = 0; k < njobs; k++) {
+        if (j == 0) {
+            time_arr[j] = job_arr[k].time_submit - delta;
+            time_arr[j+1] = job_arr[k].time_submit + delta;
+            j += 2;
+        } else {
+            if (job_arr[k].time_submit - delta < time_arr[j-1]) {
+                time_arr[j-1] = job_arr[k].time_submit + delta;
+            } else {
+                time_arr[j] = job_arr[k].time_submit - delta;
+                time_arr[j+1] = job_arr[k].time_submit + delta;
+                j += 2;
+            }
+
+        }
+    }
+    time_njobs = j;
+    time_file = open(time_filename, O_WRONLY);
+    if (time_file < 0) {
+        log_error("opening file %s", time_filename);
+        return -1;
+    }
+    write(time_file, &time_njobs, sizeof(unsigned long long));
+    write(time_file, time_arr, time_njobs*sizeof(long));
+
+    close(time_file);
 
 
     read(trace_file, &nresvs, sizeof(unsigned long long));
@@ -381,7 +419,6 @@ static int read_job_trace(const char* trace_file_name)
         return -1;
     }
     read(trace_file, resv_arr, sizeof(resv_trace_t)*nresvs);
-    log_info("total reservation records: %lu", nresvs);
 
     close(trace_file);
 
@@ -452,6 +489,7 @@ submitter -w <workload_trace> -t <template_script>\n\
       -t, --template filename containing the templatied script used by the jobs\n\
       -D, --nodaemon do not daemonize the process\n\
       -r, --clockrate clock rate of the simulated clock\n\
+      -m, --time_filename filename where a list of time for slowdown will be written\n\
       -h, --help           This help message.\n";
 
 
@@ -464,16 +502,20 @@ static void get_args(int argc, char** argv)
         {"user", 1, 0, 'u'},
         {"nodaemon", 0, 0, 'D'},
         {"clockrate", 1, 0, 'r'},
+        {"time_filename", 1, 0, 'm'},
         {"help", 0, 0, 'h'}
     };
     int opt_char, option_index;
 
     while (1) {
-        if ((opt_char = getopt_long(argc, argv, "ht:w:u:Dr:", long_options, &option_index)) == -1 )
+        if ((opt_char = getopt_long(argc, argv, "ht:w:u:Dr:m:", long_options, &option_index)) == -1 )
             break;
         switch(opt_char) {
         case ('t'):
             tfile = strdup(optarg);
+            break;
+        case ('m'):
+            time_filename = strdup(optarg);
             break;
         case ('w'):
             workload_filename = strdup(optarg);
@@ -524,14 +566,14 @@ void daemonize(int daemon_flag)
         close(STDERR_FILENO);
 
         logger = fopen("log/submitter.log", "w+");
-    } else {
-        logger = stdout;
     }
 }
 
 
 int main(int argc, char *argv[])
 {
+    logger = stdout;
+
     //Open shared priority queue for time clock
     open_rdonly_shmemclock();
 
@@ -542,13 +584,13 @@ int main(int argc, char *argv[])
         exit(-1);
     }
 
-    // goes in daemon state
-    daemonize(daemon_flag);
-
-    if (read_job_trace(workload_filename) < 0) {
+    if (read_job_trace(workload_filename, time_filename) < 0) {
         log_error("a problem was detected when reading trace file.");
         exit(-1);
     }
+
+    // goes in daemon state
+    daemonize(daemon_flag);
 
     userids_from_name();
 

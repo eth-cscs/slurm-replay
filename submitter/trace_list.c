@@ -179,7 +179,7 @@ int main(int argc, char *argv[])
             sprintf(end, "%ld", job_arr[k].time_end);
         }
 
-        printf("\t%10d \t%10s \t%10ld \t%19s \t%19s \t%19s \t%19s \t%10d \t%8d \t%8d \t%10s \t%10s \t%10d \t%10s \t%10s \t%10s \t%10s \t%8d\n",
+        printf("\t%10d \t%10s \t%10ld \t%19s \t%19s \t%19s \t%19s \t%10d \t%8d \t%8d \t%10s \t%10s \t%10d \t%10s \t%10s \t%10s \t%10s \t%8d \t%s\n",
                job_arr[k].id_job,
                job_arr[k].account,
                job_arr[k].time_end - job_arr[k].time_start,
@@ -197,7 +197,8 @@ int main(int argc, char *argv[])
                job_arr[k].partition,
                job_arr[k].qos_name,
                job_arr[k].dependencies,
-               job_arr[k].switches);
+               job_arr[k].switches,
+               job_arr[k].gres_alloc);
     }
     free(job_arr);
 
