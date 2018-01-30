@@ -210,7 +210,13 @@ static int create_and_submit_job(job_trace_t jobd)
 
     dmesg.qos = strdup(jobd.qos_name);
     dmesg.partition = strdup(jobd.partition);
-    if (strcmp("normal",jobd.partition) != 0 && strcmp("xfer",jobd.partition) != 0) {
+    if (strcmp("normal",jobd.partition) != 0 && \
+        strcmp("xfer",jobd.partition) != 0 && \
+        strcmp("large",jobd.partition) != 0 && \
+        strcmp("debug",jobd.partition) != 0 && \
+        strcmp("low",jobd.partition) != 0 && \
+        strcmp("prepost",jobd.partition) != 0 && \
+        strcmp("2go",jobd.partition) != 0) {
         log_info("job skipped: job_id=%u partition=%s count=%d", jobd.id_job, jobd.partition, count);
         return 0;
     }
@@ -243,9 +249,9 @@ static int create_and_submit_job(job_trace_t jobd)
     duration = jobd.time_end - jobd.time_start;
     create_script(script, jobd.nodes_alloc, tasks, jobd.id_job, duration, jobd.exit_code);
     dmesg.script = strdup(script);
-
-    if ( (rv = slurm_submit_batch_job(&dmesg, &respMsg)) ) {
-        log_error("%d slurm_submit_batch_job: %s count=%d", dmesg.job_id, slurm_strerror(rv), count);
+    rv = slurm_submit_batch_job(&dmesg, &respMsg);
+    if (rv != SLURM_SUCCESS ) {
+        log_error("%d slurm_submit_batch_job: %s [submit number=%d]", dmesg.job_id, slurm_strerror(slurm_get_errno()), count);
         print_job_specs(&dmesg);
     }
 
@@ -292,7 +298,7 @@ static void create_and_submit_resv(resv_trace_t resvd, int action)
         dmesg.start_time = resvd.time_start;
         output_name = slurm_create_reservation(&dmesg);
         if (output_name == NULL) {
-            log_error("%d slurm_create_reservation: %s count=%d", resvd.id_resv, resvd.resv_name, count);
+            log_error("%d slurm_create_reservation: %s %s [submit number=%d]", resvd.id_resv, resvd.resv_name, slurm_strerror(slurm_get_errno()), count);
         } else {
             log_info("reservation created: %s count=%d",output_name, count);
         }

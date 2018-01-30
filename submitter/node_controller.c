@@ -95,7 +95,7 @@ static void update_node_state(node_trace_t noded, int action)
 
     if (action == NODE_STATE_DRAIN) {
         info = "DRAINED";
-        dmesg.node_state = NODE_STATE_DRAIN;//noded.state;
+        dmesg.node_state = NODE_STATE_DRAIN;
     }
     if (action == NODE_RESUME) {
         info = "RESUMED";
@@ -103,8 +103,8 @@ static void update_node_state(node_trace_t noded, int action)
     }
 
     res = slurm_update_node(&dmesg);
-    if ( res != 0) {
-        log_error("slurm_update_node: %s for %s count=%d", slurm_strerror(res), noded.node_name, count);
+    if ( res != SLURM_SUCCESS) {
+        log_error("slurm_update_node: %s for %s count=%d", slurm_strerror(slurm_get_errno()), noded.node_name, count);
     } else {
         log_info("updated node: %s count=%d %s", noded.node_name,  count, info);
     }
@@ -133,12 +133,10 @@ static void control_nodes()
         }
 
         if (current_time >= node_arr_s[ks].time_start && ks < nnodes) {
-            //log_info("submitting %d job: time %lu | id %d", k, job_arr[k].time_submit, job_arr[k].id_job);
             update_node_state(node_arr_s[ks], NODE_STATE_DRAIN);
             ks++;
         }
         if (current_time >= node_arr_e[ke].time_end && ke < nnodes) {
-            //log_info("submitting %d reservation: time %lu | name %s", k, resv_arr[k].time_start, resv_arr[k].resv_name);
             update_node_state(node_arr_e[ke], NODE_RESUME);
             ke++;
         }
