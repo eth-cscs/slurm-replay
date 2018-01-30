@@ -1,8 +1,7 @@
-diff --git a/src/slurmd/slurmstepd/step_terminate_monitor.c b/src/slurmd/slurmstepd/step_terminate_monitor.c
-index b043421a0e..fca60078f4 100644
---- a/src/slurmd/slurmstepd/step_terminate_monitor.c
-+++ b/src/slurmd/slurmstepd/step_terminate_monitor.c
-@@ -127,6 +127,7 @@ static void *_monitor(void *arg)
+diff -rBu --new-file slurm-17.02.9.org/src/slurmd/slurmstepd/step_terminate_monitor.c slurm-17.02.9.new/src/slurmd/slurmstepd/step_terminate_monitor.c
+--- slurm-17.02.9.org/src/slurmd/slurmstepd/step_terminate_monitor.c	2018-01-29 09:40:29.000000000 +0100
++++ slurm-17.02.9.new/src/slurmd/slurmstepd/step_terminate_monitor.c	2018-01-29 09:54:21.000000000 +0100
+@@ -127,6 +127,7 @@
  		goto done;
  
  	rc = pthread_cond_timedwait(&cond, &lock, &ts);

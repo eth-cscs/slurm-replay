@@ -1,6 +1,7 @@
 #!/bin/bash
 
 VERBOSE="-v"
+SLURM_REPLAY_LIB="$1"
 
 SLURM_DIR="/home/$REPLAY_USER/slurmR"
 export PATH="$SLURM_DIR/bin:$SLURM_DIR/sbin:$PATH"
@@ -47,7 +48,7 @@ sed -i -e "s/StorageUser[[:space:]]*=slurm/StorageUser=$REPLAY_USER/" $FILE
 sed -i -e "/PidFile[[:space:]]*=/ s/PidFile[[:space:]]*=.*/PidFile=\/home\/$REPLAY_USER\/slurmR\/log\/slurmdbd.pid/" $FILE
 sed -i -e "/LogFile[[:space:]]*=/ s/LogFile[[:space:]]*=.*/LogFile=\/home\/$REPLAY_USER\/slurmR\/log\/slurmdbd.log/" $FILE
 
-slurmdbd $VERBOSE
+eval "$SLURM_REPLAY_LIB slurmdbd $VERBOSE"
 sleep 1
 echo "done."
 

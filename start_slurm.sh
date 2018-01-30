@@ -84,7 +84,7 @@ else
     ./configure_slurm.sh etc/slurm.conf
 fi
 
-./start_slurmdbd.sh
+./start_slurmdbd.sh $SLURM_REPLAY_LIB
 
 # With front-end
 echo -n  "Starting slurmctld and slurmd... "
@@ -100,4 +100,8 @@ partitions=$(sinfo -o %R --noheader)
 for p in $partitions; do
     scontrol update PartitionName=$p state=UP
 done;
+# exceptionel setup for maintenance on Sept 28th 22:30 to Sept 29th 8:00
+# to allows DCA++ jobs to run account=s299
+scontrol update partition=large maxnodes=7000 minnodes=500
+scontrol update partition=large allowaccount=s299
 echo "done."

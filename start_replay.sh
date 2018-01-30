@@ -81,6 +81,7 @@ ticker -c "$END_TIME,$RATE,$TICK" -n "$NJOBS" -a "$TMP_DIR/accel_time"
 
 sleep 5
 ticker -o -n "$NJOBS"
+echo "current date: $(date)"
 
 echo -n "Collecting data... "
 # get the query and remove where close
