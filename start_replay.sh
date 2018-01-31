@@ -26,6 +26,8 @@ fi
 TICK="1"
 CLOCK_RATE=$(echo "$RATE*$TICK" | bc -l)
 
+echo "current date: $(date)"
+
 TMP_DIR="/home/$REPLAY_USER/tmp"
 SLURM_DIR="/home/$REPLAY_USER/slurmR"
 SLURM_REPLAY="/home/$REPLAY_USER/slurm-replay"
@@ -38,7 +40,7 @@ export LD_LIBRARY_PATH="$SLURM_REPLAY/distime:$SLURM_DIR/lib:$LD_LIBRARY_PATH"
 # Do not enable when using on a batch system, killing srun will kill the sbatch job
 PROCESS_TOKILL="slurmd slurmctld slurmstepd slurmdbd submitter ticker job_runner node_controller"
 killall -q -9 $PROCESS_TOKILL
-trap "killall -q -9 $PROCESS_TOKILL" SIGINT SIGTERM EXIT
+trap "killall -q -9 $PROCESS_TOKILL" SIGTERM EXIT
 
 rm -Rf /dev/shm/ShmemClock*
 
@@ -80,6 +82,7 @@ echo "Replay tentative ending time is $(date --date="${END_REPLAY%.*} seconds")"
 ticker -c "$END_TIME,$RATE,$TICK" -n "$NJOBS" -a "$TMP_DIR/accel_time"
 
 sleep 5
+sdiag -a
 ticker -o -n "$NJOBS"
 echo "current date: $(date)"
 
