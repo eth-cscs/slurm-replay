@@ -6,6 +6,8 @@
 #include <fcntl.h>
 #include <slurm/slurm.h>
 
+// from src/common/slurm_protocol_defs.h
+int REQUEST_SUBMIT_BATCH_JOB=4003;
 
 #include "shmemclock.h"
 
@@ -117,14 +119,24 @@ get_args(int argc, char** argv)
 
 static inline int is_schedule()
 {
+    int i;
     unsigned long jobs_done = 0;
     stats_info_response_msg_t *stat_info;
     stats_info_request_msg_t stat_req;
 
     stat_req.command_id = STAT_COMMAND_GET;
     slurm_get_statistics(&stat_info, &stat_req);
-    jobs_done = stat_info->jobs_completed + stat_info->jobs_failed + stat_info->jobs_canceled;
-    return njobs - jobs_done;
+    for(i = 0; i < stat_info->rpc_type_size; i++) {
+        if (stat_info->rpc_type_id[i] == REQUEST_SUBMIT_BATCH_JOB)
+            break;
+    }
+    // check if all jobs were submitted
+    if (stat_info->rpc_type_cnt[i] < njobs) {
+        return 1;
+    } else {
+        // all jobs are submitted, check if at least a job is running
+        return stat_info->schedule_queue_len > 0;
+    }
 }
 
 int main(int argc, char *argv[])
