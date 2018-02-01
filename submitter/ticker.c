@@ -8,6 +8,7 @@
 
 // from src/common/slurm_protocol_defs.h
 int REQUEST_SUBMIT_BATCH_JOB=4003;
+int REQUEST_COMPLETE_BATCH_SCRIPT=5018;
 
 #include "shmemclock.h"
 
@@ -120,7 +121,8 @@ get_args(int argc, char** argv)
 static inline int is_schedule()
 {
     int i;
-    unsigned long jobs_done = 0;
+    unsigned long jobs_submit = 0;
+    unsigned long jobs_complete = 0;
     stats_info_response_msg_t *stat_info;
     stats_info_request_msg_t stat_req;
 
@@ -128,15 +130,14 @@ static inline int is_schedule()
     slurm_get_statistics(&stat_info, &stat_req);
     for(i = 0; i < stat_info->rpc_type_size; i++) {
         if (stat_info->rpc_type_id[i] == REQUEST_SUBMIT_BATCH_JOB)
+            jobs_submit = stat_info->rpc_type_cnt[i];
+        if (stat_info->rpc_type_id[i] == REQUEST_COMPLETE_BATCH_SCRIPT)
+            jobs_complete = stat_info->rpc_type_cnt[i];
+        if (jobs_complete > 0 && jobs_submit > 0)
             break;
     }
     // check if all jobs were submitted
-    if (stat_info->rpc_type_cnt[i] < njobs) {
-        return 1;
-    } else {
-        // all jobs are submitted, check if at least a job is running
-        return stat_info->schedule_queue_len > 0;
-    }
+    return jobs_submit != njobs || jobs_complete != jobs_submit;
 }
 
 int main(int argc, char *argv[])
