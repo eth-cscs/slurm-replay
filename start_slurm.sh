@@ -74,6 +74,7 @@ if (( $CONFDATE < 170901 )); then
 else
     echo "Slurm configuration from git:"
     cd ../data/slurmcfg
+    # TODO check if we are not already at the right revision
     git checkout daint &>/dev/null
     t=20${CONFDATE:0:2}-${CONFDATE:2:2}-${CONFDATE:4:2}
     git checkout $(git rev-list -1 --until="$t" daint)

@@ -1,13 +1,16 @@
 #!/bin/bash
 
 
-while getopts ":w:r:" opt; do
+while getopts ":w:r:n:" opt; do
 case $opt in
     w)
        WORKLOAD="$OPTARG"
     ;;
     r)
        RATE="$OPTARG"
+    ;;
+    n)
+       NAME="$OPTARG"
     ;;
     :)
        echo "Option -$OPTARG requires an argument."
@@ -22,6 +25,9 @@ if [ -z "$WORKLOAD" ]; then
 fi
 if [ -z "$RATE" ]; then
     RATE="0.1"
+fi
+if [ -z "$NAME" ]; then
+    NAME="unknown"
 fi
 TICK="1"
 CLOCK_RATE=$(echo "$RATE*$TICK" | bc -l)
@@ -82,28 +88,31 @@ echo "Replay tentative ending time is $(date --date="${END_REPLAY%.*} seconds")"
 ticker -c "$END_TIME,$RATE,$TICK" -n "$NJOBS" -a "$TMP_DIR/accel_time"
 
 sleep 5
-sdiag -a
 ticker -o -n "$NJOBS"
+sdiag -a
 echo "current date: $(date)"
 
 echo -n "Collecting data... "
 # get the query and remove where close
 query=$(trace_list -w $WORKLOAD -q | head -n 1)
 query="${query%WHERE*};"
-REPLAY_WORKLOAD="../data/replay.${WORKLOAD##*/}"
+REPLAY_WORKLOAD_DIR="../data/replay.${WORKLOAD##*/}.$NAME.$CLOCK_RATE"
 CT=0
-while [ -f "$REPLAY_WORKLOAD.$CT" ]; do
+while [ -d "$REPLAY_WORKLOAD_DIR.$CT" ]; do
     CT=$(( $CT + 1 ))
 done
-REPLAY_WORKLOAD="$REPLAY_WORKLOAD.$CT"
+REPLAY_WORKLOAD_DIR="$REPLAY_WORKLOAD_DIR.$CT"
+mkdir $REPLAY_WORKLOAD_DIR
+REPLAY_WORKLOAD="$REPLAY_WORKLOAD_DIR/replay.${WORKLOAD##*/}"
 trace_builder_mysql -f "$REPLAY_WORKLOAD" -u "$REPLAY_USER" -p "" -h "localhost" -d "slurm_acct_db" -q "$query" -t daint_job_table -r daint_resv_table -v daint_event_table
 echo "done."
 echo
 echo "ERROR IF ANY:"
 LOGFILE="log/slurmctld.log log/slurmd/*.log log/submitter.log log/slurmdbd.log log/node_controller.log"
-grep -E "\[[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}\] error:" $LOGFILE &> ../data/error.log
-cat ../data/error.log
-cp $LOGFILE ../data
+grep -E "\[[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}\] error:" $LOGFILE &> $REPLAY_WORKLOAD_DIR/error.log
+cat $REPLAY_WORKLOAD_DIR/error.log
+cp $LOGFILE $REPLAY_WORKLOAD_DIR
+trace_metrics -w "$REPLAY_WORKLOAD" > $REPLAY_WORKLOAD_DIR/metrics.log
 
 # Gather statistics from slurm
 #echo "Slurm schedule statistics"
