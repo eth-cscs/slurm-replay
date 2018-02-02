@@ -32,6 +32,7 @@ int enable_get = 0;
 int enable_clock = 0;
 time_t time_evt = 0;
 time_t endtime_evt = 0;
+time_t hard_endtime = 0;
 double rate = 0.1;
 int tick = 1;
 int enable_over = 0;
@@ -71,6 +72,7 @@ get_args(int argc, char** argv)
             }
             endtime_v[i] = '\0';
             endtime_evt = strtoul(endtime_v,NULL,10);
+            hard_endtime = endtime_evt+12*3600;
             if (clock_v[i] == ',') {
                 i++;
                 k = 0;
@@ -149,6 +151,7 @@ int main(int argc, char *argv[])
     long *accel_times = NULL;
     char strstart_time[20];
     char strend_time[20];
+    char strhard_time[20];
     time_t tmp_time, amount_slow, amount_fast;
     long maxtick = 0;
     long k, j;
@@ -185,7 +188,8 @@ int main(int argc, char *argv[])
         tmp_time = get_shmemclock();
         strftime(strstart_time, sizeof(strstart_time), "%Y-%m-%d %H:%M:%S", localtime(&tmp_time));
         strftime(strend_time, sizeof(strend_time), "%Y-%m-%d %H:%M:%S", localtime(&endtime_evt));
-        printf("Clock: njobs=%lu start='%s|%ld', end='%s|%ld', duration=%ld[s], rate=(%.5f|%.5f)[s] for 1 replayed second\n", njobs, strstart_time, tmp_time, strend_time, endtime_evt, endtime_evt-tmp_time, rate/tick, (rate/2.0)/tick);
+        strftime(strhard_time, sizeof(strhard_time), "%Y-%m-%d %H:%M:%S", localtime(&hard_endtime));
+        printf("Clock: njobs=%lu start='%s', end='%s', hard='%s', duration=%ld[s], rate=(%.5f|%.5f)[s] for 1 replayed second\n", njobs, strstart_time, strend_time, strhard_time, endtime_evt-tmp_time, rate/tick, (rate/2.0)/tick);
         fflush(stdin);
         freq_slow = one_second*rate;
         freq_fast = one_second*(rate/2.0);
@@ -233,10 +237,13 @@ int main(int argc, char *argv[])
             tmp_time = get_shmemclock();
             strftime(strstart_time, sizeof(strstart_time), "%Y-%m-%d %H:%M:%S", localtime(&tmp_time));
             printf("Schedule not finished - time %ld -- %s\n", tmp_time, strstart_time);
-            while(is_schedule()) {
+            while(is_schedule() && get_shmemclock() < hard_endtime) {
                 usleep(freq);
                 incr_shmemclock(tick);
                 k++;
+            }
+            if (get_shmemclock() >= hard_endtime) {
+                printf("Hard end time reached at %s\n", strhard_time);
             }
         }
         if (accel_filename != NULL) {
