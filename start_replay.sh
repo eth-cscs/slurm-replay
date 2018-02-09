@@ -50,7 +50,7 @@ trap "killall -q -9 $PROCESS_TOKILL" SIGTERM EXIT
 
 rm -Rf /dev/shm/ShmemClock*
 
-TIME_STARTPAD=60
+TIME_STARTPAD=600
 START_TIME="$(trace_list -n -w "$WORKLOAD" | awk '{print $4;}' | sort -n | head -n 1)"
 START_TIME="$(( $START_TIME - $TIME_STARTPAD ))"
 

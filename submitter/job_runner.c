@@ -16,10 +16,14 @@ job_runner\n\
       -n, --nnodes     Number of nodes used by the runner\n\
       -r, --clock_rate Rate of the simulated clock\n\
       -i, --init_time  Time at which the script was created\n\
+      -p, --preset     If the job is a preset jobs or not\n\
+      -e, --end_time   Time at which the jobs ends - used only with preset\n\
       -x, --exitcode   Exit code returned by the runner\n";
 
+int preset = 0;
 int exitcode = 0;
 long int duration = 0;
+long int time_end = 0;
 long int jobid = -1;
 int nnodes = 0;
 double init_time = 0.0;
@@ -34,17 +38,22 @@ get_args(int argc, char** argv)
         {"jobid",  1, 0, 'j'},
         {"nnodes",    1, 0, 'n'},
         {"exitcode",    1, 0, 'x'},
+        {"preset",    1, 0, 'p'},
         {"clock_rate",    1, 0, 'r'},
-        {"init_time",    1, 0, 'i'}
+        {"init_time",    1, 0, 'i'},
+        {"end_time",    1, 0, 'e'}
     };
     int opt_char, option_index;
 
     while (1) {
-        if ((opt_char = getopt_long(argc, argv, "d:hj:n:x:r:i:", long_options, &option_index)) == -1 )
+        if ((opt_char = getopt_long(argc, argv, "d:hj:n:x:r:i:p:e:", long_options, &option_index)) == -1 )
             break;
         switch(opt_char) {
         case ('d'):
             duration = strtol(optarg,NULL,10);
+            break;
+        case ('e'):
+            time_end = strtol(optarg,NULL,10);
             break;
         case ('h'):
             printf("%s\n", help_msg);
@@ -64,6 +73,9 @@ get_args(int argc, char** argv)
         case ('r'):
             clock_rate = strtod(optarg,NULL);
             break;
+        case ('p'):
+            preset = atoi(optarg);
+            break;
         };
     }
 }
@@ -72,11 +84,11 @@ int main(int argc, char *argv[])
 {
     const int one_second = 1000000;
     int freq;
-    time_t end_time,start_time;
+    time_t end_time, start_time, cur_time;
     char strstart_time[20];
+    char strcur_time[20];
     char strend_time[20];
     double time_nsec;
-    const int sleep_pad = 5;
     struct timespec tv;
     clock_gettime(CLOCK_REALTIME, &tv);
     time_nsec = tv.tv_sec + tv.tv_nsec * ONE_OVER_BILLION;
@@ -86,23 +98,24 @@ int main(int argc, char *argv[])
     get_args(argc, argv);
 
     start_time = get_shmemclock();
-    end_time = start_time+duration;
+    if(preset) {
+       end_time = time_end;
+    } else {
+       end_time = start_time+duration;
+    }
 
     strftime(strstart_time, sizeof(strstart_time), "%Y-%m-%d %H:%M:%S", localtime(&start_time));
     strftime(strend_time, sizeof(strend_time), "%Y-%m-%d %H:%M:%S", localtime(&end_time));
-    printf("Job %ld: %s -- %s -- %ld [s] -- %d nodes, exit=%d, delta_time=%.6f, clock_rate=%f\n",jobid, strstart_time, strend_time, duration, nnodes, exitcode, time_nsec-init_time, clock_rate );
+    printf("Job %ld: %s -- %s -- %ld [s] -- %d nodes, exit=%d, delta_time=%.6f, clock_rate=%f, preset=%d\n",jobid, strstart_time, strend_time, duration, nnodes, exitcode, time_nsec-init_time, clock_rate, preset);
 
-    // sleep long
-    if (duration*clock_rate > sleep_pad) {
-        printf("Long sleep: %d[s]\n", (int)(floor(duration*clock_rate))-sleep_pad);
-        sleep(floor(duration*clock_rate)-sleep_pad);
-    }
-
-    // near the end of duration
     freq = one_second*clock_rate;
     while(get_shmemclock() < end_time) {
         usleep(freq);
     }
+
+    cur_time = get_shmemclock();
+    strftime(strcur_time, sizeof(strcur_time), "%Y-%m-%d %H:%M:%S", localtime(&cur_time));
+    printf("Spinning over: %ld|%s\n", cur_time, strcur_time);
 
     // exit code are restricted in POSIX C
     if ( exitcode != 0 ) {

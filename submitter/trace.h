@@ -26,6 +26,7 @@ typedef struct job_trace {
     long time_end;
     long time_suspended;
     char gres_alloc[TEXT_SIZE];
+    int preset;
 } job_trace_t;
 
 typedef struct node_trace {

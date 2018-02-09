@@ -197,6 +197,9 @@ int main(int argc, char *argv[])
         if (strcmp("normal",job_arr[j].partition) != 0 && strcmp("xfer",job_arr[j].partition) != 0) {
             continue;
         }
+        if (job_arr[j].preset) {
+            continue;
+        }
         memcpy(&job_arr_all[njobs_all], &job_arr[j], sizeof(job_trace_t));
         njobs_all++;
         if (strcmp(job_arr[j].partition, "xfer") != 0) {

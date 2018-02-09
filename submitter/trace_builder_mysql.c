@@ -353,6 +353,7 @@ int main(int argc, char **argv)
         }
         printf("\n");*/
 
+        job_trace.preset = 0;
         sprintf(job_trace.account, "%s", row[0]);
         job_trace.exit_code = atoi(row[1]);
         sprintf(job_trace.job_name, "%s", row[2]);
@@ -373,6 +374,7 @@ int main(int argc, char **argv)
         job_trace.time_submit = strtol(row[13], NULL, 0);
         if (!use_query && job_trace.time_submit < time_start) {
             job_trace.time_submit = time_start;
+            job_trace.preset = 1;
         }
         job_trace.time_eligible = strtol(row[14], NULL, 0);
         if (!use_query && job_trace.time_eligible < time_start) {
