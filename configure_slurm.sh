@@ -16,6 +16,10 @@ sed -i -e "/ProctrackType[[:space:]]*=/ s/cray/linuxproc/" $FILE
 sed -i -e "/TaskPlugin[[:space:]]*=/ s/task.*/task\/none/" $FILE
 sed -i -e "/JobCompType[[:space:]]*=/ s/jobcomp.*/jobcomp\/none/" $FILE
 sed -i -e "/AcctGatherEnergyType[[:space:]]*=/ s/cray/none/" $FILE
+sed -i -e "/AcctGatherType[[:space:]]*=/ s/linux/none/" $FILE
+
+# Debug level
+sed -i -e "/SlurmdDebug[[:space:]]*=/ s/info/error/" $FILE
 
 # Set up to local hosts
 sed -i -e "/ControlMachine[[:space:]]*=/ s/daint.*/localhost/" $FILE
