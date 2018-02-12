@@ -89,7 +89,7 @@ static void print_job_specs(job_desc_msg_t* dmesg)
     log_info("\t\tdmesg->script: (%s)", dmesg->script);
 }
 
-static void create_script(char* script, int nodes, int tasks, long int jobid, long int duration, int exitcode)
+static void create_script(char* script, int nodes, int tasks, long int jobid, long int duration, int exitcode, int preset, time_t time_end)
 {
     FILE* fp;
     char* line = NULL;
@@ -146,6 +146,12 @@ static void create_script(char* script, int nodes, int tasks, long int jobid, lo
                     clock_gettime(CLOCK_REALTIME, &tv);
                     time_nsec = tv.tv_sec + tv.tv_nsec * ONE_OVER_BILLION;
                     sprintf(val,"%f",time_nsec);
+                }
+                if(strcmp(token,"PRESET")==0) {
+                    sprintf(val,"%d",preset);
+                }
+                if(strcmp(token,"TIME_END")==0) {
+                    sprintf(val,"%ld",time_end);
                 }
                 for(j = 0; j < strlen(val); j++,i++) {
                     script[i] = val[j];
@@ -245,9 +251,13 @@ static int create_and_submit_job(job_trace_t jobd)
 
     dmesg.dependency    = strdup(jobd.dependencies);
     dmesg.req_switch    = jobd.switches;
+    if (jobd.preset) {
+        // add hostlist to recreate initial state
+        dmesg.req_nodes = strdup(jobd.nodelist);
+    }
 
     duration = jobd.time_end - jobd.time_start;
-    create_script(script, jobd.nodes_alloc, tasks, jobd.id_job, duration, jobd.exit_code);
+    create_script(script, jobd.nodes_alloc, tasks, jobd.id_job, duration, jobd.exit_code, jobd.preset, jobd.time_end);
     dmesg.script = strdup(script);
     rv = slurm_submit_batch_job(&dmesg, &respMsg);
     if (rv != SLURM_SUCCESS ) {
@@ -256,7 +266,11 @@ static int create_and_submit_job(job_trace_t jobd)
     }
 
     if (respMsg) {
-        log_info("job submitted: job_id=%u count=%d", respMsg->job_id, count);
+        if (jobd.preset) {
+            log_info("Preset job submitted: job_id=%u count=%d", respMsg->job_id, count);
+        } else {
+            log_info("job submitted: job_id=%u count=%d", respMsg->job_id, count);
+        }
     }
     count++;
 
@@ -271,6 +285,7 @@ static int create_and_submit_job(job_trace_t jobd)
     if (dmesg.reservation) free(dmesg.reservation);
     if (dmesg.dependency)  free(dmesg.dependency);
     if (dmesg.script)      free(dmesg.script);
+    if (dmesg.req_nodes)      free(dmesg.req_nodes);
     free(dmesg.environment[0]);
     free(dmesg.environment[1]);
     free(dmesg.environment);
@@ -332,6 +347,14 @@ static void submit_jobs_and_reservations()
 
     log_info("total job records: %lu, start time %ld", njobs, job_arr[0].time_submit);
     log_info("total reservation records: %lu", nresvs);
+
+    for(kj = 0; kj < njobs; kj++) {
+        if (job_arr[kj].preset) {
+            create_and_submit_job(job_arr[kj]);
+        } else {
+            break;
+        }
+    }
 
     freq = one_second*clock_rate;
     while( kj < njobs || kr < nresvs ) {

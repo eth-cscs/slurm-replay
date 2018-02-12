@@ -52,6 +52,7 @@ rm -Rf /dev/shm/ShmemClock*
 
 TIME_STARTPAD=600
 START_TIME="$(trace_list -n -w "$WORKLOAD" | awk '{print $4;}' | sort -n | head -n 1)"
+STR_START_TIME=$(date -d @$START_TIME +'%Y-%m-%d %H:%M:%S')
 START_TIME="$(( $START_TIME - $TIME_STARTPAD ))"
 
 TIME_ENDPAD=60
@@ -104,7 +105,8 @@ done
 REPLAY_WORKLOAD_DIR="$REPLAY_WORKLOAD_DIR.$CT"
 mkdir $REPLAY_WORKLOAD_DIR
 REPLAY_WORKLOAD="$REPLAY_WORKLOAD_DIR/replay.${WORKLOAD##*/}"
-trace_builder_mysql -f "$REPLAY_WORKLOAD" -u "$REPLAY_USER" -p "" -h "localhost" -d "slurm_acct_db" -q "$query" -t daint_job_table -r daint_resv_table -v daint_event_table
+trace_builder_mysql -f "$REPLAY_WORKLOAD" -u "$REPLAY_USER" -p "" -h "localhost" -d "slurm_acct_db"  -q "$query" -t daint_job_table -r daint_resv_table -v daint_event_table -s "$STR_START_TIME"
+#echo "trace_builder_mysql -f \"$REPLAY_WORKLOAD\" -u \"$REPLAY_USER\" -p \"\" -h \"localhost\" -d \"slurm_acct_db\" -q \"$query\" -t daint_job_table -r daint_resv_table -v daint_event_table -s \"$STR_START_TIME\""
 echo "done."
 echo
 echo "ERROR IF ANY:"

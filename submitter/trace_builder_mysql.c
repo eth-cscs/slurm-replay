@@ -275,21 +275,27 @@ int main(int argc, char **argv)
         finish_with_error(conn);
     }
 
+    if ((starttime == NULL) || (job_table == NULL)) {
+        printf("starttime and job table cannot be NULL!\n");
+        print_usage();
+        exit(-1);
+    }
+
+    memset(&tmVar, 0, sizeof(struct tm));
+    if ( strptime(starttime, "%Y-%m-%d %H:%M:%S", &tmVar) != NULL ) {
+        time_start = mktime(&tmVar)+CET;
+    } else {
+        printf("ERROR: starttime not valid.\n");
+        print_usage();
+        exit(-1);
+    }
+
     if (!use_query) {
         memset(query,'\0',1024);
-        memset(&tmVar, 0, sizeof(struct tm));
 
         /*validate input parameter to build the query*/
-        if ((endtime == NULL) || (starttime == NULL) || (job_table == NULL)) {
-            printf("endtime, starttime and job table cannot be NULL!\n");
-            print_usage();
-            exit(-1);
-        }
-
-        if ( strptime(starttime, "%Y-%m-%d %H:%M:%S", &tmVar) != NULL ) {
-            time_start = mktime(&tmVar)+CET;
-        } else {
-            printf("ERROR: starttime not valid.\n");
+        if (endtime == NULL){
+            printf("endtime cannot be NULL!\n");
             print_usage();
             exit(-1);
         }
@@ -372,16 +378,16 @@ int main(int argc, char **argv)
         job_trace.state = atoi(row[11]);
         job_trace.timelimit = atoi(row[12]);
         job_trace.time_submit = strtol(row[13], NULL, 0);
-        if (!use_query && job_trace.time_submit < time_start) {
+        if (job_trace.time_submit < time_start) {
             job_trace.time_submit = time_start;
             job_trace.preset = 1;
         }
         job_trace.time_eligible = strtol(row[14], NULL, 0);
-        if (!use_query && job_trace.time_eligible < time_start) {
+        if (job_trace.time_eligible < time_start) {
             job_trace.time_eligible = time_start;
         }
         job_trace.time_start = strtol(row[15], NULL, 0);
-        if (!use_query && job_trace.time_start < time_start) {
+        if (job_trace.time_start < time_start) {
             job_trace.time_start = time_start;
         }
         job_trace.time_end = strtol(row[16], NULL, 0);
