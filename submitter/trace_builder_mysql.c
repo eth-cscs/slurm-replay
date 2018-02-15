@@ -42,7 +42,11 @@ static void lookfor(unsigned long jid, unsigned long long n, char *dependencies,
     deps_t *item = NULL;
     item = (deps_t*) bsearch (&jid, depend, n, sizeof(deps_t), cmpfunc);
     if ( item ) {
-        strcpy(dependencies, item->dependencies);
+        if (item->dependencies) {
+            strcpy(dependencies, item->dependencies);
+        } else {
+            dependencies[0] = '\0';
+        }
         *switches = item->switches;
     } else {
         dependencies[0] = '\0';
