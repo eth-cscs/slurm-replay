@@ -18,6 +18,9 @@ sed -i -e "/JobCompType[[:space:]]*=/ s/jobcomp.*/jobcomp\/none/" $FILE
 sed -i -e "/AcctGatherEnergyType[[:space:]]*=/ s/cray/none/" $FILE
 sed -i -e "/AcctGatherType[[:space:]]*=/ s/linux/none/" $FILE
 
+# TImeout value
+sed -i -e "/SlurmdTimeout[[:space:]]*=/ s/SlurmdTimeout[[:space:]]*=[[:digit:]]*/SlurmdTimeout=0/" $FILE
+
 # Debug level
 sed -i -e "/SlurmdDebug[[:space:]]*=/ s/info/error/" $FILE
 
