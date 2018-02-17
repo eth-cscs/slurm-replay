@@ -430,16 +430,17 @@ static int read_job_trace(const char* trace_filename, const char* time_filename)
         }
     }
     time_njobs = j;
-    time_file = open(time_filename, O_WRONLY);
-    if (time_file < 0) {
-        log_error("opening file %s", time_filename);
-        return -1;
+    if (time_filename) {
+        time_file = open(time_filename, O_WRONLY);
+        if (time_file < 0) {
+            log_error("opening file %s", time_filename);
+            return -1;
+        }
+        write(time_file, &time_njobs, sizeof(unsigned long long));
+        write(time_file, time_arr, time_njobs*sizeof(long));
+
+        close(time_file);
     }
-    write(time_file, &time_njobs, sizeof(unsigned long long));
-    write(time_file, time_arr, time_njobs*sizeof(long));
-
-    close(time_file);
-
 
     read(trace_file, &nresvs, sizeof(unsigned long long));
     resv_arr = (resv_trace_t*)malloc(sizeof(resv_trace_t)*nresvs);
