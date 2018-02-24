@@ -95,8 +95,6 @@ echo "current date: $(date)"
 
 echo -n "Collecting data... "
 # get the query and remove where close
-query=$(trace_list -w $WORKLOAD -q | head -n 1)
-query="${query%WHERE*};"
 REPLAY_WORKLOAD_DIR="../data/replay.${WORKLOAD##*/}.$NAME.$CLOCK_RATE"
 CT=0
 while [ -d "$REPLAY_WORKLOAD_DIR.$CT" ]; do
@@ -105,8 +103,8 @@ done
 REPLAY_WORKLOAD_DIR="$REPLAY_WORKLOAD_DIR.$CT"
 mkdir $REPLAY_WORKLOAD_DIR
 REPLAY_WORKLOAD="$REPLAY_WORKLOAD_DIR/replay.${WORKLOAD##*/}"
-trace_builder_mysql -f "$REPLAY_WORKLOAD" -u "$REPLAY_USER" -p "" -h "localhost" -d "slurm_acct_db"  -q "$query" -t daint_job_table -r daint_resv_table -v daint_event_table -s "$STR_START_TIME"
-#echo "trace_builder_mysql -f \"$REPLAY_WORKLOAD\" -u \"$REPLAY_USER\" -p \"\" -h \"localhost\" -d \"slurm_acct_db\" -q \"$query\" -t daint_job_table -r daint_resv_table -v daint_event_table -s \"$STR_START_TIME\""
+trace_builder_mysql -f "$REPLAY_WORKLOAD" -u "$REPLAY_USER" -p "" -h "localhost" -d "slurm_acct_db"  -w -t daint_job_table -r daint_resv_table -v daint_event_table -s "$STR_START_TIME"
+echo "trace_builder_mysql -f \"$REPLAY_WORKLOAD\" -u \"$REPLAY_USER\" -p \"\" -h \"localhost\" -d \"slurm_acct_db\" -w -t daint_job_table -r daint_resv_table -v daint_event_table -s \"$STR_START_TIME\""
 echo "done."
 echo
 echo "ERROR IF ANY:"

@@ -5,6 +5,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <getopt.h>
+#define __USE_XOPEN
 #include <time.h>
 
 #include "trace.h"
@@ -26,8 +27,9 @@ char *assoc_table = NULL;
 char *event_table = NULL;
 char *user = NULL;
 char *password;
-char query[1024];
-static int use_query = 0;
+static int use_where = 1;
+static int do_resv = 1;
+static int do_event = 1;
 static int use_dependencies = 0;
 char *dep_filename = NULL;
 deps_t *depend;
@@ -161,7 +163,7 @@ Usage: mysql_trace_builder [OPTIONS]\n\
     -v, --event_table db_event_table   Name of the MySQL table to query to obtain event information about node availability\n\
     -f, --file       filename        Name of the output trace file being created\n\
     -x, --dependencies filename      Name of the file containing the dependencies\n\
-    -q, --query      query           Use a SQL query to retrieve the data\n\
+    -w, --where                      Do not use the where statement for the  SQL query to retrieve the data\n\
     -?, --help                       This help message\n\n\
 ");
 }
@@ -176,7 +178,7 @@ get_args(int argc, char** argv)
         {"dbname", required_argument, 0, 'd'},
         {"help", no_argument,   0, '?'},
         {"password", required_argument,   0, 'p'},
-        {"query", required_argument,   0, 'q'},
+        {"where", no_argument,   0, 'w'},
         {"starttime", required_argument, 0, 's'},
         {"job_table", required_argument, 0, 't'},
         {"resv_table", required_argument, 0, 'r'},
@@ -189,15 +191,16 @@ get_args(int argc, char** argv)
     int opt_char, option_index;
 
     while(1) {
-        if ((opt_char = getopt_long(argc, argv, "d:e:f:h:?s:t:r:u:p:q:a:v:x:", long_options, &option_index)) == -1 )
+        if ((opt_char = getopt_long(argc, argv, "d:e:f:h:?s:t:r:u:p:wa:v:x:", long_options, &option_index)) == -1 )
             break;
         switch  (opt_char) {
         case ('p'):
             password = strdup(optarg);
             break;
-        case ('q'):
-            use_query = 1;
-            strcpy(query,optarg);
+        case ('w'):
+            use_where = 0;
+	    do_resv = 0;
+	    do_event = 0;
             break;
         case ('e'):
             endtime = optarg;
@@ -250,6 +253,8 @@ int main(int argc, char **argv)
     time_t time_end;
     int CET = -3600;
 
+    char query[1024];
+    char where_statement[256];
     size_t query_length;
     //unsigned int num_fields;
     unsigned long long num_rows;
@@ -294,35 +299,37 @@ int main(int argc, char **argv)
         exit(-1);
     }
 
-    if (!use_query) {
-        memset(query,'\0',1024);
+    memset(where_statement,'\0',256);
+    if (use_where) {
+		/*validate input parameter to build the query*/
+		if (endtime == NULL){
+		    printf("endtime cannot be NULL!\n");
+		    print_usage();
+		    exit(-1);
+		}
 
-        /*validate input parameter to build the query*/
-        if (endtime == NULL){
-            printf("endtime cannot be NULL!\n");
-            print_usage();
-            exit(-1);
-        }
+		memset(&tmVar, 0, sizeof(struct tm));
+		if ( strptime(endtime, "%Y-%m-%d %H:%M:%S", &tmVar) != NULL ) {
+		    time_end = mktime(&tmVar)+CET;
+		} else {
+		    printf("ERROR: endtime not valid.\n");
+		    print_usage();
+		    exit(-1);
+		}
 
-        memset(&tmVar, 0, sizeof(struct tm));
-        if ( strptime(endtime, "%Y-%m-%d %H:%M:%S", &tmVar) != NULL ) {
-            time_end = mktime(&tmVar)+CET;
-        } else {
-            printf("ERROR: endtime not valid.\n");
-            print_usage();
-            exit(-1);
-        }
-
-        sprintf(query, "SELECT t.account, t.exit_code, t.job_name, "
-                "t.id_job, q.name, t.id_user, t.id_group, r.resv_name, t.nodelist, t.nodes_alloc, t.partition, t.state, "
-                "t.timelimit, t.time_submit, t.time_eligible, t.time_start, t.time_end, t.time_suspended, "
-                "t.gres_alloc "
-                "FROM %s as t LEFT JOIN %s as r ON t.id_resv = r.id_resv AND t.time_start >= r.time_start and t.time_end <= r.time_end "
-                "LEFT JOIN qos_table as q ON q.id = t.id_qos "
+        sprintf(where_statement,
                 "WHERE t.time_submit < %lu AND t.time_end > %lu AND t.time_start < %lu AND "
                 "t.nodes_alloc > 0 AND t.partition IN ('normal','xfer','large','low','debug','prepost','2go')",
-                job_table, resv_table, time_end, time_start, time_end);
+                time_end, time_start, time_end);
     }
+    memset(query,'\0',1024);
+    sprintf(query, "SELECT t.account, t.exit_code, t.job_name, "
+                   "t.id_job, q.name, t.id_user, t.id_group, r.resv_name, t.nodelist, t.nodes_alloc, t.partition, t.state, "
+                   "t.timelimit, t.time_submit, t.time_eligible, t.time_start, t.time_end, t.time_suspended, "
+                   "t.gres_alloc "
+                   "FROM %s as t LEFT JOIN %s as r ON t.id_resv = r.id_resv AND t.time_start >= r.time_start and t.time_end <= r.time_end "
+                   "LEFT JOIN qos_table as q ON q.id = t.id_qos %s",
+                    job_table, resv_table, where_statement);
     printf("\nQuery --> %s\n\n", query);
 
     if (mysql_query(conn, query)) {
@@ -395,7 +402,7 @@ int main(int argc, char **argv)
             job_trace.time_start = time_start;
         }
         job_trace.time_end = strtol(row[16], NULL, 0);
-        if (!use_query && job_trace.time_end > time_end) {
+        if (use_where && job_trace.time_end > time_end) {
             job_trace.time_end = time_end;
         }
         job_trace.time_suspended = strtol(row[17], NULL, 0);
@@ -421,7 +428,7 @@ int main(int argc, char **argv)
     mysql_free_result(result_job);
 
     // process reservation data
-    if (!use_query && resv_table != NULL && assoc_table != NULL) {
+    if (do_resv && resv_table != NULL && assoc_table != NULL) {
         memset(query,'\0',1024);
         sprintf(query, "SELECT r.id_resv, r.time_start, r.time_end, r.nodelist, r.resv_name, GROUP_CONCAT(DISTINCT a.acct), r.flags, r.tres "
                 "FROM %s AS r INNER JOIN %s AS a ON FIND_IN_SET(a.id_assoc,r.assoclist) "
@@ -470,7 +477,7 @@ int main(int argc, char **argv)
     }
 
     // process event data
-    if (!use_query && event_table != NULL) {
+    if (do_event && event_table != NULL) {
         memset(query,'\0',1024);
         snprintf(query, 1024*sizeof(char), "SELECT e.time_start, e.time_end, e.node_name, e.reason, e.state "
                  "FROM %s AS e "
