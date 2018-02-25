@@ -94,6 +94,9 @@ sdiag -a
 echo "current date: $(date)"
 
 echo -n "Collecting data... "
+# correct the db, Slurm bug: some time_start may not be filled in the job_table while they are correct in the step_table
+# http://slurm-dev.schedmd.narkive.com/FkIMYBpQ/consistency-checks-and-missing-time-start-in-slurmdbd
+db_correctness -u "$REPLAY_USER" -p "" -h "localhost" -d "slurm_acct_db" -t daint_job_table -s daint_step_table
 # get the query and remove where close
 REPLAY_WORKLOAD_DIR="../data/replay.${WORKLOAD##*/}.$NAME.$CLOCK_RATE"
 CT=0
