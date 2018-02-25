@@ -20,7 +20,10 @@ RUN  ln -sf /usr/share/zoneinfo/CET /etc/localtime
 RUN useradd -ms /bin/bash $REPLAY_USER && \
     mkdir -p /run/mysqld && \
     ln -s /home/$REPLAY_USER/run/mysqld/mysqld.lock /run/mysqld/mysqld.sock && \
-    sed -i -e "s/socket[[:space:]]*=.*/socket=\/home\/$REPLAY_USER\/run\/mysqld\/mysqld.lock/g" /etc/mysql/my.cnf
+    sed -i -e "s/socket[[:space:]]*=.*/socket=\/home\/$REPLAY_USER\/run\/mysqld\/mysqld.lock/g" /etc/mysql/my.cnf && \
+    sed -i -e "s/#innodb_buffer_pool_size[[:space:]]*=.*/innodb_buffer_pool_size=1024M/g" /etc/mysql/my.cnf && \
+    sed -i -e "s/#innodb_log_file_size[[:space:]]*=.*/innodb_log_file_size=64M/g" /etc/mysql/my.cnf && \
+    sed -i -e "s/#innodb_lock_wait_timeout[[:space:]]*=.*/innodb_lock_wait_timeout=900/g" /etc/mysql/my.cnf
 
 # munge is in AUR
 USER $REPLAY_USER
