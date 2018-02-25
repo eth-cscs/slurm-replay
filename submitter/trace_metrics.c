@@ -7,6 +7,7 @@
 #include <string.h>
 #include <getopt.h>
 #include <limits.h>
+#include <time.h>
 
 #include "trace.h"
 
@@ -54,6 +55,9 @@ void compute_metrics(job_trace_t *job_arr, unsigned long long njobs, unsigned lo
     long cum_wait;
     long cum_stddev;
     double bsd;
+    char submit[20];
+    char start[20];
+    char eligible[20];
 
     *max_wait = 0;
     *min_wait = LONG_MAX;
@@ -69,7 +73,10 @@ void compute_metrics(job_trace_t *job_arr, unsigned long long njobs, unsigned lo
         time_exec_arr[j] = job_arr[j].time_end - job_arr[j].time_start;
         time_wait_arr[j] = job_arr[j].time_start - job_arr[j].time_eligible;
         if ( time_wait_arr[j] < 0 ) {
-            printf("%d %ld %ld %ld\n",job_arr[j].id_job, job_arr[j].time_submit, job_arr[j].time_eligible, job_arr[j].time_start);
+            strftime(submit, sizeof(submit), "%Y-%m-%d %H:%M:%S", localtime(&job_arr[j].time_submit));
+            strftime(start, sizeof(start), "%Y-%m-%d %H:%M:%S", localtime(&job_arr[j].time_start));
+            strftime(eligible, sizeof(eligible), "%Y-%m-%d %H:%M:%S", localtime(&job_arr[j].time_eligible));
+            printf("Negative wait: %d %s %s %s\n",job_arr[j].id_job, submit, eligible, start);
         }
         time_end_arr[j] = job_arr[j].time_end;
         nodes_alloc_arr[j] = job_arr[j].nodes_alloc;
@@ -199,7 +206,7 @@ int main(int argc, char *argv[])
             continue;
         }
         if (job_arr[j].preset) {
-		njobs_preset++;
+            njobs_preset++;
             continue;
         }
         memcpy(&job_arr_all[njobs_all], &job_arr[j], sizeof(job_trace_t));
@@ -214,7 +221,7 @@ int main(int argc, char *argv[])
             }
         }
     }
-    printf("preset=%ld\n",njobs_preset);
+    printf("preset=%llu\n",njobs_preset);
 
     compute_metrics(job_arr_all, njobs_all, Nnodes, &makespan, &util, &avg_wait, &std_wait, &min_wait, &max_wait, &nwait, &dispersion, &slowdown);
     printf("[ALL]\t Makespan=%ld\t Util=%.8f\t Avg_Wait=(%.8f,%.8f,%ld,%ld,%ld)\t Dispersion=%.8f Slowdown=%.8f\n", makespan, util, avg_wait, std_wait, nwait, min_wait, max_wait, dispersion, slowdown);
