@@ -35,6 +35,7 @@ unsigned long long nresvs = 0;
 static int daemon_flag = 1;
 double clock_rate = 0.0;
 int *resv_action;
+int use_preset = 1;
 
 static void log_string(const char* type, char* msg)
 {
@@ -204,6 +205,12 @@ static int create_and_submit_job(job_trace_t jobd)
 
     slurm_init_job_desc_msg(&dmesg);
 
+    if (use_preset == 2) {
+        jobd.preset=1;
+    } else if (use_preset == 0) {
+        jobd.preset=0;
+    }
+
     dmesg.time_limit = jobd.timelimit;
     dmesg.job_id = jobd.id_job;
     dmesg.name = strdup(jobd.job_name);
@@ -348,12 +355,14 @@ static void submit_jobs_and_reservations()
     log_info("total job records: %lu, start time %ld", njobs, job_arr[0].time_submit);
     log_info("total reservation records: %lu", nresvs);
 
+    if (use_preset > 0) {
     for(kj = 0; kj < njobs; kj++) {
         if (job_arr[kj].preset) {
             create_and_submit_job(job_arr[kj]);
         } else {
             break;
         }
+    }
     }
 
     freq = one_second*clock_rate;
@@ -520,6 +529,7 @@ submitter -w <workload_trace> -t <template_script>\n\
       -D, --nodaemon do not daemonize the process\n\
       -r, --clockrate clock rate of the simulated clock\n\
       -m, --time_filename filename where a list of time for slowdown will be written\n\
+      -p, --preset use preset: 0 = none, 1 = job started before start date, 2 = all\n\
       -h, --help           This help message.\n";
 
 
@@ -533,12 +543,13 @@ static void get_args(int argc, char** argv)
         {"nodaemon", 0, 0, 'D'},
         {"clockrate", 1, 0, 'r'},
         {"time_filename", 1, 0, 'm'},
+	{"preset", 1, 0, 'p'},
         {"help", 0, 0, 'h'}
     };
     int opt_char, option_index;
 
     while (1) {
-        if ((opt_char = getopt_long(argc, argv, "ht:w:u:Dr:m:", long_options, &option_index)) == -1 )
+        if ((opt_char = getopt_long(argc, argv, "ht:w:u:Dr:m:p:", long_options, &option_index)) == -1 )
             break;
         switch(opt_char) {
         case ('t'):
@@ -546,6 +557,9 @@ static void get_args(int argc, char** argv)
             break;
         case ('m'):
             time_filename = strdup(optarg);
+            break;
+        case ('p'):
+            use_preset = atoi(optarg);
             break;
         case ('w'):
             workload_filename = strdup(optarg);
