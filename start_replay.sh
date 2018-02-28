@@ -58,17 +58,17 @@ trap "killall -q -9 $PROCESS_TOKILL" SIGTERM EXIT
 rm -Rf /dev/shm/ShmemClock*
 
 TIME_STARTPAD=600
-START_TIME="$(trace_list -n -w "$WORKLOAD" | awk '{print $4;}' | sort -n | head -n 1)"
+START_TIME="$(trace_list -n -w "$WORKLOAD" | awk '{print $5;}' | sort -n | head -n 1)"
 STR_START_TIME=$(date -d @$START_TIME +'%Y-%m-%d %H:%M:%S')
 START_TIME="$(( $START_TIME - $TIME_STARTPAD ))"
 
 TIME_ENDPAD=60
-END_TIME="$(trace_list -n -w "$WORKLOAD" | awk '{print $7;}' | sort -nr | head -n 1)"
+END_TIME="$(trace_list -n -w "$WORKLOAD" | awk '{print $8;}' | sort -nr | head -n 1)"
 END_TIME="$(( $END_TIME + $TIME_ENDPAD ))"
 
 NJOBS="$(trace_list -n -w "$WORKLOAD" | wc -l)"
 
-CONF_TIME="$(trace_list -n -w "$WORKLOAD" -u | awk '{print $4;}' | sort -n | head -n 1 | sed 's/2017/17/' | tr -d '-')"
+CONF_TIME="$(trace_list -n -w "$WORKLOAD" -u | awk '{print $5;}' | sort -n | head -n 1 | sed 's/2017/17/' | tr -d '-')"
 # Add initial time
 ticker -s "$START_TIME"
 
