@@ -455,6 +455,7 @@ int main(int argc, char **argv)
             resv_trace.time_start = strtol(row[1], NULL, 0);
             if (resv_trace.time_start < time_start) {
                 resv_trace.time_start = time_start;
+                resv_trace.preset = 1;
             }
             resv_trace.time_end = strtol(row[2], NULL, 0);
             if (resv_trace.time_end > time_end) {
@@ -493,7 +494,6 @@ int main(int argc, char **argv)
         if (result_node == NULL) {
             finish_with_error(conn);
         }
-
 
         num_rows = mysql_num_rows(result_node);
         cur_offset = lseek(trace_file, 0, SEEK_CUR);
@@ -538,6 +538,7 @@ int main(int argc, char **argv)
                     // event to write
                     if (fix_node_trace.time_start < time_start) {
                         fix_node_trace.time_start = time_start;
+                        fix_node_trace.preset = 1;
                     }
                     if (fix_node_trace.time_end > time_end) {
                         fix_node_trace.time_end = time_end;
@@ -558,6 +559,7 @@ int main(int argc, char **argv)
                         // special case for last one
                         if (fix_node_trace.time_start < time_start) {
                             fix_node_trace.time_start = time_start;
+                            fix_node_trace.preset = 1;
                         }
                         if (fix_node_trace.time_end > time_end) {
                             fix_node_trace.time_end = time_end;

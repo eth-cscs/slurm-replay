@@ -125,9 +125,17 @@ static void control_nodes()
     current_time= get_shmemclock();
     freq = one_second*clock_rate;
 
-    while( ks < nnodes && ke < nnodes ) {
+    for(ks = 0; ks < nnodes; ks++) {
+        if (node_arr_s[ks].preset) {
+            update_node_state(node_arr_s[ks], NODE_STATE_DRAIN);
+        } else {
+            break;
+        }
+    }
+
+    while( ks+ke < 2*nnodes ) {
         // wait for event either drain/maint node or resume node
-        while(current_time < node_arr_s[ks].time_start && current_time < node_arr_e[ke].time_end ) {
+        while((current_time < node_arr_s[ks].time_start || ks >=nnodes) && (current_time < node_arr_e[ke].time_end || ke >= nnodes)) {
             current_time = get_shmemclock();
             usleep(freq);
         }
@@ -287,6 +295,7 @@ int main(int argc, char *argv[], char *envp[])
 
     //Jobs and reservations are submit when the replayed time clock equal their submission time
     control_nodes();
+    log_info("node controler ends.");
 
     if (daemon_flag) fclose(logger);
 

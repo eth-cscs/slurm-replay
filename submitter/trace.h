@@ -35,6 +35,7 @@ typedef struct node_trace {
     char node_name[TINYTEXT_SIZE];
     char reason[TINYTEXT_SIZE];
     int state;
+    int preset;
 } node_trace_t;
 
 typedef struct resv_trace {
@@ -46,6 +47,7 @@ typedef struct resv_trace {
     char accts[TEXT_SIZE];
     char tres[TEXT_SIZE];
     int flags;
+    int preset;
 } resv_trace_t;
 
 #endif

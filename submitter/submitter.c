@@ -363,6 +363,15 @@ static void submit_jobs_and_reservations()
             break;
         }
     }
+
+    for(kr = 0; kr < nresvs; kr++) {
+        if (resv_arr[kr].preset) {
+            create_and_submit_resv(resv_arr[kr], resv_action[kr]);
+        } else {
+            break;
+        }
+    }
+
     }
 
     freq = one_second*clock_rate;
@@ -640,6 +649,7 @@ int main(int argc, char *argv[])
 
     //Jobs and reservations are submit when the replayed time clock equal their submission time
     submit_jobs_and_reservations();
+    log_info("submitter ends.");
 
     if (daemon_flag) fclose(logger);
 
