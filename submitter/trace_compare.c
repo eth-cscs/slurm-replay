@@ -214,7 +214,7 @@ if (nwork_jobs != nreplay_jobs) {
     }
     printf("%s : %.6f %.8f\n",field_name, avg_field, std_field);
     for(j = 0; j < min_jobs; j++) {
-	    printf(" (%d,%.6f)", jwt[j].id_job, dist[j]);
+	    printf(" %d, %.6f\n", jwt[j].id_job, dist[j]);
     }
     printf("\n");
 
