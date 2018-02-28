@@ -326,7 +326,7 @@ int main(int argc, char **argv)
     sprintf(query, "SELECT t.account, t.exit_code, t.job_name, "
                    "t.id_job, q.name, t.id_user, t.id_group, r.resv_name, t.nodelist, t.nodes_alloc, t.partition, t.state, "
                    "t.timelimit, t.time_submit, t.time_eligible, t.time_start, t.time_end, t.time_suspended, "
-                   "t.gres_alloc "
+                   "t.gres_alloc, t.priority "
                    "FROM %s as t LEFT JOIN %s as r ON t.id_resv = r.id_resv AND t.time_start >= r.time_start and t.time_end <= r.time_end "
                    "LEFT JOIN qos_table as q ON q.id = t.id_qos %s",
                     job_table, resv_table, where_statement);
@@ -407,6 +407,7 @@ int main(int argc, char **argv)
         }
         job_trace.time_suspended = strtol(row[17], NULL, 0);
         sprintf(job_trace.gres_alloc, "%s", row[18]);
+        job_trace.priority = atoi(row[19]);
 
         //printf("[%d] submit=%ld start=%ld end=%ld\n", job_trace.id_job,  job_trace.time_submit, job_trace.time_start, job_trace.time_end);
         if (use_dependencies) {

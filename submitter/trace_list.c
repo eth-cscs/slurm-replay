@@ -158,10 +158,10 @@ int main(int argc, char *argv[])
     }
 
     if (!noheader) {
-        printf("\t%10s \t%10s \t%10s \t%19s \t%19s \t%19s \t%19s \t%10s \t%8s \t%8s \t%10s \t%10s \t%10s \t%10s \t%10s \t%10s \t%10s \t%8s\n",
-               "JOBID", "ACCOUNT", "DURATION", "SUBMIT", "ELIGIBLE", "START", "END", "TIMELIMIT", "NODES", "EXITCODE", "STATE", "RESERVATION", "USERID", "NODELIST", "PARTITION","QOS","DEPENDENCIES","SWITCHES");
-        printf("\t%10s \t%10s \t%10s \t%19s \t%19s \t%19s \t%19s \t%10s \t%8s \t%8s \t%10s \t%10s \t%10s \t%10s \t%10s \t%10s \t%10s \t%8s\n",
-               "=====", "=======", "========", "======", "========", "=====", "===", "=========", "=====", "========", "=====", "===========", "======", "========", "=========","===","============","=========");
+        printf("\t%10s \t%10s \t%8s \t%10s \t%19s \t%19s \t%19s \t%19s \t%10s \t%8s \t%8s \t%10s \t%10s \t%10s \t%10s \t%10s \t%10s \t%10s \t%8s\n",
+               "JOBID", "ACCOUNT", "PRIORITY", "DURATION", "SUBMIT", "ELIGIBLE", "START", "END", "TIMELIMIT", "NODES", "EXITCODE", "STATE", "RESERVATION", "USERID", "NODELIST", "PARTITION","QOS","DEPENDENCIES","SWITCHES");
+        printf("\t%10s \t%10s \t%8s \t%10s \t%19s \t%19s \t%19s \t%19s \t%10s \t%8s \t%8s \t%10s \t%10s \t%10s \t%10s \t%10s \t%10s \t%10s \t%8s\n",
+               "=====", "=======", "========", "========", "======", "========", "=====", "===", "=========", "=====", "========", "=====", "===========", "======", "========", "=========","===","============","=========");
     }
 
     job_arr = (job_trace_t*)malloc(sizeof(job_trace_t)*num_rows);
@@ -179,9 +179,10 @@ int main(int argc, char *argv[])
             sprintf(end, "%ld", job_arr[k].time_end);
         }
 
-        printf("\t%10d \t%10s \t%10ld \t%19s \t%19s \t%19s \t%19s \t%10d \t%8d \t%8d \t%10s \t%10s \t%10d \t%10s \t%10s \t%10s \t%10s \t%8d \t%s\n",
+        printf("\t%10d \t%10s \t%8d \t%10ld \t%19s \t%19s \t%19s \t%19s \t%10d \t%8d \t%8d \t%10s \t%10s \t%10d \t%10s \t%10s \t%10s \t%10s \t%8d \t%s\n",
                job_arr[k].id_job,
                job_arr[k].account,
+	       job_arr[k].priority,
                job_arr[k].time_end - job_arr[k].time_start,
                submit,
                eligible,
