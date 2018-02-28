@@ -9,8 +9,7 @@ ENV REPLAY_USER $REPLAY_USER
 
 # install packages
 # Note do not install sudo - sudo does not work within Shifter
-RUN pacman -Sy --noconfirm autoconf automake gcc make mariadb wget patch python gtk2 pkgconf git fakeroot vim bc groff \
-                           gdb valgrind strace && \
+RUN pacman -Sy --noconfirm autoconf automake git gawk gcc mpfr make mariadb wget patch python gtk2 pkgconf fakeroot vim bc groff gdb valgrind strace && \
                rm -rf /var/cache/pacman/pkg
 
 # set timezone to CET
@@ -25,21 +24,13 @@ RUN useradd -ms /bin/bash $REPLAY_USER && \
     sed -i -e "s/#innodb_log_file_size[[:space:]]*=.*/innodb_log_file_size=64M/g" /etc/mysql/my.cnf && \
     sed -i -e "s/#innodb_lock_wait_timeout[[:space:]]*=.*/innodb_lock_wait_timeout=900/g" /etc/mysql/my.cnf
 
-# munge is in AUR
 USER $REPLAY_USER
-RUN cd /home/$REPLAY_USER && \
-    git clone https://aur.archlinux.org/munge.git && \
-    cd munge && \
-    makepkg -s --noconfirm
-USER root
-# take opportunity to be root to copy slurm-replay and chown it
 COPY . /home/$REPLAY_USER/slurm-replay
-RUN pacman -U --noconfirm /home/$REPLAY_USER/munge/munge-*.pkg.tar.xz && \
-    rm -Rf /home/$REPLAY_USER/munge && \
-    chown -R $REPLAY_USER:$REPLAY_USER /home/$REPLAY_USER/slurm-replay
+
+USER root
+RUN chown -R $REPLAY_USER:$REPLAY_USER /home/$REPLAY_USER/slurm-replay
 
 USER $REPLAY_USER
-
 # install replay libraries - libwtime need to be built before slurm
 RUN cd /home/$REPLAY_USER/slurm-replay/distime && \
     make
@@ -52,7 +43,7 @@ RUN cd /home/$REPLAY_USER && \
     patch -p1 < ../slurm-replay/patch/slurm_shmemclock.patch && \
     patch -p1 < ../slurm-replay/patch/slurm_avoidstepmonitor.patch && \
     ./autogen.sh && \
-    ./configure --prefix=/home/$REPLAY_USER/slurmR --enable-pam --enable-front-end --with-clock=/home/$REPLAY_USER/slurm-replay/distime --disable-debug && \
+    ./configure --prefix=/home/$REPLAY_USER/slurmR --enable-pam --enable-front-end --with-clock=/home/$REPLAY_USER/slurm-replay/distime --disable-debug --without-munge CFLAGS="-g -O3 -D NDEBUG=1" && \
     make -j4 && make -j4 install && \
     mkdir /home/$REPLAY_USER/slurmR/etc && \
     mkdir /home/$REPLAY_USER/slurmR/log && \
