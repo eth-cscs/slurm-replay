@@ -238,9 +238,9 @@ static int create_and_submit_job(job_trace_t jobd)
     // TODO: Daint specific, check if string starts with "gpu:0" meaning using constraint mc for all partitions except xfer
     // Note that sometime the string "gpu" is changed to the number "7696487" in the prodcution db.
     if (strncmp("gpu:0", jobd.gres_alloc, 5) == 0 || strncmp("7696487:0", jobd.gres_alloc,9) == 0) {
-       if (strcmp(jobd.partition, "xfer") != 0) {
+        if (strcmp(jobd.partition, "xfer") != 0) {
             dmesg.features = strdup("mc");
-       }
+        }
     } else {
         if (strncmp("gpu:", jobd.gres_alloc, 4) == 0 || strncmp("7696487:", jobd.gres_alloc,8) == 0) {
             dmesg.features = strdup("gpu");
@@ -351,21 +351,21 @@ static void submit_preset_jobs_and_reservations(unsigned long long *npreset_job,
     log_info("total reservation records: %llu", nresvs);
 
     if (use_preset > 0) {
-    for(kj = 0; kj < njobs; kj++) {
-        if (job_arr[kj].preset) {
-            create_and_submit_job(job_arr[kj]);
-        } else {
-            break;
+        for(kj = 0; kj < njobs; kj++) {
+            if (job_arr[kj].preset) {
+                create_and_submit_job(job_arr[kj]);
+            } else {
+                break;
+            }
         }
-    }
 
-    for(kr = 0; kr < nresvs; kr++) {
-        if (resv_arr[kr].preset && resv_action[kr] == RESV_CREATE) {
-            create_and_submit_resv(resv_arr[kr], resv_action[kr]);
-        } else {
-            break;
+        for(kr = 0; kr < nresvs; kr++) {
+            if (resv_arr[kr].preset && resv_action[kr] == RESV_CREATE) {
+                create_and_submit_resv(resv_arr[kr], resv_action[kr]);
+            } else {
+                break;
+            }
         }
-    }
     }
     *npreset_job=kj;
     *npreset_resv=kr;
@@ -557,7 +557,7 @@ static void get_args(int argc, char** argv)
         {"nodaemon", 0, 0, 'D'},
         {"clockrate", 1, 0, 'r'},
         {"time_filename", 1, 0, 'm'},
-	{"preset", 1, 0, 'p'},
+        {"preset", 1, 0, 'p'},
         {"help", 0, 0, 'h'}
     };
     int opt_char, option_index;

@@ -182,7 +182,7 @@ int main(int argc, char *argv[])
         printf("\t%10d \t%10s \t%8d \t%10ld \t%19s \t%19s \t%19s \t%19s \t%10d \t%8d \t%8d \t%10s \t%10s \t%10d \t%10s \t%10s \t%10s \t%10s \t%8d \t%s\n",
                job_arr[k].id_job,
                job_arr[k].account,
-	       job_arr[k].priority,
+               job_arr[k].priority,
                job_arr[k].time_end - job_arr[k].time_start,
                submit,
                eligible,

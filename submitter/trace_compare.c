@@ -11,11 +11,11 @@
 #include "trace.h"
 
 typedef enum field {
-	submit = 0,
-	eligible,
-	start,
-	end,
-	duration
+    submit = 0,
+    eligible,
+    start,
+    end,
+    duration
 } fields;
 
 fields f = submit;
@@ -51,22 +51,22 @@ void getArgs(int argc, char** argv)
             replay_trace_file = strdup(optarg);
             break;
         case ('f'):
-	    field_name = strdup(optarg);
-	    if (strcmp("submit",optarg) == 0) {
-		    f = submit;
-	    }
-	    if (strcmp("eligible",optarg) == 0) {
-		    f = eligible;
-	    }
-	    if (strcmp("start",optarg) == 0) {
-		    f = start;
-	    }
-	    if (strcmp("end",optarg) == 0) {
-		    f = end;
-	    }
-	    if (strcmp("duration",optarg) == 0) {
-		    f = duration;
-	    }
+            field_name = strdup(optarg);
+            if (strcmp("submit",optarg) == 0) {
+                f = submit;
+            }
+            if (strcmp("eligible",optarg) == 0) {
+                f = eligible;
+            }
+            if (strcmp("start",optarg) == 0) {
+                f = start;
+            }
+            if (strcmp("end",optarg) == 0) {
+                f = end;
+            }
+            if (strcmp("duration",optarg) == 0) {
+                f = duration;
+            }
             break;
         case ('h'):
             printf("%s\n", help_msg);
@@ -83,9 +83,9 @@ static inline double euclidean_dist(time_t x, time_t y)
 
 int job_compare(const void *s1, const void *s2)
 {
-  job_trace_t *e1 = (job_trace_t*)s1;
-  job_trace_t *e2 = (job_trace_t*)s2;
-  return e1->id_job - e2->id_job;
+    job_trace_t *e1 = (job_trace_t*)s1;
+    job_trace_t *e2 = (job_trace_t*)s2;
+    return e1->id_job - e2->id_job;
 }
 
 
@@ -135,10 +135,10 @@ int main(int argc, char *argv[])
 
 
     min_jobs = nreplay_jobs;
-if (nwork_jobs != nreplay_jobs) {
-    printf("Missmatch of number of jobs: (%llu != %llu). Exiting.\n",nwork_jobs,nreplay_jobs);
-    exit(-1);
-}
+    if (nwork_jobs != nreplay_jobs) {
+        printf("Missmatch of number of jobs: (%llu != %llu). Exiting.\n",nwork_jobs,nreplay_jobs);
+        exit(-1);
+    }
     dist = (double*)malloc(min_jobs*sizeof(double));
     jwt = (job_trace_t*)malloc(min_jobs*sizeof(job_trace_t));
     jrt = (job_trace_t*)malloc(min_jobs*sizeof(job_trace_t));
@@ -169,30 +169,30 @@ if (nwork_jobs != nreplay_jobs) {
             jrt_max_end = jrt[j].time_end;
         }
 
-	if (f == duration) {
-		t1 = jwt[j].time_end - jwt[j].time_start;
-		t2 = jrt[j].time_end - jrt[j].time_start;
-		dist[j] = euclidean_dist(t1,t2);
-	}
-	if (f == submit) {
-        t1 = jwt[j].time_submit;
-        t2 = jrt[j].time_submit;
-        dist[j] = euclidean_dist(t1,t2);
+        if (f == duration) {
+            t1 = jwt[j].time_end - jwt[j].time_start;
+            t2 = jrt[j].time_end - jrt[j].time_start;
+            dist[j] = euclidean_dist(t1,t2);
         }
-	if (f == eligible) {
-        t1 = jwt[j].time_eligible;
-        t2 = jrt[j].time_eligible;
-        dist[j] = euclidean_dist(t1,t2);
+        if (f == submit) {
+            t1 = jwt[j].time_submit;
+            t2 = jrt[j].time_submit;
+            dist[j] = euclidean_dist(t1,t2);
         }
-	if (f == start) {
-        t1 = jwt[j].time_start;
-        t2 = jrt[j].time_start;
-        dist[j] = euclidean_dist(t1,t2);
+        if (f == eligible) {
+            t1 = jwt[j].time_eligible;
+            t2 = jrt[j].time_eligible;
+            dist[j] = euclidean_dist(t1,t2);
         }
-	if (f == end) {
-        t1 = jwt[j].time_end;
-        t2 = jrt[j].time_end;
-        dist[j] = euclidean_dist(t1,t2);
+        if (f == start) {
+            t1 = jwt[j].time_start;
+            t2 = jrt[j].time_start;
+            dist[j] = euclidean_dist(t1,t2);
+        }
+        if (f == end) {
+            t1 = jwt[j].time_end;
+            t2 = jrt[j].time_end;
+            dist[j] = euclidean_dist(t1,t2);
         }
     }
 
@@ -201,7 +201,7 @@ if (nwork_jobs != nreplay_jobs) {
     printf("Makespan differences: %ld\n", (jrt_max_end - jrt_min_start) -  (jwt_max_end - jwt_min_start));
     cum_field = 0;
     for(j = 0; j < min_jobs; j++) {
-	    cum_field+=dist[j];
+        cum_field+=dist[j];
     }
     avg_field = cum_field/min_jobs;
     cum_stddev_field = 0;
@@ -210,11 +210,11 @@ if (nwork_jobs != nreplay_jobs) {
     }
     std_field = sqrt(cum_stddev_field/min_jobs);
     if (field_name == NULL) {
-	    field_name = strdup("submit");
+        field_name = strdup("submit");
     }
     printf("%s : %.6f %.8f\n",field_name, avg_field, std_field);
     for(j = 0; j < min_jobs; j++) {
-	    printf(" %d, %.6f\n", jwt[j].id_job, dist[j]);
+        printf(" %d, %.6f\n", jwt[j].id_job, dist[j]);
     }
     printf("\n");
 

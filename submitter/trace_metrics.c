@@ -42,7 +42,8 @@ void getArgs(int argc, char** argv)
     }
 }
 
-void compute_metrics(job_trace_t *job_arr, unsigned long long njobs, unsigned long long Nnodes, long *makespan, double *util, double *avg_wait, double *std_wait, long *min_wait, long *max_wait, long *nwait, double *dispersion, double *slowdown) {
+void compute_metrics(job_trace_t *job_arr, unsigned long long njobs, unsigned long long Nnodes, long *makespan, double *util, double *avg_wait, double *std_wait, long *min_wait, long *max_wait, long *nwait, double *dispersion, double *slowdown)
+{
     unsigned long long j;
     long *time_submit_arr;
     long *time_exec_arr; // end-start

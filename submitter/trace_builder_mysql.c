@@ -199,8 +199,8 @@ get_args(int argc, char** argv)
             break;
         case ('w'):
             use_where = 0;
-	    do_resv = 0;
-	    do_event = 0;
+            do_resv = 0;
+            do_event = 0;
             break;
         case ('e'):
             endtime = optarg;
@@ -301,21 +301,21 @@ int main(int argc, char **argv)
 
     memset(where_statement,'\0',256);
     if (use_where) {
-		/*validate input parameter to build the query*/
-		if (endtime == NULL){
-		    printf("endtime cannot be NULL!\n");
-		    print_usage();
-		    exit(-1);
-		}
+        /*validate input parameter to build the query*/
+        if (endtime == NULL) {
+            printf("endtime cannot be NULL!\n");
+            print_usage();
+            exit(-1);
+        }
 
-		memset(&tmVar, 0, sizeof(struct tm));
-		if ( strptime(endtime, "%Y-%m-%d %H:%M:%S", &tmVar) != NULL ) {
-		    time_end = mktime(&tmVar)+CET;
-		} else {
-		    printf("ERROR: endtime not valid.\n");
-		    print_usage();
-		    exit(-1);
-		}
+        memset(&tmVar, 0, sizeof(struct tm));
+        if ( strptime(endtime, "%Y-%m-%d %H:%M:%S", &tmVar) != NULL ) {
+            time_end = mktime(&tmVar)+CET;
+        } else {
+            printf("ERROR: endtime not valid.\n");
+            print_usage();
+            exit(-1);
+        }
 
         sprintf(where_statement,
                 "WHERE t.time_submit < %lu AND t.time_end > %lu AND t.time_start < %lu AND "
@@ -324,12 +324,12 @@ int main(int argc, char **argv)
     }
     memset(query,'\0',1024);
     sprintf(query, "SELECT t.account, t.exit_code, t.job_name, "
-                   "t.id_job, q.name, t.id_user, t.id_group, r.resv_name, t.nodelist, t.nodes_alloc, t.partition, t.state, "
-                   "t.timelimit, t.time_submit, t.time_eligible, t.time_start, t.time_end, t.time_suspended, "
-                   "t.gres_alloc, t.priority "
-                   "FROM %s as t LEFT JOIN %s as r ON t.id_resv = r.id_resv AND t.time_start >= r.time_start and t.time_end <= r.time_end "
-                   "LEFT JOIN qos_table as q ON q.id = t.id_qos %s",
-                    job_table, resv_table, where_statement);
+            "t.id_job, q.name, t.id_user, t.id_group, r.resv_name, t.nodelist, t.nodes_alloc, t.partition, t.state, "
+            "t.timelimit, t.time_submit, t.time_eligible, t.time_start, t.time_end, t.time_suspended, "
+            "t.gres_alloc, t.priority "
+            "FROM %s as t LEFT JOIN %s as r ON t.id_resv = r.id_resv AND t.time_start >= r.time_start and t.time_end <= r.time_end "
+            "LEFT JOIN qos_table as q ON q.id = t.id_qos %s",
+            job_table, resv_table, where_statement);
     printf("\nQuery --> %s\n\n", query);
 
     if (mysql_query(conn, query)) {

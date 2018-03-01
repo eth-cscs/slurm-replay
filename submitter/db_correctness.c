@@ -106,10 +106,10 @@ int main(int argc, char **argv)
 
     memset(query,'\0',1024);
     sprintf(query,"UPDATE %s AS j JOIN %s AS s "
-		  "ON s.job_db_inx=j.job_db_inx "
-		  "SET j.time_start = s.time_start "
-		  "WHERE j.time_start=0",
-                    job_table, step_table);
+            "ON s.job_db_inx=j.job_db_inx "
+            "SET j.time_start = s.time_start "
+            "WHERE j.time_start=0",
+            job_table, step_table);
     printf("\nQuery --> %s\n\n", query);
 
     if (mysql_query(conn, query)) {

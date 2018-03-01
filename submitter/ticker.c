@@ -206,11 +206,11 @@ int main(int argc, char *argv[])
                 }
                 tmp_time = get_shmemclock();
                 if (freq == freq_slow) {
-                   amount_slow += k;
-                   freq = freq_fast;
+                    amount_slow += k;
+                    freq = freq_fast;
                 } else {
-                   amount_fast += k;
-                   freq = freq_slow;
+                    amount_fast += k;
+                    freq = freq_slow;
                 }
             }
             freq = freq_slow;
