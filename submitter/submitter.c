@@ -343,17 +343,12 @@ static void create_and_submit_resv(resv_trace_t resvd, int action)
     if (output_name) free(output_name);
 }
 
-static void submit_jobs_and_reservations()
+static void submit_preset_jobs_and_reservations(unsigned long long *npreset_job, unsigned long long *npreset_resv)
 {
-    const int one_second = 1000000;
-    int freq;
-    time_t current_time = 0;
     unsigned long long kj = 0, kr = 0;
 
-    current_time = get_shmemclock();
-
-    log_info("total job records: %lu, start time %ld", njobs, job_arr[0].time_submit);
-    log_info("total reservation records: %lu", nresvs);
+    log_info("total job records: %llu, start time %ld", njobs, job_arr[0].time_submit);
+    log_info("total reservation records: %llu", nresvs);
 
     if (use_preset > 0) {
     for(kj = 0; kj < njobs; kj++) {
@@ -365,14 +360,27 @@ static void submit_jobs_and_reservations()
     }
 
     for(kr = 0; kr < nresvs; kr++) {
-        if (resv_arr[kr].preset) {
+        if (resv_arr[kr].preset && resv_action[kr] == RESV_CREATE) {
             create_and_submit_resv(resv_arr[kr], resv_action[kr]);
         } else {
             break;
         }
     }
-
     }
+    *npreset_job=kj;
+    *npreset_resv=kr;
+}
+
+static void submit_jobs_and_reservations(unsigned long long npreset_job, unsigned long long npreset_resv)
+{
+    const int one_second = 1000000;
+    int freq;
+    time_t current_time = 0;
+    unsigned long long kj, kr;
+    kj = npreset_job;
+    kr = npreset_resv;
+
+    current_time = get_shmemclock();
 
     freq = one_second*clock_rate;
     while( kj < njobs || kr < nresvs ) {
@@ -381,16 +389,13 @@ static void submit_jobs_and_reservations()
             current_time = get_shmemclock();
             usleep(freq);
         }
-
-        if (current_time >= job_arr[kj].time_submit && kj < njobs) {
-            //log_info("submitting %d job: time %lu | id %d", k, job_arr[k].time_submit, job_arr[k].id_job);
-            create_and_submit_job(job_arr[kj]);
-            kj++;
-        }
-        if (current_time >= resv_arr[kr].time_start && kr < nresvs) {
-            //log_info("submitting %d reservation: time %lu | name %s", k, resv_arr[k].time_start, resv_arr[k].resv_name);
+        while (current_time >= resv_arr[kr].time_start && kr < nresvs) {
             create_and_submit_resv(resv_arr[kr], resv_action[kr]);
             kr++;
+        }
+        while (current_time >= job_arr[kj].time_submit && kj < njobs) {
+            create_and_submit_job(job_arr[kj]);
+            kj++;
         }
     }
 }
@@ -617,14 +622,13 @@ void daemonize(int daemon_flag)
         close(STDIN_FILENO);
         close(STDOUT_FILENO);
         close(STDERR_FILENO);
-
-        logger = fopen("log/submitter.log", "w+");
     }
 }
 
 
 int main(int argc, char *argv[])
 {
+    unsigned long long npreset_job, npreset_resv;
     logger = stdout;
 
     //Open shared priority queue for time clock
@@ -642,16 +646,21 @@ int main(int argc, char *argv[])
         exit(-1);
     }
 
-    // goes in daemon state
-    daemonize(daemon_flag);
+    logger = fopen("log/submitter.log", "w+");
 
     userids_from_name();
 
     //Jobs and reservations are submit when the replayed time clock equal their submission time
-    submit_jobs_and_reservations();
+    submit_preset_jobs_and_reservations(&npreset_job, &npreset_resv);
+    log_info("Number of presets: jobs=%llu resvs=%llu\n", npreset_job, npreset_resv);
+
+    // goes in daemon state
+    daemonize(daemon_flag);
+
+    submit_jobs_and_reservations(npreset_job, npreset_resv);
     log_info("submitter ends.");
 
-    if (daemon_flag) fclose(logger);
+    fclose(logger);
 
     free(job_arr);
     free(resv_arr);
