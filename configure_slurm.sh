@@ -23,6 +23,7 @@ sed -i -e "/SlurmdTimeout[[:space:]]*=/ s/SlurmdTimeout[[:space:]]*=[[:digit:]]*
 
 # Debug level
 sed -i -e "/SlurmdDebug[[:space:]]*=/ s/info/error/" $FILE
+sed -i -e "/SlurmctldDebug[[:space:]]*=/ s/debug/error/" $FILE
 
 # Set up to local hosts
 sed -i -e "/ControlMachine[[:space:]]*=/ s/daint.*/localhost/" $FILE
