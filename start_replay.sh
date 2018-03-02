@@ -57,12 +57,12 @@ trap "killall -q -9 $PROCESS_TOKILL" SIGTERM EXIT
 
 rm -Rf /dev/shm/ShmemClock*
 
-TIME_STARTPAD=600
+TIME_STARTPAD=5
 START_TIME="$(trace_list -n -w "$WORKLOAD" | awk '{print $5;}' | sort -n | head -n 1)"
 STR_START_TIME=$(date -d @$START_TIME +'%Y-%m-%d %H:%M:%S')
 START_TIME="$(( $START_TIME - $TIME_STARTPAD ))"
 
-TIME_ENDPAD=60
+TIME_ENDPAD=5
 END_TIME="$(trace_list -n -w "$WORKLOAD" | awk '{print $8;}' | sort -nr | head -n 1)"
 END_TIME="$(( $END_TIME + $TIME_ENDPAD ))"
 
@@ -99,7 +99,8 @@ sleep 5
 ticker -o -n "$NJOBS"
 sdiag -a
 echo "current date: $(date)"
-
+NJOBS_ACTIVE=$(($(squeue | wc -l) -1))
+echo "njobs still active at the end of replay: $NJOBS_ACTIVE"
 echo -n "Collecting data... "
 # correct the db, Slurm bug: some time_start may not be filled in the job_table while they are correct in the step_table
 # http://slurm-dev.schedmd.narkive.com/FkIMYBpQ/consistency-checks-and-missing-time-start-in-slurmdbd
@@ -123,10 +124,3 @@ grep -E "\[[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}\] erro
 cat $REPLAY_WORKLOAD_DIR/error.log
 cp $LOGFILE $REPLAY_WORKLOAD_DIR
 trace_metrics -w "$REPLAY_WORKLOAD" > $REPLAY_WORKLOAD_DIR/metrics.log
-
-# Gather statistics from slurm
-#echo "Slurm schedule statistics"
-#echo "sreport"
-#START_DATE=$(date -d @$START_TIME +%Y-%m-%dT%H:%M)
-#END_DATE=$(date -d @$END_TIME +%Y-%m-%dT%H:%M)
-

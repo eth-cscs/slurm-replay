@@ -98,11 +98,7 @@ int main(int argc, char *argv[])
     get_args(argc, argv);
 
     start_time = get_shmemclock();
-    if(preset) {
-        end_time = time_end;
-    } else {
-        end_time = start_time+duration;
-    }
+    end_time = start_time+duration;
 
     strftime(strstart_time, sizeof(strstart_time), "%Y-%m-%d %H:%M:%S", localtime(&start_time));
     strftime(strend_time, sizeof(strend_time), "%Y-%m-%d %H:%M:%S", localtime(&end_time));
