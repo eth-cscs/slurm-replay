@@ -42,17 +42,18 @@ RUN cd /home/$REPLAY_USER && \
     cd slurm-$SLURM_VERSION && \
     patch -p1 < ../slurm-replay/patch/slurm_shmemclock.patch && \
     patch -p1 < ../slurm-replay/patch/slurm_avoidstepmonitor.patch && \
+    patch -p1 < ../slurm-replay/patch/slurm_explicitpriority.patch && \
     ./autogen.sh && \
     ./configure --prefix=/home/$REPLAY_USER/slurmR --enable-pam --enable-front-end --with-clock=/home/$REPLAY_USER/slurm-replay/distime --disable-debug --without-munge CFLAGS="-g -O3 -D NDEBUG=1" && \
     make -j4 && make -j4 install && \
     mkdir /home/$REPLAY_USER/slurmR/etc && \
     mkdir /home/$REPLAY_USER/slurmR/log && \
     rm -Rf /home/$REPLAY_USER/slurm-$SLURM_VERSION.tar.bz2 && \
-    rm -Rf /home/$REPLAY_USER/slurm-$SLURM_VERSION/ && \
     cd /home/$REPLAY_USER/slurm-replay && \
     ln -s /home/$REPLAY_USER/slurmR/log log && \
     ln -s /home/$REPLAY_USER/slurmR/etc etc
 
+#    rm -Rf /home/$REPLAY_USER/slurm-$SLURM_VERSION/ && \
 # install replay binaries, need to be done after installing slurm (depend on libslurm)
 RUN cd /home/$REPLAY_USER/slurm-replay/submitter && \
     make

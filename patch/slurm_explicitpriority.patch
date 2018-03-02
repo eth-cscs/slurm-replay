@@ -1,0 +1,13 @@
+diff -rBu slurm-17.02.9.org/src/slurmctld/job_mgr.c slurm-17.02.9.new/src/slurmctld/job_mgr.c
+--- slurm-17.02.9.org/src/slurmctld/job_mgr.c	2018-01-29 09:40:29.000000000 +0100
++++ slurm-17.02.9.new/src/slurmctld/job_mgr.c	2018-03-02 11:00:30.000000000 +0100
+@@ -4351,6 +4351,9 @@
+ 	 */
+ 	if (job_ptr->priority == NO_VAL)
+ 		set_job_prio(job_ptr);
++    // if priority is explicitly in the job_specs set then use it
++    if (job_specs->priority && job_specs->priority != NO_VAL)
++        job_ptr->priority = job_specs->priority;
+ 
+ 	if (independent &&
+ 	    (license_job_test(job_ptr, time(NULL)) != SLURM_SUCCESS))

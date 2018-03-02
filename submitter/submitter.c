@@ -261,6 +261,7 @@ static int create_and_submit_job(job_trace_t jobd)
     if (jobd.preset) {
         // add hostlist to recreate initial state
         dmesg.req_nodes = strdup(jobd.nodelist);
+	dmesg.priority = jobd.priority;
     }
 
     duration = jobd.time_end - jobd.time_start;
