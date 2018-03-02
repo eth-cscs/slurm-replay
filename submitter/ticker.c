@@ -32,7 +32,6 @@ int enable_get = 0;
 int enable_clock = 0;
 time_t time_evt = 0;
 time_t endtime_evt = 0;
-time_t hard_endtime = 0;
 double rate = 0.1;
 int tick = 1;
 int enable_over = 0;
@@ -72,7 +71,6 @@ get_args(int argc, char** argv)
             }
             endtime_v[i] = '\0';
             endtime_evt = strtoul(endtime_v,NULL,10);
-            hard_endtime = endtime_evt+12*3600;
             if (clock_v[i] == ',') {
                 i++;
                 k = 0;
@@ -120,26 +118,43 @@ get_args(int argc, char** argv)
     }
 }
 
-static inline int is_schedule()
+static inline int active_queue_len()
+{
+    int count;
+    job_info_msg_t  * job_buffer_ptr = NULL;
+
+    if ( slurm_load_jobs ((time_t) NULL, &job_buffer_ptr, SHOW_ALL) ) {
+        slurm_perror ("slurm_load_jobs error");
+        exit (1);
+    }
+
+    count = job_buffer_ptr->record_count;
+    slurm_free_job_info_msg (job_buffer_ptr);
+    return count;
+}
+
+static inline int all_submitted()
 {
     int i;
     unsigned long jobs_submit = 0;
-    unsigned long jobs_complete = 0;
     stats_info_response_msg_t *stat_info;
     stats_info_request_msg_t stat_req;
 
     stat_req.command_id = STAT_COMMAND_GET;
     slurm_get_statistics(&stat_info, &stat_req);
     for(i = 0; i < stat_info->rpc_type_size; i++) {
-        if (stat_info->rpc_type_id[i] == REQUEST_SUBMIT_BATCH_JOB)
+        if (stat_info->rpc_type_id[i] == REQUEST_SUBMIT_BATCH_JOB) {
             jobs_submit = stat_info->rpc_type_cnt[i];
-        if (stat_info->rpc_type_id[i] == REQUEST_COMPLETE_BATCH_SCRIPT)
-            jobs_complete = stat_info->rpc_type_cnt[i];
-        if (jobs_complete > 0 && jobs_submit > 0)
             break;
+        }
     }
     // check if all jobs were submitted
-    return jobs_submit != njobs || jobs_complete != jobs_submit;
+    return jobs_submit == njobs;
+}
+
+static inline int is_schedule()
+{
+    return !all_submitted() || active_queue_len() > 0;
 }
 
 int main(int argc, char *argv[])
@@ -155,6 +170,8 @@ int main(int argc, char *argv[])
     time_t tmp_time, amount_slow, amount_fast;
     long maxtick = 0;
     long k, j;
+    time_t hard_endtime = 0;
+    int queue;
 
     get_args(argc, argv);
 
@@ -188,8 +205,7 @@ int main(int argc, char *argv[])
         tmp_time = get_shmemclock();
         strftime(strstart_time, sizeof(strstart_time), "%Y-%m-%d %H:%M:%S", localtime(&tmp_time));
         strftime(strend_time, sizeof(strend_time), "%Y-%m-%d %H:%M:%S", localtime(&endtime_evt));
-        strftime(strhard_time, sizeof(strhard_time), "%Y-%m-%d %H:%M:%S", localtime(&hard_endtime));
-        printf("Clock: njobs=%lu start='%s', end='%s', hard='%s', duration=%ld[s], rate=(%.5f|%.5f)[s] for 1 replayed second\n", njobs, strstart_time, strend_time, strhard_time, endtime_evt-tmp_time, rate/tick, (rate/2.0)/tick);
+        printf("Clock: njobs=%lu start='%s', end='%s', duration=%ld[s], rate=(%.5f|%.5f)[s] for 1 replayed second\n", njobs, strstart_time, strend_time, endtime_evt-tmp_time, rate/tick, (rate/2.0)/tick);
         fflush(stdin);
         freq_slow = one_second*rate;
         freq_fast = one_second*(rate/2.0);
@@ -223,24 +239,27 @@ int main(int argc, char *argv[])
             k++;
         }
 
-        /*tmp_time = get_shmemclock();
-        if (tmp_time < endtime_evt) {
-            strftime(strstart_time, sizeof(strstart_time), "%Y-%m-%d %H:%M:%S", localtime(&tmp_time));
-            printf("Exausted ticks - time not reached %ld -- %s\n", tmp_time, strstart_time);
-            while(get_shmemclock() < endtime_evt) {
-                usleep(freq);
-                incr_shmemclock(tick);
-            }
-        }*/
-
         if (is_schedule()) {
             tmp_time = get_shmemclock();
+            queue = active_queue_len();
+            hard_endtime = tmp_time + queue/10.0*3600;
             strftime(strstart_time, sizeof(strstart_time), "%Y-%m-%d %H:%M:%S", localtime(&tmp_time));
-            printf("Schedule not finished - time %ld -- %s\n", tmp_time, strstart_time);
-            while(is_schedule() && get_shmemclock() < hard_endtime) {
+            strftime(strhard_time, sizeof(strhard_time), "%Y-%m-%d %H:%M:%S", localtime(&hard_endtime));
+            printf("Schedule not finished - current %s - hard end %s - njobs %d\n", strstart_time, strhard_time, queue);
+            while(get_shmemclock() < hard_endtime) {
                 usleep(freq);
                 incr_shmemclock(tick);
                 k++;
+                if (k % 3600 == 0) {
+                    if (!is_schedule()) {
+                        break;
+                    } else {
+                        tmp_time = get_shmemclock();
+                        queue = active_queue_len();
+                        strftime(strstart_time, sizeof(strstart_time), "%Y-%m-%d %H:%M:%S", localtime(&tmp_time));
+                        printf("Schedule not finished - current %s - hard end %s - njobs %d\n", strstart_time, strhard_time, queue);
+                    }
+                }
             }
             if (get_shmemclock() >= hard_endtime) {
                 printf("Hard end time reached at %s\n", strhard_time);
