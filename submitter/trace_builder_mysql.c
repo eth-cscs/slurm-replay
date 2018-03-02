@@ -257,7 +257,7 @@ int main(int argc, char **argv)
     char where_statement[256];
     size_t query_length;
     //unsigned int num_fields;
-    unsigned long long num_rows;
+    unsigned long long num_rows, npreset_jobs;
     unsigned long long w_num_rows, k;
     unsigned long long count_dep;
 
@@ -363,6 +363,7 @@ int main(int argc, char **argv)
         load_dependency(dep_filename, count_dep);
     }
 
+    npreset_jobs=0;
     while ((row = mysql_fetch_row(result_job))) {
 
         /*for( i = 0; i < num_fields; i++) {
@@ -392,6 +393,7 @@ int main(int argc, char **argv)
         if (job_trace.time_submit < time_start) {
             job_trace.time_submit = time_start;
             job_trace.preset = 1;
+            npreset_jobs++;
         }
         job_trace.time_eligible = strtol(row[14], NULL, 0);
         if (job_trace.time_eligible < time_start) {
@@ -425,7 +427,7 @@ int main(int argc, char **argv)
 
     }
 
-    printf("\nSuccessfully written file %s : Total number of jobs = %llu\n", filename, num_rows);
+    printf("\nSuccessfully written file %s : Total number of jobs = %llu, preset jobs = %llu\n", filename, num_rows, npreset_jobs);
     mysql_free_result(result_job);
 
     // process reservation data
