@@ -404,9 +404,9 @@ int main(int argc, char **argv)
             job_trace.time_start = time_start;
         }
         job_trace.time_end = strtol(row[16], NULL, 0);
-        if (use_where && job_trace.time_end > time_end) {
-            job_trace.time_end = time_end;
-        }
+        //if (use_where && job_trace.time_end > time_end) {
+        //    job_trace.time_end = time_end;
+        //}
         job_trace.time_suspended = strtol(row[17], NULL, 0);
         sprintf(job_trace.gres_alloc, "%s", row[18]);
         job_trace.priority = atoi(row[19]);
@@ -461,9 +461,9 @@ int main(int argc, char **argv)
                 resv_trace.preset = 1;
             }
             resv_trace.time_end = strtol(row[2], NULL, 0);
-            if (resv_trace.time_end > time_end) {
-                resv_trace.time_end = time_end;
-            }
+            //if (resv_trace.time_end > time_end) {
+            //    resv_trace.time_end = time_end;
+            //}
             sprintf(resv_trace.nodelist, "%s", row[3]);
             sprintf(resv_trace.resv_name, "%s", row[4]);
             sprintf(resv_trace.accts, "%s", row[5]);
@@ -525,10 +525,11 @@ int main(int argc, char **argv)
                         // special case for last one
                         if (fix_node_trace.time_start < time_start) {
                             fix_node_trace.time_start = time_start;
+                            fix_node_trace.preset = 1;
                         }
-                        if (fix_node_trace.time_end > time_end) {
-                            fix_node_trace.time_end = time_end;
-                        }
+                        //if (fix_node_trace.time_end > time_end) {
+                        //    fix_node_trace.time_end = time_end;
+                        //}
                         written = write(trace_file, &fix_node_trace, sizeof(node_trace_t));
                         if(written != sizeof(node_trace_t)) {
                             printf("Error writing to file: %d of %ld\n", written, sizeof(node_trace_t));
@@ -543,9 +544,9 @@ int main(int argc, char **argv)
                         fix_node_trace.time_start = time_start;
                         fix_node_trace.preset = 1;
                     }
-                    if (fix_node_trace.time_end > time_end) {
-                        fix_node_trace.time_end = time_end;
-                    }
+                    //if (fix_node_trace.time_end > time_end) {
+                    //    fix_node_trace.time_end = time_end;
+                    //}
                     written = write(trace_file, &fix_node_trace, sizeof(node_trace_t));
                     if(written != sizeof(node_trace_t)) {
                         printf("Error writing to file: %d of %ld\n", written, sizeof(node_trace_t));
@@ -564,9 +565,9 @@ int main(int argc, char **argv)
                             fix_node_trace.time_start = time_start;
                             fix_node_trace.preset = 1;
                         }
-                        if (fix_node_trace.time_end > time_end) {
-                            fix_node_trace.time_end = time_end;
-                        }
+                        //if (fix_node_trace.time_end > time_end) {
+                        //    fix_node_trace.time_end = time_end;
+                        //}
                         written = write(trace_file, &fix_node_trace, sizeof(node_trace_t));
                         if(written != sizeof(node_trace_t)) {
                             printf("Error writing to file: %d of %ld\n", written, sizeof(node_trace_t));
