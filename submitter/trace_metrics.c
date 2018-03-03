@@ -225,13 +225,13 @@ int main(int argc, char *argv[])
     printf("preset=%llu\n",njobs_preset);
 
     compute_metrics(job_arr_all, njobs_all, Nnodes, &makespan, &util, &avg_wait, &std_wait, &min_wait, &max_wait, &nwait, &dispersion, &slowdown);
-    printf("[ALL]\t Makespan=%ld\t Util=%.8f\t Avg_Wait=(%.8f,%.8f,%ld,%ld,%ld)\t Dispersion=%.8f Slowdown=%.8f\n", makespan, util, avg_wait, std_wait, nwait, min_wait, max_wait, dispersion, slowdown);
+    printf("[ALL=%llu]\t Makespan=%ld\t Util=%.8f\t Avg_Wait=(%.8f,%.8f,%ld,%ld,%ld)\t Dispersion=%.8f Slowdown=%.8f\n", njobs_all, makespan, util, avg_wait, std_wait, nwait, min_wait, max_wait, dispersion, slowdown);
 
     compute_metrics(job_arr_mc, njobs_mc, Nnodes_mc, &makespan, &util, &avg_wait, &std_wait, &min_wait, &max_wait, &nwait, &dispersion, &slowdown);
-    printf("[MC]\t Makespan=%ld\t Util=%.8f\t Avg_Wait=(%.8f,%.8f,%ld,%ld,%ld)\t Dispersion=%.8f Slowdown=%.8f\n", makespan, util, avg_wait, std_wait, nwait, min_wait, max_wait, dispersion, slowdown);
+    printf("[MC=%llu]\t Makespan=%ld\t Util=%.8f\t Avg_Wait=(%.8f,%.8f,%ld,%ld,%ld)\t Dispersion=%.8f Slowdown=%.8f\n", njobs_mc, makespan, util, avg_wait, std_wait, nwait, min_wait, max_wait, dispersion, slowdown);
 
     compute_metrics(job_arr_gpu, njobs_gpu, Nnodes_gpu, &makespan, &util, &avg_wait, &std_wait, &min_wait, &max_wait,  &nwait, &dispersion, &slowdown);
-    printf("[GPU]\t Makespan=%ld\t Util=%.8f\t Avg_Wait=(%.8f,%.8f,%ld,%ld,%ld)\t Dispersion=%.8f Slowdown=%.8f\n", makespan, util, avg_wait, std_wait, nwait, min_wait, max_wait, dispersion, slowdown);
+    printf("[GPU=%llu]\t Makespan=%ld\t Util=%.8f\t Avg_Wait=(%.8f,%.8f,%ld,%ld,%ld)\t Dispersion=%.8f Slowdown=%.8f\n", njobs_gpu, makespan, util, avg_wait, std_wait, nwait, min_wait, max_wait, dispersion, slowdown);
 
     free(job_arr);
     free(job_arr_all);
