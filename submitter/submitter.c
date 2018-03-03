@@ -205,12 +205,6 @@ static int create_and_submit_job(job_trace_t jobd)
 
     slurm_init_job_desc_msg(&dmesg);
 
-    if (use_preset == 2) {
-        jobd.preset=1;
-    } else if (use_preset == 0) {
-        jobd.preset=0;
-    }
-
     dmesg.time_limit = jobd.timelimit;
     dmesg.job_id = jobd.id_job;
     dmesg.name = strdup(jobd.job_name);
@@ -258,10 +252,17 @@ static int create_and_submit_job(job_trace_t jobd)
 
     dmesg.dependency    = strdup(jobd.dependencies);
     dmesg.req_switch    = jobd.switches;
-    if (jobd.preset) {
+
+    if (use_preset == 2) {
+        jobd.preset=1;
         // add hostlist to recreate initial state
         dmesg.req_nodes = strdup(jobd.nodelist);
-	dmesg.priority = jobd.priority;
+    } else if (use_preset == 0) {
+        jobd.preset=0;
+    }
+
+    if (jobd.preset) {
+        dmesg.priority = jobd.priority;
     }
 
     duration = jobd.time_end - jobd.time_start;
@@ -650,6 +651,11 @@ int main(int argc, char *argv[])
     logger = fopen("log/submitter.log", "w+");
 
     userids_from_name();
+
+    if (use_preset == 2) {
+        // disable reservation
+        nresvs=0;
+    }
 
     //Jobs and reservations are submit when the replayed time clock equal their submission time
     submit_preset_jobs_and_reservations(&npreset_job, &npreset_resv);

@@ -57,7 +57,7 @@ trap "killall -q -9 $PROCESS_TOKILL" SIGTERM EXIT
 
 rm -Rf /dev/shm/ShmemClock*
 
-TIME_STARTPAD=5
+TIME_STARTPAD=180
 START_TIME="$(trace_list -n -w "$WORKLOAD" | awk '{print $5;}' | sort -n | head -n 1)"
 STR_START_TIME=$(date -d @$START_TIME +'%Y-%m-%d %H:%M:%S')
 START_TIME="$(( $START_TIME - $TIME_STARTPAD ))"
@@ -84,8 +84,16 @@ echo -n "Start submitter and node controller... "
 rm -f submitter.log node_controller.log "$TMP_DIR/accel_time"
 touch "$TMP_DIR/accel_time"
 submitter -w "$WORKLOAD" -t template.script -r "$CLOCK_RATE" -u "$REPLAY_USER" -m "$TMP_DIR/accel_time" -p "$PRESET"
-node_controller -w "$WORKLOAD"
+if (( $PRESET < 2 )); then
+    node_controller -w "$WORKLOAD"
+fi
 sleep 3
+echo "done."
+
+# Start with a slow rate to let slurm process the preset jobs in the queue
+echo -n "Let Slurm process the preset jobs... "
+END_TIME=$(( $START_TIME + $TIME_STARTPAD))
+ticker -c "$END_TIME,1,1"
 echo "done."
 
 # Make time progress at a faster rate
