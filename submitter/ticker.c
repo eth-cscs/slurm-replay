@@ -242,7 +242,7 @@ int main(int argc, char *argv[])
         if (njobs > 0 && is_schedule()) {
             tmp_time = get_shmemclock();
             queue = active_queue_len();
-            hard_endtime = tmp_time + queue/10.0*3600;
+            hard_endtime = tmp_time + queue*3600;
             strftime(strstart_time, sizeof(strstart_time), "%Y-%m-%d %H:%M:%S", localtime(&tmp_time));
             strftime(strhard_time, sizeof(strhard_time), "%Y-%m-%d %H:%M:%S", localtime(&hard_endtime));
             printf("Schedule not finished - current %s - hard end %s - njobs %d\n", strstart_time, strhard_time, queue);
