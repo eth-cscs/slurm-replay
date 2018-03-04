@@ -239,7 +239,7 @@ int main(int argc, char *argv[])
             k++;
         }
 
-        if (is_schedule()) {
+        if (njobs > 0 && is_schedule()) {
             tmp_time = get_shmemclock();
             queue = active_queue_len();
             hard_endtime = tmp_time + queue/10.0*3600;

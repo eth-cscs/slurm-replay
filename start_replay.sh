@@ -57,7 +57,7 @@ trap "killall -q -9 $PROCESS_TOKILL" SIGTERM EXIT
 
 rm -Rf /dev/shm/ShmemClock*
 
-TIME_STARTPAD=180
+TIME_STARTPAD=300
 START_TIME="$(trace_list -n -w "$WORKLOAD" | awk '{print $5;}' | sort -n | head -n 1)"
 STR_START_TIME=$(date -d @$START_TIME +'%Y-%m-%d %H:%M:%S')
 START_TIME="$(( $START_TIME - $TIME_STARTPAD ))"
@@ -92,8 +92,8 @@ echo "done."
 
 # Start with a slow rate to let slurm process the preset jobs in the queue
 echo -n "Let Slurm process the preset jobs... "
-END_TIME=$(( $START_TIME + $TIME_STARTPAD))
-ticker -c "$END_TIME,1,1"
+END_TIME_PRESET=$(( $START_TIME + $TIME_STARTPAD))
+ticker -c "$END_TIME_PRESET,1,1"
 echo "done."
 
 # Make time progress at a faster rate
