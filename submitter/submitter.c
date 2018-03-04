@@ -248,7 +248,9 @@ static int create_and_submit_job(job_trace_t jobd)
     dmesg.environment[1] = strdup(env_str);
     dmesg.env_size = 2;
 
-    dmesg.reservation   = strdup(jobd.resv_name);
+    if (use_preset != 2) {
+        dmesg.reservation   = strdup(jobd.resv_name);
+    }
 
     dmesg.dependency    = strdup(jobd.dependencies);
     dmesg.req_switch    = jobd.switches;
