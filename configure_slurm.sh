@@ -39,12 +39,12 @@ SlurmdUser=$REPLAY_USER\
 sed -i -e "s/SlurmUser[[:space:]]*=root/SlurmUser=$REPLAY_USER/" $FILE
 
 # Set up directories
-sed -i -e "/SlurmctldPidFile[[:space:]]*=/ s/SlurmctldPidFile[[:space:]]*=.*/SlurmctldPidFile=\/home\/$REPLAY_USER\/slurmR\/log\/slurmctld.pid/" $FILE
-sed -i -e "/SlurmctldLogFile[[:space:]]*=/ s/SlurmctldLogFile[[:space:]]*=.*/SlurmctldLogFile=\/home\/$REPLAY_USER\/slurmR\/log\/slurmctld.log/" $FILE
-sed -i -e "/SlurmdPidFile[[:space:]]*=/ s/SlurmdPidFile[[:space:]]*=.*/SlurmdPidFile=\/home\/$REPLAY_USER\/slurmR\/log\/slurmd.pid/" $FILE
-sed -i -e "/SlurmdLogFile[[:space:]]*=/ s/SlurmdLogFile[[:space:]]*=.*/SlurmdLogFile=\/home\/$REPLAY_USER\/slurmR\/log\/slurmd\/slurmd.log/" $FILE
-sed -i -e "/SlurmdSpoolDir[[:space:]]*=/ s/SlurmdSpoolDir[[:space:]]*=.*/SlurmdSpoolDir=\/home\/$REPLAY_USER\/slurmR\/log/" $FILE
-sed -i -e "/StateSaveLocation[[:space:]]*=/ s/StateSaveLocation[[:space:]]*=.*/StateSaveLocation=\/home\/$REPLAY_USER\/slurmR\/log\/state/" $FILE
+sed -i -e "/SlurmctldPidFile[[:space:]]*=/ s/SlurmctldPidFile[[:space:]]*=.*/SlurmctldPidFile=\/$REPLAY_USER\/slurmR\/log\/slurmctld.pid/" $FILE
+sed -i -e "/SlurmctldLogFile[[:space:]]*=/ s/SlurmctldLogFile[[:space:]]*=.*/SlurmctldLogFile=\/$REPLAY_USER\/slurmR\/log\/slurmctld.log/" $FILE
+sed -i -e "/SlurmdPidFile[[:space:]]*=/ s/SlurmdPidFile[[:space:]]*=.*/SlurmdPidFile=\/$REPLAY_USER\/slurmR\/log\/slurmd.pid/" $FILE
+sed -i -e "/SlurmdLogFile[[:space:]]*=/ s/SlurmdLogFile[[:space:]]*=.*/SlurmdLogFile=\/$REPLAY_USER\/slurmR\/log\/slurmd\/slurmd.log/" $FILE
+sed -i -e "/SlurmdSpoolDir[[:space:]]*=/ s/SlurmdSpoolDir[[:space:]]*=.*/SlurmdSpoolDir=\/$REPLAY_USER\/slurmR\/log/" $FILE
+sed -i -e "/StateSaveLocation[[:space:]]*=/ s/StateSaveLocation[[:space:]]*=.*/StateSaveLocation=\/$REPLAY_USER\/slurmR\/log\/state/" $FILE
 
 # Accounting
 sed -i -e "/AccountingStorageHost[[:space:]]*=/ s/AccountingStorageHost[[:space:]]*=.*/AccountingStorageHost=localhost/" $FILE
@@ -64,5 +64,5 @@ sed -i -e '/#\ XC\ NODES\ #####/a\
 FrontendName=localhost FrontendAddr=localhost Port=7000
 ' $FILE
 sed -i -e "/DebugFlags=/a\
-PluginDir=/home/$REPLAY_USER/slurmR/lib/slurm\
+PluginDir=/$REPLAY_USER/slurmR/lib/slurm\
 " $FILE

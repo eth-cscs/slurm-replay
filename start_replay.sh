@@ -29,21 +29,24 @@ fi
 if [ -z "$RATE" ]; then
     RATE="0.1"
 fi
-if [ -z "$NAME" ]; then
-    NAME="unknown"
-fi
 if [ -z "$PRESET" ]; then
     PRESET="1"
 fi
-
+if [ -z "$NAME" ]; then
+    if (( $PRESET == 2)); then
+        NAME="preset2"
+    else
+        NAME="unknown"
+    fi
+fi
 TICK="1"
 CLOCK_RATE=$(echo "$RATE*$TICK" | bc -l)
 
 echo "current date: $(date)"
 
-TMP_DIR="/home/$REPLAY_USER/tmp"
-SLURM_DIR="/home/$REPLAY_USER/slurmR"
-SLURM_REPLAY="/home/$REPLAY_USER/slurm-replay"
+TMP_DIR="/$REPLAY_USER/tmp"
+SLURM_DIR="/$REPLAY_USER/slurmR"
+SLURM_REPLAY="/$REPLAY_USER/slurm-replay"
 SLURM_REPLAY_LIB="libwtime.so"
 
 export PATH="$SLURM_REPLAY/submitter:$PATH"
@@ -101,7 +104,8 @@ DURATION=$(( $END_TIME - $START_TIME ))
 END_REPLAY=$( echo "$DURATION*($CLOCK_RATE)" | bc -l)
 echo "Replay tentative ending time is $(date --date="${END_REPLAY%.*} seconds")"
 
-ticker -c "$END_TIME,$RATE,$TICK" -n "$NJOBS" -a "$TMP_DIR/accel_time"
+ticker -c "$END_TIME,$RATE,$TICK" -n "$NJOBS"
+#-a "$TMP_DIR/accel_time"
 
 sleep 5
 ticker -o -n "$NJOBS"

@@ -3,19 +3,19 @@
 VERBOSE="-v"
 SLURM_REPLAY_LIB="$1"
 
-SLURM_DIR="/home/$REPLAY_USER/slurmR"
+SLURM_DIR="/$REPLAY_USER/slurmR"
 export PATH="$SLURM_DIR/bin:$SLURM_DIR/sbin:$PATH"
 
 # Start sql server if not yet started
 if ! pgrep -x "mysqld" > /dev/null
 then
 echo -n  "Starting mysql... "
-if [ ! -f "/home/$REPLAY_USER/var/lib/mysql-bin.index" ]; then
-rm -Rf /home/$REPLAY_USER/var/lib/*
-rm -Rf /home/$REPLAY_USER/run/mysqld/*
-mysql_install_db --user="$REPLAY_USER" --basedir="/usr" --datadir="/home/$REPLAY_USER/var/lib" &> /dev/null
+if [ ! -f "/$REPLAY_USER/var/lib/mysql-bin.index" ]; then
+rm -Rf /$REPLAY_USER/var/lib/*
+rm -Rf /$REPLAY_USER/run/mysqld/*
+mysql_install_db --user="$REPLAY_USER" --basedir="/usr" --datadir="/$REPLAY_USER/var/lib" &> /dev/null
 fi
-mysqld_safe --datadir="/home/$REPLAY_USER/var/lib" &> /dev/null &
+mysqld_safe --datadir="/$REPLAY_USER/var/lib" &> /dev/null &
 sleep 5
 echo "done."
 fi
@@ -45,8 +45,8 @@ FILE="etc/slurmdbd.conf"
 cp conf/slurmdbd.conf $FILE
 sed -i -e "s/SlurmUser[[:space:]]*=slurm/SlurmUser=$REPLAY_USER/" $FILE
 sed -i -e "s/StorageUser[[:space:]]*=slurm/StorageUser=$REPLAY_USER/" $FILE
-sed -i -e "/PidFile[[:space:]]*=/ s/PidFile[[:space:]]*=.*/PidFile=\/home\/$REPLAY_USER\/slurmR\/log\/slurmdbd.pid/" $FILE
-sed -i -e "/LogFile[[:space:]]*=/ s/LogFile[[:space:]]*=.*/LogFile=\/home\/$REPLAY_USER\/slurmR\/log\/slurmdbd.log/" $FILE
+sed -i -e "/PidFile[[:space:]]*=/ s/PidFile[[:space:]]*=.*/PidFile=\/$REPLAY_USER\/slurmR\/log\/slurmdbd.pid/" $FILE
+sed -i -e "/LogFile[[:space:]]*=/ s/LogFile[[:space:]]*=.*/LogFile=\/$REPLAY_USER\/slurmR\/log\/slurmdbd.log/" $FILE
 
 eval "$SLURM_REPLAY_LIB slurmdbd $VERBOSE"
 sleep 1
