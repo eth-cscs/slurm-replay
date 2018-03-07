@@ -248,19 +248,20 @@ static int create_and_submit_job(job_trace_t jobd)
     dmesg.environment[1] = strdup(env_str);
     dmesg.env_size = 2;
 
-    if (use_preset != 2) {
+    if (use_preset != 3) {
         dmesg.reservation   = strdup(jobd.resv_name);
     }
 
     dmesg.dependency    = strdup(jobd.dependencies);
     dmesg.req_switch    = jobd.switches;
 
-    if (use_preset == 2) {
-        jobd.preset=1;
-        // add hostlist to recreate initial state
-        dmesg.req_nodes = strdup(jobd.nodelist);
-    } else if (use_preset == 0) {
+    if (use_preset == 0) {
         jobd.preset=0;
+    } else if (use_preset == 2) {
+        jobd.preset=1;
+    } else if (use_preset == 3) {
+        jobd.preset=1;
+        dmesg.req_nodes = strdup(jobd.nodelist);
     }
 
     if (jobd.preset) {
@@ -547,7 +548,7 @@ submitter -w <workload_trace> -t <template_script>\n\
       -D, --nodaemon do not daemonize the process\n\
       -r, --clockrate clock rate of the simulated clock\n\
       -m, --time_filename filename where a list of time for slowdown will be written\n\
-      -p, --preset use preset: 0 = none, 1 = job started before start date, 2 = all\n\
+      -p, --preset use preset: 0 = none, 1 = job started before start date, 2 = all, 3 = all plus hostlist\n\
       -h, --help           This help message.\n";
 
 
@@ -654,7 +655,7 @@ int main(int argc, char *argv[])
 
     userids_from_name();
 
-    if (use_preset == 2) {
+    if (use_preset == 3) {
         // disable reservation
         nresvs=0;
     }
