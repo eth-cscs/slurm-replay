@@ -352,9 +352,6 @@ static void submit_preset_jobs_and_reservations(unsigned long long *npreset_job,
 {
     unsigned long long kj = 0, kr = 0;
 
-    log_info("total job records: %llu, start time %ld", njobs, job_arr[0].time_submit);
-    log_info("total reservation records: %llu", nresvs);
-
     if (use_preset > 0) {
         for(kj = 0; kj < njobs; kj++) {
             if (job_arr[kj].preset) {
@@ -633,7 +630,7 @@ void daemonize(int daemon_flag)
 
 int main(int argc, char *argv[])
 {
-    unsigned long long npreset_job, npreset_resv;
+    unsigned long long npreset_job = 0, npreset_resv = 0;
     logger = stdout;
 
     //Open shared priority queue for time clock
@@ -659,6 +656,9 @@ int main(int argc, char *argv[])
         // disable reservation
         nresvs=0;
     }
+
+    log_info("total job records: %llu, start time %ld", njobs, job_arr[0].time_submit);
+    log_info("total reservation records: %llu", nresvs);
 
     //Jobs and reservations are submit when the replayed time clock equal their submission time
     submit_preset_jobs_and_reservations(&npreset_job, &npreset_resv);

@@ -70,7 +70,7 @@ START_TIME="$(trace_list -n -w "$WORKLOAD" | awk '{print $5;}' | sort -n | head 
 STR_START_TIME=$(date -d @$START_TIME +'%Y-%m-%d %H:%M:%S')
 START_TIME="$(( $START_TIME - $TIME_STARTPAD ))"
 
-TIME_ENDPAD=5
+TIME_ENDPAD=300
 END_TIME="$(trace_list -n -w "$WORKLOAD" | awk '{print $8;}' | sort -nr | head -n 1)"
 END_TIME="$(( $END_TIME + $TIME_ENDPAD ))"
 
