@@ -33,6 +33,7 @@ static int do_event = 1;
 static int use_dependencies = 0;
 char *dep_filename = NULL;
 deps_t *depend;
+static int nopreset = 0;
 
 int cmpfunc(const void * a, const void * b)
 {
@@ -164,6 +165,7 @@ Usage: mysql_trace_builder [OPTIONS]\n\
     -f, --file       filename        Name of the output trace file being created\n\
     -x, --dependencies filename      Name of the file containing the dependencies\n\
     -w, --where                      Do not use the where statement for the  SQL query to retrieve the data\n\
+    -n, --noprest                    Do not preset the jobs\n\
     -?, --help                       This help message\n\n\
 ");
 }
@@ -179,6 +181,7 @@ get_args(int argc, char** argv)
         {"help", no_argument,   0, '?'},
         {"password", required_argument,   0, 'p'},
         {"where", no_argument,   0, 'w'},
+        {"nopreset", no_argument,   0, 'n'},
         {"starttime", required_argument, 0, 's'},
         {"job_table", required_argument, 0, 't'},
         {"resv_table", required_argument, 0, 'r'},
@@ -191,7 +194,7 @@ get_args(int argc, char** argv)
     int opt_char, option_index;
 
     while(1) {
-        if ((opt_char = getopt_long(argc, argv, "d:e:f:h:?s:t:r:u:p:wa:v:x:", long_options, &option_index)) == -1 )
+        if ((opt_char = getopt_long(argc, argv, "d:e:f:h:?s:t:r:u:p:wa:v:x:n", long_options, &option_index)) == -1 )
             break;
         switch  (opt_char) {
         case ('p'):
@@ -210,6 +213,9 @@ get_args(int argc, char** argv)
             break;
         case ('h'):
             host = optarg;
+            break;
+        case ('n'):
+            nopreset = 1;
             break;
         case ('d'):
             dbname = optarg;
@@ -390,23 +396,31 @@ int main(int argc, char **argv)
         job_trace.state = atoi(row[11]);
         job_trace.timelimit = atoi(row[12]);
         job_trace.time_submit = strtol(row[13], NULL, 0);
+        job_trace.time_eligible = strtol(row[14], NULL, 0);
+        job_trace.time_start = strtol(row[15], NULL, 0);
+        job_trace.time_end = strtol(row[16], NULL, 0);
         if (job_trace.time_submit < time_start) {
             job_trace.time_submit = time_start;
-            job_trace.preset = 1;
-            npreset_jobs++;
+            if (!nopreset && job_trace.time_start < time_start) {
+                //preset jobs are jobs with a submit time and start time before the trace start time
+                job_trace.preset = 1;
+                npreset_jobs++;
+            }
         }
-        job_trace.time_eligible = strtol(row[14], NULL, 0);
         if (job_trace.time_eligible < time_start) {
             job_trace.time_eligible = time_start;
         }
-        job_trace.time_start = strtol(row[15], NULL, 0);
+        //runaway job
+        if (job_trace.time_start == 0) {
+            job_trace.time_start = job_trace.time_end;
+        }
+        //runaway job 2
+        if (job_trace.time_eligible > job_trace.time_start) {
+            job_trace.time_eligible = job_trace.time_start;
+        }
         if (job_trace.time_start < time_start) {
             job_trace.time_start = time_start;
         }
-        job_trace.time_end = strtol(row[16], NULL, 0);
-        //if (use_where && job_trace.time_end > time_end) {
-        //    job_trace.time_end = time_end;
-        //}
         job_trace.time_suspended = strtol(row[17], NULL, 0);
         sprintf(job_trace.gres_alloc, "%s", row[18]);
         job_trace.priority = atoi(row[19]);
