@@ -125,7 +125,8 @@ static inline int active_queue_len()
 
     if ( slurm_load_jobs ((time_t) NULL, &job_buffer_ptr, SHOW_ALL) ) {
         slurm_perror ("slurm_load_jobs error");
-        exit (1);
+        // slurm could give a socket timed out
+        return 99999;
     }
 
     count = job_buffer_ptr->record_count;

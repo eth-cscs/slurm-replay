@@ -33,15 +33,20 @@ if [ -z "$PRESET" ]; then
     PRESET="1"
 fi
 if [ -z "$NAME" ]; then
-    if (( $PRESET == 2)); then
-        NAME="preset2"
-    else
-        NAME="unknown"
-    fi
+    NAME="unknown"
 fi
 TICK="1"
 CLOCK_RATE=$(echo "$RATE*$TICK" | bc -l)
-
+echo -n "preset: "
+if (( $PRESET == 0 )); then
+    echo "No preset jobs (priority=0, hostlist=0, reservation=1, node_controller=1)"
+elif (( $PRESET == 1 )); then
+    echo "Preset jobs (priority=1, hostlist=0, reservation=1, node_controller=1)"
+elif (( $PRESET == 2 )); then
+    echo "All jobs (priority=1, hostlist=0, reservation=1, node_controller=1)"
+elif (( $PRESET == 3 )); then
+    echo "All jobs (priority=1, hostlist=1, reservation=0, node_controller=0)"
+fi
 echo "current date: $(date)"
 
 TMP_DIR="/$REPLAY_USER/tmp"
@@ -65,7 +70,7 @@ START_TIME="$(trace_list -n -w "$WORKLOAD" | awk '{print $5;}' | sort -n | head 
 STR_START_TIME=$(date -d @$START_TIME +'%Y-%m-%d %H:%M:%S')
 START_TIME="$(( $START_TIME - $TIME_STARTPAD ))"
 
-TIME_ENDPAD=5
+TIME_ENDPAD=300
 END_TIME="$(trace_list -n -w "$WORKLOAD" | awk '{print $8;}' | sort -nr | head -n 1)"
 END_TIME="$(( $END_TIME + $TIME_ENDPAD ))"
 
@@ -87,17 +92,19 @@ echo -n "Start submitter and node controller... "
 rm -f submitter.log node_controller.log "$TMP_DIR/accel_time"
 touch "$TMP_DIR/accel_time"
 submitter -w "$WORKLOAD" -t template.script -r "$CLOCK_RATE" -u "$REPLAY_USER" -m "$TMP_DIR/accel_time" -p "$PRESET"
-if (( $PRESET < 2 )); then
+if (( $PRESET < 3 )); then
     node_controller -w "$WORKLOAD"
 fi
 sleep 3
 echo "done."
 
 # Start with a slow rate to let slurm process the preset jobs in the queue
-echo -n "Let Slurm process the preset jobs... "
-END_TIME_PRESET=$(( $START_TIME + $TIME_STARTPAD))
-ticker -c "$END_TIME_PRESET,1,1"
-echo "done."
+if (( $PRESET > 0)); then
+    echo -n "Let Slurm process the preset jobs... "
+    END_TIME_PRESET=$(( $START_TIME + $TIME_STARTPAD))
+    ticker -c "$END_TIME_PRESET,1,1"
+    echo "done."
+fi
 
 # Make time progress at a faster rate
 DURATION=$(( $END_TIME - $START_TIME ))
