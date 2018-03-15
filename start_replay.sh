@@ -99,12 +99,12 @@ sleep 3
 echo "done."
 
 # Start with a slow rate to let slurm process the preset jobs in the queue
-if (( $PRESET > 0)); then
-    echo -n "Let Slurm process the preset jobs... "
-    END_TIME_PRESET=$(( $START_TIME + $TIME_STARTPAD))
-    ticker -c "$END_TIME_PRESET,1,1"
-    echo "done."
-fi
+#if (( $PRESET > 0)); then
+#    echo -n "Let Slurm process the preset jobs... "
+#    END_TIME_PRESET=$(( $START_TIME + $TIME_STARTPAD))
+#    ticker -c "$END_TIME_PRESET,1,1"
+#    echo "done."
+#fi
 
 # Make time progress at a faster rate
 DURATION=$(( $END_TIME - $START_TIME ))
@@ -123,6 +123,7 @@ echo "njobs still active at the end of replay: $NJOBS_ACTIVE"
 echo -n "Collecting data... "
 # correct the db, Slurm bug: some time_start may not be filled in the job_table while they are correct in the step_table
 # http://slurm-dev.schedmd.narkive.com/FkIMYBpQ/consistency-checks-and-missing-time-start-in-slurmdbd
+# should we use sacctmgr runaway?
 db_correctness -u "$REPLAY_USER" -p "" -h "localhost" -d "slurm_acct_db" -t daint_job_table -s daint_step_table
 # get the query and remove where close
 REPLAY_WORKLOAD_DIR="../data/replay.${WORKLOAD##*/}.$NAME.$CLOCK_RATE"
@@ -133,8 +134,8 @@ done
 REPLAY_WORKLOAD_DIR="$REPLAY_WORKLOAD_DIR.$CT"
 mkdir $REPLAY_WORKLOAD_DIR
 REPLAY_WORKLOAD="$REPLAY_WORKLOAD_DIR/replay.${WORKLOAD##*/}"
-trace_builder_mysql -f "$REPLAY_WORKLOAD" -u "$REPLAY_USER" -p "" -h "localhost" -d "slurm_acct_db"  -w -t daint_job_table -r daint_resv_table -v daint_event_table -s "$STR_START_TIME"
-echo "trace_builder_mysql -f \"$REPLAY_WORKLOAD\" -u \"$REPLAY_USER\" -p \"\" -h \"localhost\" -d \"slurm_acct_db\" -w -t daint_job_table -r daint_resv_table -v daint_event_table -s \"$STR_START_TIME\""
+trace_builder_mysql -f "$REPLAY_WORKLOAD" -u "$REPLAY_USER" -p "" -h "localhost" -d "slurm_acct_db"  -w -t daint_job_table -r daint_resv_table -v daint_event_table -s "$STR_START_TIME" -n
+echo "trace_builder_mysql -f \"$REPLAY_WORKLOAD\" -u \"$REPLAY_USER\" -p \"\" -h \"localhost\" -d \"slurm_acct_db\" -w -t daint_job_table -r daint_resv_table -v daint_event_table -s \"$STR_START_TIME\" -n"
 echo "done."
 echo
 echo "ERROR IF ANY:"
