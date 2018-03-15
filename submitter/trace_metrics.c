@@ -154,7 +154,7 @@ int main(int argc, char *argv[])
     job_trace_t *job_arr_gpu;
     size_t query_length = 0;
     char query[1024];
-    unsigned long long njobs, njobs_all, njobs_mc, njobs_gpu, j, njobs_preset;
+    unsigned long long njobs, njobs_all, njobs_mc, njobs_gpu, j, njobs_preset, njobs_otherp;
     long makespan;
     //long cum_completion;
     double util;
@@ -202,14 +202,16 @@ int main(int argc, char *argv[])
     njobs_gpu = 0;
     njobs_all = 0;
     njobs_preset = 0;
+    njobs_otherp = 0;
     for(j = 0; j < njobs; j++) {
-        if (strcmp("normal",job_arr[j].partition) != 0 && strcmp("xfer",job_arr[j].partition) != 0) {
-            continue;
-        }
         if (job_arr[j].preset) {
             njobs_preset++;
             continue;
         }
+        //if (strcmp("normal",job_arr[j].partition) != 0 && strcmp("xfer",job_arr[j].partition) != 0) {
+        //    njobs_otherp++;
+        //    continue;
+       // }
         memcpy(&job_arr_all[njobs_all], &job_arr[j], sizeof(job_trace_t));
         njobs_all++;
         if (strcmp(job_arr[j].partition, "xfer") != 0) {
@@ -220,9 +222,11 @@ int main(int argc, char *argv[])
                 memcpy(&job_arr_gpu[njobs_gpu], &job_arr[j], sizeof(job_trace_t));
                 njobs_gpu++;
             }
+        } else {
+          njobs_otherp++;
         }
     }
-    printf("preset=%llu\n",njobs_preset);
+    printf("all=%llu preset=%llu (otherp=%llu)\n", njobs, njobs_preset, njobs_otherp);
 
     compute_metrics(job_arr_all, njobs_all, Nnodes, &makespan, &util, &avg_wait, &std_wait, &min_wait, &max_wait, &nwait, &dispersion, &slowdown);
     printf("[ALL=%llu]\t Makespan=%ld\t Util=%.8f\t Avg_Wait=(%.8f,%.8f,%ld,%ld,%ld)\t Dispersion=%.8f Slowdown=%.8f\n", njobs_all, makespan, util, avg_wait, std_wait, nwait, min_wait, max_wait, dispersion, slowdown);
