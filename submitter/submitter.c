@@ -9,6 +9,7 @@
 
 #include <pwd.h>
 #include <time.h>
+#include <math.h>
 
 #include <string.h>
 #include <stdarg.h>
@@ -36,6 +37,7 @@ static int daemon_flag = 1;
 double clock_rate = 0.0;
 int *resv_action;
 int use_preset = 1;
+double var_timelimit = -1.0;
 
 static void log_string(const char* type, char* msg)
 {
@@ -202,10 +204,10 @@ static int create_and_submit_job(job_trace_t jobd)
     int TRES_MEM = 2;
     int TRES_NODE = 4;
     char env_str[256];
+    int new_timelimit;
 
     slurm_init_job_desc_msg(&dmesg);
 
-    dmesg.time_limit = jobd.timelimit;
     dmesg.job_id = jobd.id_job;
     dmesg.name = strdup(jobd.job_name);
     dmesg.account = strdup(jobd.account);
@@ -268,7 +270,14 @@ static int create_and_submit_job(job_trace_t jobd)
         dmesg.priority = jobd.priority;
     }
 
+    dmesg.time_limit = jobd.timelimit;
     duration = jobd.time_end - jobd.time_start;
+    if (var_timelimit != -1.0 && jobd.preset == 0 && jobd.state ==3) { //state == complete
+        new_timelimit = (int)ceil((var_timelimit*duration)/60.0);
+        if (dmesg.time_limit > new_timelimit) {
+             dmesg.time_limit = new_timelimit;
+        }
+    }
     create_script(script, jobd.nodes_alloc, tasks, jobd.id_job, duration, jobd.exit_code, jobd.preset, jobd.time_end);
     dmesg.script = strdup(script);
     rv = slurm_submit_batch_job(&dmesg, &respMsg);
@@ -281,7 +290,11 @@ static int create_and_submit_job(job_trace_t jobd)
         if (jobd.preset) {
             log_info("Preset job submitted: job_id=%u count=%d", respMsg->job_id, count);
         } else {
-            log_info("job submitted: job_id=%u count=%d", respMsg->job_id, count);
+            if (var_timelimit != -1.0 && jobd.preset == 0 && jobd.state ==3) {
+                log_info("job submitted: job_id=%u count=%d timelimit=%d instead of %d", respMsg->job_id, count, dmesg.time_limit, jobd.timelimit);
+            } else {
+                log_info("job submitted: job_id=%u count=%d", respMsg->job_id, count);
+            }
         }
     }
     count++;
@@ -353,14 +366,6 @@ static void submit_preset_jobs_and_reservations(unsigned long long *npreset_job,
     unsigned long long kj = 0, kr = 0;
 
     if (use_preset > 0) {
-        for(kj = 0; kj < njobs; kj++) {
-            if (job_arr[kj].preset) {
-                create_and_submit_job(job_arr[kj]);
-            } else {
-                break;
-            }
-        }
-
         for(kr = 0; kr < nresvs; kr++) {
             if (resv_arr[kr].preset && resv_action[kr] == RESV_CREATE) {
                 create_and_submit_resv(resv_arr[kr], resv_action[kr]);
@@ -369,6 +374,16 @@ static void submit_preset_jobs_and_reservations(unsigned long long *npreset_job,
             }
         }
     }
+    /*if (use_preset > 0) {
+        for(kj = 0; kj < njobs; kj++) {
+            if (job_arr[kj].preset) {
+                create_and_submit_job(job_arr[kj]);
+            } else {
+                break;
+            }
+        }
+    }
+*/
     *npreset_job=kj;
     *npreset_resv=kr;
 }
@@ -546,6 +561,7 @@ submitter -w <workload_trace> -t <template_script>\n\
       -r, --clockrate clock rate of the simulated clock\n\
       -m, --time_filename filename where a list of time for slowdown will be written\n\
       -p, --preset use preset: 0 = none, 1 = job started before start date, 2 = all, 3 = all plus hostlist\n\
+      -c, --timelimit  add a variation of time limit specified by the job. A value of 1.05 will add a 1.05x the real duration as a time limit\n\
       -h, --help           This help message.\n";
 
 
@@ -559,13 +575,14 @@ static void get_args(int argc, char** argv)
         {"nodaemon", 0, 0, 'D'},
         {"clockrate", 1, 0, 'r'},
         {"time_filename", 1, 0, 'm'},
+        {"timelimit", 1, 0, 'c'},
         {"preset", 1, 0, 'p'},
         {"help", 0, 0, 'h'}
     };
     int opt_char, option_index;
 
     while (1) {
-        if ((opt_char = getopt_long(argc, argv, "ht:w:u:Dr:m:p:", long_options, &option_index)) == -1 )
+        if ((opt_char = getopt_long(argc, argv, "c:ht:w:u:Dr:m:p:", long_options, &option_index)) == -1 )
             break;
         switch(opt_char) {
         case ('t'):
@@ -588,6 +605,9 @@ static void get_args(int argc, char** argv)
             break;
         case ('r'):
             clock_rate = strtod(optarg,NULL);
+            break;
+        case ('c'):
+            var_timelimit = strtol(optarg,NULL,10);
             break;
         case ('h'):
             printf("%s\n", help_msg);
