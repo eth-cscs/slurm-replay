@@ -37,6 +37,7 @@ static int daemon_flag = 1;
 double clock_rate = 0.0;
 int *resv_action;
 int use_preset = 1;
+int force_switch = 0;
 double var_timelimit = -1.0;
 
 static void log_string(const char* type, char* msg)
@@ -255,7 +256,11 @@ static int create_and_submit_job(job_trace_t jobd)
     }
 
     dmesg.dependency    = strdup(jobd.dependencies);
-    dmesg.req_switch    = jobd.switches;
+    if (force_switch) {
+        dmesg.req_switch = 1;
+    } else {
+        dmesg.req_switch = jobd.switches;
+    }
 
     if (use_preset == 0) {
         jobd.preset=0;
@@ -367,7 +372,8 @@ static void submit_preset_jobs_and_reservations(unsigned long long *npreset_job,
 
     if (use_preset > 0) {
         for(kr = 0; kr < nresvs; kr++) {
-            if (resv_arr[kr].preset && resv_action[kr] == RESV_CREATE) {
+            //if (resv_arr[kr].preset && resv_action[kr] == RESV_CREATE) {
+            if (resv_action[kr] == RESV_CREATE) {
                 create_and_submit_resv(resv_arr[kr], resv_action[kr]);
             } else {
                 break;
@@ -562,6 +568,7 @@ submitter -w <workload_trace> -t <template_script>\n\
       -m, --time_filename filename where a list of time for slowdown will be written\n\
       -p, --preset use preset: 0 = none, 1 = job started before start date, 2 = all, 3 = all plus hostlist\n\
       -c, --timelimit  add a variation of time limit specified by the job. A value of 1.05 will add a 1.05x the real duration as a time limit\n\
+      -x, --force_switch  force to use switch=1 for all jobs\n\
       -h, --help           This help message.\n";
 
 
@@ -573,6 +580,7 @@ static void get_args(int argc, char** argv)
         {"wrkldfile", 1, 0, 'w'},
         {"user", 1, 0, 'u'},
         {"nodaemon", 0, 0, 'D'},
+        {"force_switch", 0, 0, 'x'},
         {"clockrate", 1, 0, 'r'},
         {"time_filename", 1, 0, 'm'},
         {"timelimit", 1, 0, 'c'},
@@ -582,7 +590,7 @@ static void get_args(int argc, char** argv)
     int opt_char, option_index;
 
     while (1) {
-        if ((opt_char = getopt_long(argc, argv, "c:ht:w:u:Dr:m:p:", long_options, &option_index)) == -1 )
+        if ((opt_char = getopt_long(argc, argv, "c:ht:w:u:Dr:m:p:x", long_options, &option_index)) == -1 )
             break;
         switch(opt_char) {
         case ('t'):
@@ -608,6 +616,9 @@ static void get_args(int argc, char** argv)
             break;
         case ('c'):
             var_timelimit = strtol(optarg,NULL,10);
+            break;
+        case ('x'):
+            force_switch = 1;
             break;
         case ('h'):
             printf("%s\n", help_msg);
