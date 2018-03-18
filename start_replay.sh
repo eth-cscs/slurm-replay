@@ -1,7 +1,7 @@
 #!/bin/bash
 
 
-while getopts ":w:r:n:p:" opt; do
+while getopts ":w:r:n:p:s:" opt; do
 case $opt in
     w)
        WORKLOAD="$OPTARG"
@@ -14,6 +14,9 @@ case $opt in
     ;;
     p)
        PRESET="$OPTARG"
+    ;;
+    s)
+       SUBMITTER_EXTRA="$OPTARG"
     ;;
     :)
        echo "Option -$OPTARG requires an argument."
@@ -91,7 +94,7 @@ echo
 echo -n "Start submitter and node controller... "
 rm -f submitter.log node_controller.log "$TMP_DIR/accel_time"
 touch "$TMP_DIR/accel_time"
-submitter -w "$WORKLOAD" -t template.script -r "$CLOCK_RATE" -u "$REPLAY_USER" -m "$TMP_DIR/accel_time" -p "$PRESET"
+submitter -w "$WORKLOAD" -t template.script -r "$CLOCK_RATE" -u "$REPLAY_USER" -m "$TMP_DIR/accel_time" -p "$PRESET" $SUBMITTER_EXTRA
 if (( $PRESET < 3 )); then
     node_controller -w "$WORKLOAD"
 fi
