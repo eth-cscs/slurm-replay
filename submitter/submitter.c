@@ -277,7 +277,7 @@ static int create_and_submit_job(job_trace_t jobd)
 
     dmesg.time_limit = jobd.timelimit;
     duration = jobd.time_end - jobd.time_start;
-    if (var_timelimit != -1.0 && jobd.preset == 0 && jobd.state ==3) { //state == complete
+    if (var_timelimit != -1.0 && jobd.state == 3) { //state == complete
         new_timelimit = (int)ceil((var_timelimit*duration)/60.0);
         if (dmesg.time_limit > new_timelimit) {
              dmesg.time_limit = new_timelimit;
@@ -295,10 +295,14 @@ static int create_and_submit_job(job_trace_t jobd)
         if (jobd.preset) {
             log_info("Preset job submitted: job_id=%u count=%d", respMsg->job_id, count);
         } else {
-            if (var_timelimit != -1.0 && jobd.preset == 0 && jobd.state ==3) {
+            if (var_timelimit != -1.0 && jobd.state ==3) {
                 log_info("job submitted: job_id=%u count=%d timelimit=%d instead of %d", respMsg->job_id, count, dmesg.time_limit, jobd.timelimit);
             } else {
-                log_info("job submitted: job_id=%u count=%d", respMsg->job_id, count);
+                if (force_switch) {
+                    log_info("job submitted: job_id=%u count=%d switch=1", respMsg->job_id, count);
+                } else {
+                    log_info("job submitted: job_id=%u count=%d", respMsg->job_id, count);
+                }
             }
         }
     }
@@ -615,7 +619,7 @@ static void get_args(int argc, char** argv)
             clock_rate = strtod(optarg,NULL);
             break;
         case ('c'):
-            var_timelimit = strtol(optarg,NULL,10);
+            var_timelimit = strtod(optarg,NULL);
             break;
         case ('x'):
             force_switch = 1;
