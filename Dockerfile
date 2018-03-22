@@ -17,7 +17,7 @@ RUN  ln -sf /usr/share/zoneinfo/CET /etc/localtime
 
 # create a user slurm and set mariadb to be user dependent (non-root)
 # do not /home in case it cannot be mounted by the container technology
-RUN useradd -ms /bin/bash -d /maximem $REPLAY_USER && \
+RUN useradd -ms /bin/bash -d /$REPLAY_USER $REPLAY_USER && \
     mkdir -p /run/mysqld && \
     ln -s /$REPLAY_USER/run/mysqld/mysqld.lock /run/mysqld/mysqld.sock && \
     sed -i -e "s/socket[[:space:]]*=.*/socket=\/$REPLAY_USER\/run\/mysqld\/mysqld.lock/g" /etc/mysql/my.cnf && \
@@ -27,9 +27,11 @@ RUN useradd -ms /bin/bash -d /maximem $REPLAY_USER && \
 
 USER $REPLAY_USER
 COPY . /$REPLAY_USER/slurm-replay
+COPY slurm-$SLURM_VERSION.tar.bz2 /$REPLAY_USER
 
 USER root
 RUN chown -R $REPLAY_USER:$REPLAY_USER /$REPLAY_USER/slurm-replay
+RUN chown -R $REPLAY_USER:$REPLAY_USER /$REPLAY_USER/slurm-$SLURM_VERSION.tar.bz2
 
 USER $REPLAY_USER
 # install replay libraries - libwtime need to be built before slurm
@@ -37,8 +39,8 @@ RUN cd /$REPLAY_USER/slurm-replay/distime && \
     make
 
 # get/patch/compile/install slurm (add dependency to libwtime)
+    #wget https://download.schedmd.com/slurm/slurm-$SLURM_VERSION.tar.bz2 && \
 RUN cd /$REPLAY_USER && \
-    wget https://download.schedmd.com/slurm/slurm-$SLURM_VERSION.tar.bz2 && \
     tar jxf slurm-$SLURM_VERSION.tar.bz2 && \
     cd slurm-$SLURM_VERSION && \
     patch -p1 < ../slurm-replay/patch/slurm_shmemclock.patch && \
