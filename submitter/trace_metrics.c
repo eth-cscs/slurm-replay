@@ -72,7 +72,8 @@ void getArgs(int argc, char** argv)
     }
 }
 
-long findMinStart(job_trace_t *job_arr, unsigned long long njobs) {
+long findMinStart(job_trace_t *job_arr, unsigned long long njobs)
+{
     long time_start_min = LONG_MAX;
     unsigned long long j;
     for(j = 0; j < njobs; j++) {
@@ -83,7 +84,8 @@ long findMinStart(job_trace_t *job_arr, unsigned long long njobs) {
     return time_start_min;
 }
 
-long findMaxEnd(job_trace_t *job_arr, unsigned long long njobs) {
+long findMaxEnd(job_trace_t *job_arr, unsigned long long njobs)
+{
     long time_end_max = 0;
     unsigned long long j;
     for(j = 0; j < njobs; j++) {
@@ -278,7 +280,7 @@ int main(int argc, char *argv[])
         //if (strcmp("normal",job_arr[j].partition) != 0 && strcmp("xfer",job_arr[j].partition) != 0) {
         //    njobs_otherp++;
         //    continue;
-       // }
+        // }
         memcpy(&job_arr_all[njobs_all], &job_arr[j], sizeof(job_trace_t));
         njobs_all++;
         if (strcmp(job_arr[j].partition, "xfer") != 0) {
@@ -290,24 +292,24 @@ int main(int argc, char *argv[])
                 njobs_gpu++;
             }
         } else {
-          njobs_otherp++;
+            njobs_otherp++;
         }
     }
     printf("all=%llu preset=%llu (otherp=%llu)\n", njobs, njobs_preset, njobs_otherp);
-if (c_mc && c_gpu) {
-    compute_metrics(job_arr_all, njobs_all, Nnodes, &makespan, &util, &avg_wait, &std_wait, &min_wait, &max_wait, &nwait, &dispersion, &slowdown,&coefvar_wait);
-    printf("[ALL=%llu]\t Makespan=%ld\t Util=%.8f\t Avg_Wait=(%.8f,%.8f,%ld,%ld,%ld,%.4f)\t Dispersion=%.8f Slowdown=%.8f\n", njobs_all, makespan, util, avg_wait, std_wait, nwait, min_wait, max_wait, coefvar_wait, dispersion, slowdown);
-}
+    if (c_mc && c_gpu) {
+        compute_metrics(job_arr_all, njobs_all, Nnodes, &makespan, &util, &avg_wait, &std_wait, &min_wait, &max_wait, &nwait, &dispersion, &slowdown,&coefvar_wait);
+        printf("[ALL=%llu]\t Makespan=%ld\t Util=%.8f\t Avg_Wait=(%.8f,%.8f,%ld,%ld,%ld,%.4f)\t Dispersion=%.8f Slowdown=%.8f\n", njobs_all, makespan, util, avg_wait, std_wait, nwait, min_wait, max_wait, coefvar_wait, dispersion, slowdown);
+    }
 
-if (c_mc) {
-    compute_metrics(job_arr_mc, njobs_mc, Nnodes_mc, &makespan, &util, &avg_wait, &std_wait, &min_wait, &max_wait, &nwait, &dispersion, &slowdown,&coefvar_wait);
-    printf("[MC=%llu]\t Makespan=%ld\t Util=%.8f\t Avg_Wait=(%.8f,%.8f,%ld,%ld,%ld,%.4f)\t Dispersion=%.8f Slowdown=%.8f\n", njobs_mc, makespan, util, avg_wait, std_wait, nwait, min_wait, max_wait, coefvar_wait, dispersion, slowdown);
-}
+    if (c_mc) {
+        compute_metrics(job_arr_mc, njobs_mc, Nnodes_mc, &makespan, &util, &avg_wait, &std_wait, &min_wait, &max_wait, &nwait, &dispersion, &slowdown,&coefvar_wait);
+        printf("[MC=%llu]\t Makespan=%ld\t Util=%.8f\t Avg_Wait=(%.8f,%.8f,%ld,%ld,%ld,%.4f)\t Dispersion=%.8f Slowdown=%.8f\n", njobs_mc, makespan, util, avg_wait, std_wait, nwait, min_wait, max_wait, coefvar_wait, dispersion, slowdown);
+    }
 
-if (c_gpu) {
-    compute_metrics(job_arr_gpu, njobs_gpu, Nnodes_gpu, &makespan, &util, &avg_wait, &std_wait, &min_wait, &max_wait,  &nwait, &dispersion, &slowdown,&coefvar_wait);
-    printf("[GPU=%llu]\t Makespan=%ld\t Util=%.8f\t Avg_Wait=(%.8f,%.8f,%ld,%ld,%ld,%.4f)\t Dispersion=%.8f Slowdown=%.8f\n", njobs_gpu, makespan, util, avg_wait, std_wait, nwait, min_wait, max_wait, coefvar_wait, dispersion, slowdown);
-}
+    if (c_gpu) {
+        compute_metrics(job_arr_gpu, njobs_gpu, Nnodes_gpu, &makespan, &util, &avg_wait, &std_wait, &min_wait, &max_wait,  &nwait, &dispersion, &slowdown,&coefvar_wait);
+        printf("[GPU=%llu]\t Makespan=%ld\t Util=%.8f\t Avg_Wait=(%.8f,%.8f,%ld,%ld,%ld,%.4f)\t Dispersion=%.8f Slowdown=%.8f\n", njobs_gpu, makespan, util, avg_wait, std_wait, nwait, min_wait, max_wait, coefvar_wait, dispersion, slowdown);
+    }
 
     free(job_arr);
     free(job_arr_all);

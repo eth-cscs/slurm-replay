@@ -291,7 +291,7 @@ static int create_and_submit_job(job_trace_t jobd)
         dmesg.time_limit = new_timelimit;
         max_timelimit = 24*60;
         if (new_timelimit > max_timelimit) {
-             dmesg.time_limit = max_timelimit;
+            dmesg.time_limit = max_timelimit;
         }
     }
     create_script(script, jobd.nodes_alloc, tasks, jobd.id_job, duration, jobd.exit_code, jobd.preset, jobd.time_end);
@@ -392,7 +392,7 @@ static void submit_preset_jobs_and_reservations(unsigned long long *npreset_job,
             }
         }
     }
-*/
+    */
     *npreset_job=kj;
     *npreset_resv=kr;
 }
