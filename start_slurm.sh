@@ -83,6 +83,9 @@ else
     cp "../data/slurmcfg/gres.conf" etc/gres.conf
     cp "../data/slurmcfg/topology.conf" etc/topology.conf
     ./configure_slurm.sh etc/slurm.conf
+    if [ -f "../data/extra_configure_slurm.sh" ]; then
+        ../data/./extra_configure_slurm.sh etc/slurm.conf
+    fi
 fi
 
 ./start_slurmdbd.sh $SLURM_REPLAY_LIB

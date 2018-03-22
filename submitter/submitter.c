@@ -37,6 +37,10 @@ static int daemon_flag = 1;
 double clock_rate = 0.0;
 int *resv_action;
 int use_preset = 1;
+int use_switch = 1;
+double switch_rate = 1.0;
+int switch_node = 0;
+int switch_tick = 0;
 double var_timelimit = -1.0;
 
 static void log_string(const char* type, char* msg)
@@ -196,7 +200,7 @@ static int create_and_submit_job(job_trace_t jobd)
     static unsigned long count = 0;
     job_desc_msg_t dmesg;
     submit_response_msg_t * respMsg = NULL;
-    long int duration;
+    long int duration, org_duration;
     int tasks;
     int rv = 0;
     char script[2048];
@@ -205,6 +209,8 @@ static int create_and_submit_job(job_trace_t jobd)
     int TRES_NODE = 4;
     char env_str[256];
     int new_timelimit;
+    int max_timelimit;
+    int nswitch;
 
     slurm_init_job_desc_msg(&dmesg);
 
@@ -255,7 +261,16 @@ static int create_and_submit_job(job_trace_t jobd)
     }
 
     dmesg.dependency    = strdup(jobd.dependencies);
-    dmesg.req_switch    = jobd.switches;
+    org_duration = jobd.time_end - jobd.time_start;
+    if (use_switch && jobd.nodes_alloc >= switch_node && org_duration >= switch_tick && (jobd.state == 3 || jobd.state == 6)) {
+        nswitch = (int)ceil((double)(jobd.nodes_alloc)/384.0); // 48 blades per cabinet, 2 cabinets
+        dmesg.req_switch = nswitch;
+        duration = (int)ceil(org_duration*switch_rate);
+    } else {
+        nswitch = jobd.switches;
+        dmesg.req_switch = jobd.switches;
+        duration = org_duration;
+    }
 
     if (use_preset == 0) {
         jobd.preset=0;
@@ -271,11 +286,12 @@ static int create_and_submit_job(job_trace_t jobd)
     }
 
     dmesg.time_limit = jobd.timelimit;
-    duration = jobd.time_end - jobd.time_start;
-    if (var_timelimit != -1.0 && jobd.preset == 0 && jobd.state ==3) { //state == complete
+    if (var_timelimit != -1.0 && (jobd.state == 3 || jobd.state ==6)) { //state == complete
         new_timelimit = (int)ceil((var_timelimit*duration)/60.0);
-        if (dmesg.time_limit > new_timelimit) {
-             dmesg.time_limit = new_timelimit;
+        dmesg.time_limit = new_timelimit;
+        max_timelimit = 24*60;
+        if (new_timelimit > max_timelimit) {
+            dmesg.time_limit = max_timelimit;
         }
     }
     create_script(script, jobd.nodes_alloc, tasks, jobd.id_job, duration, jobd.exit_code, jobd.preset, jobd.time_end);
@@ -287,15 +303,7 @@ static int create_and_submit_job(job_trace_t jobd)
     }
 
     if (respMsg) {
-        if (jobd.preset) {
-            log_info("Preset job submitted: job_id=%u count=%d", respMsg->job_id, count);
-        } else {
-            if (var_timelimit != -1.0 && jobd.preset == 0 && jobd.state ==3) {
-                log_info("job submitted: job_id=%u count=%d timelimit=%d instead of %d", respMsg->job_id, count, dmesg.time_limit, jobd.timelimit);
-            } else {
-                log_info("job submitted: job_id=%u count=%d", respMsg->job_id, count);
-            }
-        }
+        log_info("job submitted [%d,%ld,%d]: job_id=%u count=%d switch=%d|%.1f,%d,%d timelimit=%d|%d duration=%d|%d preset=%d", jobd.nodes_alloc, org_duration, jobd.state, respMsg->job_id, count, nswitch, switch_rate, switch_node, switch_tick,  dmesg.time_limit, jobd.timelimit, duration, org_duration, jobd.preset);
     }
     count++;
 
@@ -367,7 +375,8 @@ static void submit_preset_jobs_and_reservations(unsigned long long *npreset_job,
 
     if (use_preset > 0) {
         for(kr = 0; kr < nresvs; kr++) {
-            if (resv_arr[kr].preset && resv_action[kr] == RESV_CREATE) {
+            //if (resv_arr[kr].preset && resv_action[kr] == RESV_CREATE) {
+            if (resv_action[kr] == RESV_CREATE) {
                 create_and_submit_resv(resv_arr[kr], resv_action[kr]);
             } else {
                 break;
@@ -383,7 +392,7 @@ static void submit_preset_jobs_and_reservations(unsigned long long *npreset_job,
             }
         }
     }
-*/
+    */
     *npreset_job=kj;
     *npreset_resv=kr;
 }
@@ -562,6 +571,7 @@ submitter -w <workload_trace> -t <template_script>\n\
       -m, --time_filename filename where a list of time for slowdown will be written\n\
       -p, --preset use preset: 0 = none, 1 = job started before start date, 2 = all, 3 = all plus hostlist\n\
       -c, --timelimit  add a variation of time limit specified by the job. A value of 1.05 will add a 1.05x the real duration as a time limit\n\
+      -x, --use_switch  force to use switch=1 for all jobs and multiply the duration by the value\n\
       -h, --help           This help message.\n";
 
 
@@ -573,16 +583,21 @@ static void get_args(int argc, char** argv)
         {"wrkldfile", 1, 0, 'w'},
         {"user", 1, 0, 'u'},
         {"nodaemon", 0, 0, 'D'},
+        {"use_switch", 1, 0, 'x'},
         {"clockrate", 1, 0, 'r'},
         {"time_filename", 1, 0, 'm'},
         {"timelimit", 1, 0, 'c'},
         {"preset", 1, 0, 'p'},
         {"help", 0, 0, 'h'}
     };
-    int opt_char, option_index;
+    int opt_char, option_index, i, k;
+    char *switch_v;
+    char node_v[128];
+    char rate_v[32];
+    char tick_v[32];
 
     while (1) {
-        if ((opt_char = getopt_long(argc, argv, "c:ht:w:u:Dr:m:p:", long_options, &option_index)) == -1 )
+        if ((opt_char = getopt_long(argc, argv, "c:ht:w:u:Dr:m:p:x:", long_options, &option_index)) == -1 )
             break;
         switch(opt_char) {
         case ('t'):
@@ -607,7 +622,43 @@ static void get_args(int argc, char** argv)
             clock_rate = strtod(optarg,NULL);
             break;
         case ('c'):
-            var_timelimit = strtol(optarg,NULL,10);
+            var_timelimit = strtod(optarg,NULL);
+            break;
+        case ('x'):
+            use_switch = 1;
+            switch_v = strdup(optarg);
+            i = 0;
+            while(switch_v[i] != ',' && switch_v[i] != '\0') {
+                if (switch_v[i] != ' ') {
+                    rate_v[i] = switch_v[i];
+                }
+                i++;
+            }
+            rate_v[i] = '\0';
+            switch_rate = strtod(rate_v,NULL);
+            if (switch_v[i] == ',') {
+                i++;
+                k = 0;
+                while(switch_v[i] != ',' && switch_v[i] != '\0') {
+                    node_v[k] = switch_v[i];
+                    k++;
+                    i++;
+                }
+                node_v[k] = '\0';
+                switch_node = atoi(node_v);
+            }
+            if (switch_v[i] == ',') {
+                i++;
+                k = 0;
+                while(switch_v[i] != '\0') {
+                    tick_v[k] = switch_v[i];
+                    k++;
+                    i++;
+                }
+                tick_v[k] = '\0';
+                switch_tick = atoi(tick_v);
+            }
+            free(switch_v);
             break;
         case ('h'):
             printf("%s\n", help_msg);
