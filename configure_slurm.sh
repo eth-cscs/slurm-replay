@@ -18,13 +18,9 @@ sed -i -e "/JobCompType[[:space:]]*=/ s/jobcomp.*/jobcomp\/none/" $FILE
 sed -i -e "/AcctGatherEnergyType[[:space:]]*=/ s/cray/none/" $FILE
 sed -i -e "/AcctGatherType[[:space:]]*=/ s/linux/none/" $FILE
 
-# TImeout value
+# Timeout value
 sed -i -e "/SlurmdTimeout[[:space:]]*=/ s/SlurmdTimeout[[:space:]]*=[[:digit:]]*/SlurmdTimeout=0/" $FILE
 
-# Schedule parameters
-#sed -i -e "/SchedulerParameters[[:space:]]*=/ s/default_queue_depth=[[:digit:]]*/default_queue_depth=30000/" $FILE
-#sed -i -e "/SchedulerParameters[[:space:]]*=/ s/max_rpc_cnt=[[:digit:]]*/max_rpc_cnt=3000/" $FILE
-#sed -i -e "/SchedulerParameters[[:space:]]*=/ s/$/,bf_max_time=900,pack_serial_at_end,bf_yield_sleep=1000000/" $FILE
 
 # Debug level
 sed -i -e "/SlurmdDebug[[:space:]]*=/ s/info/error/" $FILE

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 
-while getopts ":w:r:n:p:s:" opt; do
+while getopts ":w:r:n:p:c:x:" opt; do
 case $opt in
     w)
        WORKLOAD="$OPTARG"
@@ -15,8 +15,11 @@ case $opt in
     p)
        PRESET="$OPTARG"
     ;;
-    s)
-       SUBMITTER_EXTRA="$OPTARG"
+    c)
+       SUBMITTER_RUNTIME="$OPTARG"
+    ;;
+    x)
+       SUBMITTER_SWITCH="$OPTARG"
     ;;
     :)
        echo "Option -$OPTARG requires an argument."
@@ -40,15 +43,14 @@ if [ -z "$NAME" ]; then
 fi
 TICK="1"
 CLOCK_RATE=$(echo "$RATE*$TICK" | bc -l)
-echo -n "preset: "
 if (( $PRESET == 0 )); then
-    echo "No preset jobs (priority=0, hostlist=0, reservation=1, node_controller=1)"
+    echo "Preset=$PRESET - No preset jobs (priority=0, hostlist=0, reservation=1, node_controller=1)"
 elif (( $PRESET == 1 )); then
-    echo "Preset jobs (priority=1, hostlist=0, reservation=1, node_controller=1)"
+    echo "Preset=$PRESET - Preset jobs (priority=1, hostlist=0, reservation=1, node_controller=1)"
 elif (( $PRESET == 2 )); then
-    echo "All jobs (priority=1, hostlist=0, reservation=1, node_controller=1)"
+    echo "Preset=$PRESET - All jobs (priority=1, hostlist=0, reservation=1, node_controller=1)"
 elif (( $PRESET == 3 )); then
-    echo "All jobs (priority=1, hostlist=1, reservation=0, node_controller=0)"
+    echo "Preset=$PRESET - All jobs (priority=1, hostlist=1, reservation=0, node_controller=0)"
 fi
 echo "current date: $(date)"
 
@@ -94,7 +96,18 @@ echo
 echo -n "Start submitter and node controller... "
 rm -f submitter.log node_controller.log "$TMP_DIR/accel_time"
 touch "$TMP_DIR/accel_time"
-submitter -w "$WORKLOAD" -t template.script -r "$CLOCK_RATE" -u "$REPLAY_USER" -m "$TMP_DIR/accel_time" -p "$PRESET" $SUBMITTER_EXTRA
+if [[ ! -z "$SUBMITTER_RUNTIME" ]]; then
+    echo -n "Submitter using option -c $SUBMITTER_RUNTIME ..."
+    submitter -w "$WORKLOAD" -t template.script -r "$CLOCK_RATE" -u "$REPLAY_USER" -m "$TMP_DIR/accel_time" -p "$PRESET" -c "$SUBMITTER_RUNTIME"
+fi
+if [[ ! -z "$SUBMITTER_SWITCH" ]]; then
+    echo -n "Submitter using option -x ..."
+    submitter -w "$WORKLOAD" -t template.script -r "$CLOCK_RATE" -u "$REPLAY_USER" -m "$TMP_DIR/accel_time" -p "$PRESET" -x "$SUBMITTER_SWITCH"
+fi
+if [[ -z "$SUBMITTER_RUNTIME" && -z "$SUBMITTER_SWITCH" ]]; then
+    echo -n "Submitter using no special option ..."
+    submitter -w "$WORKLOAD" -t template.script -r "$CLOCK_RATE" -u "$REPLAY_USER" -m "$TMP_DIR/accel_time" -p "$PRESET"
+fi
 if (( $PRESET < 3 )); then
     node_controller -w "$WORKLOAD"
 fi
