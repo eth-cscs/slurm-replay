@@ -265,13 +265,19 @@ int main(int argc, char *argv[])
     njobs_otherp = 0;
     time_start_min = findMinStart(job_arr, njobs);
     for(j = 0; j < njobs; j++) {
-        if (pad > 0 && (job_arr[j].time_start-time_start_min) < pad*3600) {
+        if (pad > 0 && (job_arr[j].time_end-time_start_min) < pad*3600) {
             //skip job before pad
             continue;
         }
         if (range > 0 && (job_arr[j].time_start-time_start_min) > pad*3600+range*3600) {
             //skip job after range
             continue;
+        }
+        if (range > 0 && (job_arr[j].time_start-time_start_min) < pad*3600) {
+            job_arr[j].time_start = time_start_min + pad*3600;
+        }
+        if (range > 0 && (job_arr[j].time_end-time_start_min) > pad*3600+range*3600) {
+            job_arr[j].time_end = time_start_min + pad*3600+range*3600;
         }
         if (job_arr[j].preset) {
             njobs_preset++;
