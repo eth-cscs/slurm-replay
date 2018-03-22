@@ -325,6 +325,7 @@ int main(int argc, char **argv)
 
         sprintf(where_statement,
                 "WHERE t.time_submit < %lu AND t.time_end > %lu AND t.time_start < %lu AND "
+                "t.state <> 7 AND "
                 "t.nodes_alloc > 0 AND t.partition IN ('normal','xfer','large','low','debug','prepost','2go')",
                 time_end, time_start, time_end);
     }
