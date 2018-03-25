@@ -37,10 +37,11 @@ static int daemon_flag = 1;
 double clock_rate = 0.0;
 int *resv_action;
 int use_preset = 1;
-int use_switch = 1;
+int use_switch = 0;
 double switch_rate = 1.0;
 int switch_node = 0;
 int switch_tick = 0;
+int use_runtime = 0;
 double var_timelimit = -1.0;
 
 static void log_string(const char* type, char* msg)
@@ -286,7 +287,7 @@ static int create_and_submit_job(job_trace_t jobd)
     }
 
     dmesg.time_limit = jobd.timelimit;
-    if (var_timelimit != -1.0 && (jobd.state == 3 || jobd.state ==6)) { //state == complete
+    if (use_runtime && var_timelimit != -1.0 && (jobd.state == 3 || jobd.state ==6)) { //state == complete
         new_timelimit = (int)ceil((var_timelimit*duration)/60.0);
         dmesg.time_limit = new_timelimit;
         max_timelimit = 24*60;
@@ -622,6 +623,7 @@ static void get_args(int argc, char** argv)
             clock_rate = strtod(optarg,NULL);
             break;
         case ('c'):
+            use_runtime = 1;
             var_timelimit = strtod(optarg,NULL);
             break;
         case ('x'):

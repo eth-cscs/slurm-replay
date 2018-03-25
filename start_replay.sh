@@ -141,7 +141,6 @@ echo -n "Collecting data... "
 # http://slurm-dev.schedmd.narkive.com/FkIMYBpQ/consistency-checks-and-missing-time-start-in-slurmdbd
 # should we use sacctmgr runaway?
 db_correctness -u "$REPLAY_USER" -p "" -h "localhost" -d "slurm_acct_db" -t daint_job_table -s daint_step_table
-# get the query and remove where close
 REPLAY_WORKLOAD_DIR="../data/replay.${WORKLOAD##*/}.$NAME.$CLOCK_RATE"
 CT=0
 while [ -d "$REPLAY_WORKLOAD_DIR.$CT" ]; do
