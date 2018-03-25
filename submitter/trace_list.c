@@ -16,6 +16,7 @@ static int event = 0;
 static int noheader = 0;
 static int display_query = 0;
 char* workload_trace_file = NULL;
+char* special_action = NULL;
 char help_msg[] = "\
 list_trace [OPTIONS]\n\
     -q, --query                   Print the SQL query used to generate the trace\n\
@@ -24,6 +25,7 @@ list_trace [OPTIONS]\n\
     -u, --humantime               Display submit time in a human-readable\n\
     -r, --reservation             Display reservation information\n\
     -e, --event                   Display node event information\n\
+    -s, --special                 Do a special action define in the code\n\
     -h, --help                    This help message.\n";
 
 
@@ -83,13 +85,14 @@ void getArgs(int argc, char** argv)
         {"noheader",       0, 0, 'n'},
         {"reservation",    0, 0, 'r'},
         {"event",    0, 0, 'e'},
+        {"special",    1, 0, 's'},
         {"humantime",    0, 0, 'u'},
         {"help",           0, 0, 'h'},
     };
     int opt_char, option_index;
 
     while (1) {
-        if ( (opt_char = getopt_long(argc, argv, "w:nurhqe", long_options,
+        if ( (opt_char = getopt_long(argc, argv, "w:nurhqes:", long_options,
                                      &option_index)) == -1 )
             break;
         switch (opt_char) {
@@ -111,10 +114,41 @@ void getArgs(int argc, char** argv)
         case ('u'):
             time_format = 1;
             break;
+        case ('s'):
+            special_action = strdup(optarg);
+            break;
         case ('h'):
             printf("%s\n", help_msg);
             exit(0);
         };
+    }
+}
+
+void do_special_action(job_trace_t* job_arr, unsigned long long num_rows) {
+    unsigned long long k, idx = 0;
+    unsigned long* job_id;
+    int list_file;
+    long duration;
+    double fact;
+
+    job_id = (unsigned long*)malloc(sizeof(unsigned long)*num_rows);
+
+    for(k = 0; k < num_rows; k++) {
+        duration = job_arr[k].time_end - job_arr[k].time_start;
+        fact = (double)duration / (double)(job_arr[k].timelimit*60);
+        if ( fact < 0.5 && job_arr[k].state == 3) {
+            job_id[idx] = job_arr[k].id_job;
+            idx++;
+            printf("%d %ld %ld %.2f\n",job_arr[k].id_job, duration, job_arr[k].timelimit*60, fact);
+        }
+    }
+    printf("number of special jobs: %lld\n", idx);
+    list_file = open(special_action,  O_CREAT | O_RDWR, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+    if ( list_file < 0) {
+        printf("special: data not written, error %d: %s\n",list_file, strerror(list_file));
+    } else {
+        write(list_file, &idx, sizeof(unsigned long long));
+        write(list_file, job_id, idx*sizeof(unsigned long long));
     }
 }
 
@@ -166,6 +200,8 @@ int main(int argc, char *argv[])
 
     job_arr = (job_trace_t*)malloc(sizeof(job_trace_t)*num_rows);
     read(trace_file, job_arr, sizeof(job_trace_t)*num_rows);
+
+
     for(k = 0; k < num_rows; k++) {
         if (time_format) {
             strftime(submit, sizeof(submit), "%Y-%m-%d %H:%M:%S", localtime(&job_arr[k].time_submit));
@@ -201,6 +237,11 @@ int main(int argc, char *argv[])
                job_arr[k].switches,
                job_arr[k].gres_alloc);
     }
+
+    if (special_action) {
+        do_special_action(job_arr, num_rows);
+    }
+
     free(job_arr);
 
     if (reservation) {
