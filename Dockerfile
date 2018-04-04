@@ -83,13 +83,13 @@ RUN mkdir /$REPLAY_USER/data && \
 #
 
 # Install monthly report tools from CSCS
-COPY monthlyrpts /$REPLAY_USER/slurm-replay
-RUN cd /$REPLAY_USER/slurm-replay/monthlyrpts/2.0.0/src && \
-    make && make install && \
-    echo "export PATH=\$PATH:/$REPLAY_USER/slurm-replay/monthlyrpts/2.0.0/src" >> /$REPLAY_USER/.bashrc && \
-    echo "export MONTHLYRPTS_ROOT=/maximem/slurm-replay/monthlyrpts/2.0.0" >> /$REPLAY_USER/.bashrc && \
-    echo "export MONTHLYRPTS_RPTS=/maximem/slurm-replay/monthlyrpts/2.0.0/reports" >> /$REPLAY_USER/.bashrc && \
-    echo "export MONTHLYRPTS_PLOTS=/maximem/slurm-replay/monthlyrpts/2.0.0/plots" >> /$REPLAY_USER/.bashrc
+#COPY monthlyrpts /$REPLAY_USER/slurm-replay
+#RUN cd /$REPLAY_USER/slurm-replay/monthlyrpts/2.0.0/src && \
+#    make && make install && \
+#    echo "export PATH=\$PATH:/$REPLAY_USER/slurm-replay/monthlyrpts/2.0.0/src" >> /$REPLAY_USER/.bashrc && \
+#    echo "export MONTHLYRPTS_ROOT=/maximem/slurm-replay/monthlyrpts/2.0.0" >> /$REPLAY_USER/.bashrc && \
+#    echo "export MONTHLYRPTS_RPTS=/maximem/slurm-replay/monthlyrpts/2.0.0/reports" >> /$REPLAY_USER/.bashrc && \
+#    echo "export MONTHLYRPTS_PLOTS=/maximem/slurm-replay/monthlyrpts/2.0.0/plots" >> /$REPLAY_USER/.bashrc
 
 
 # for convenience
