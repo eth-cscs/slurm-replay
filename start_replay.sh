@@ -94,19 +94,18 @@ sinfo --summarize
 echo
 
 echo -n "Start submitter and node controller... "
-rm -f submitter.log node_controller.log "$TMP_DIR/accel_time"
-touch "$TMP_DIR/accel_time"
+rm -f submitter.log node_controller.log
 if [[ ! -z "$SUBMITTER_RUNTIME" ]]; then
     echo -n "Submitter using option -c $SUBMITTER_RUNTIME ..."
-    submitter -w "$WORKLOAD" -t template.script -r "$CLOCK_RATE" -u "$REPLAY_USER" -m "$TMP_DIR/accel_time" -p "$PRESET" -c "$SUBMITTER_RUNTIME"
+    submitter -w "$WORKLOAD" -t template.script -r "$CLOCK_RATE" -u "$REPLAY_USER" -p "$PRESET" -c "$SUBMITTER_RUNTIME"
 fi
 if [[ ! -z "$SUBMITTER_SWITCH" ]]; then
     echo -n "Submitter using option -x ..."
-    submitter -w "$WORKLOAD" -t template.script -r "$CLOCK_RATE" -u "$REPLAY_USER" -m "$TMP_DIR/accel_time" -p "$PRESET" -x "$SUBMITTER_SWITCH"
+    submitter -w "$WORKLOAD" -t template.script -r "$CLOCK_RATE" -u "$REPLAY_USER" -p "$PRESET" -x "$SUBMITTER_SWITCH"
 fi
 if [[ -z "$SUBMITTER_RUNTIME" && -z "$SUBMITTER_SWITCH" ]]; then
     echo -n "Submitter using no special option ..."
-    submitter -w "$WORKLOAD" -t template.script -r "$CLOCK_RATE" -u "$REPLAY_USER" -m "$TMP_DIR/accel_time" -p "$PRESET"
+    submitter -w "$WORKLOAD" -t template.script -r "$CLOCK_RATE" -u "$REPLAY_USER" -p "$PRESET"
 fi
 if (( $PRESET < 3 )); then
     node_controller -w "$WORKLOAD"
@@ -128,7 +127,6 @@ END_REPLAY=$( echo "$DURATION*($CLOCK_RATE)" | bc -l)
 echo "Replay tentative ending time is $(date --date="${END_REPLAY%.*} seconds")"
 
 ticker -c "$END_TIME,$RATE,$TICK" -n "$NJOBS"
-#-a "$TMP_DIR/accel_time"
 
 sleep 5
 ticker -o -n "$NJOBS"

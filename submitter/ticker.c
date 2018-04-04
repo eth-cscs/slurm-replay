@@ -26,7 +26,6 @@ starter -t <time> -a <action>\n\
       -h, --help     This help message.\n";
 
 
-char *accel_filename = NULL;
 int enable_set = 0;
 int enable_get = 0;
 int enable_clock = 0;
@@ -45,7 +44,6 @@ get_args(int argc, char** argv)
         {"gettime", 0, 0, 'g'},
         {"settime", 1, 0, 's'},
         {"njobs", 1, 0, 'n'},
-        {"accel", 1, 0, 'a'},
         {"over", 0, 0, 'o'},
         {"help", 0, 0, 'h'}
     };
@@ -56,7 +54,7 @@ get_args(int argc, char** argv)
     char tick_v[32];
 
     while (1) {
-        if ((opt_char = getopt_long(argc, argv, "c:hgs:n:oa:", long_options, &option_index)) == -1 )
+        if ((opt_char = getopt_long(argc, argv, "c:hgs:n:o", long_options, &option_index)) == -1 )
             break;
         switch(opt_char) {
         case ('c'):
@@ -108,9 +106,6 @@ get_args(int argc, char** argv)
         case ('o'):
             enable_over = 1;
             break;
-        case ('a'):
-            accel_filename = strdup(optarg);
-            break;
         case ('h'):
             printf("%s\n", help_msg);
             exit(0);
@@ -149,7 +144,6 @@ static inline int all_submitted()
             break;
         }
     }
-    // check if all jobs were submitted
     return jobs_submit == njobs;
 }
 
@@ -161,10 +155,7 @@ static inline int is_schedule()
 int main(int argc, char *argv[])
 {
     const int one_second = 1000000;
-    int freq, freq_slow, freq_fast;
-    int accel_file;
-    unsigned long naccel_time = 0;
-    long *accel_times = NULL;
+    int freq;
     char strstart_time[20];
     char strend_time[20];
     char strhard_time[20];
@@ -177,18 +168,6 @@ int main(int argc, char *argv[])
     get_args(argc, argv);
 
     open_rdwr_shmemclock();
-
-    if (accel_filename != NULL) {
-        accel_file = open(accel_filename, O_RDONLY);
-        if (accel_file < 0) {
-            printf("Error: opening file %s\n", accel_filename);
-            return -1;
-        }
-        read(accel_file, &naccel_time, sizeof(unsigned long long));
-        accel_times = (long*)malloc(naccel_time*sizeof(long));
-        read(accel_file, accel_times, naccel_time*sizeof(long));
-        close(accel_file);
-    }
 
     if (enable_set) {
         strftime(strstart_time, sizeof(strstart_time), "%Y-%m-%d %H:%M:%S", localtime(&time_evt));
@@ -206,32 +185,9 @@ int main(int argc, char *argv[])
         tmp_time = get_shmemclock();
         strftime(strstart_time, sizeof(strstart_time), "%Y-%m-%d %H:%M:%S", localtime(&tmp_time));
         strftime(strend_time, sizeof(strend_time), "%Y-%m-%d %H:%M:%S", localtime(&endtime_evt));
-        printf("Clock: njobs=%lu start='%s', end='%s', duration=%ld[s], rate=(%.5f|%.5f)[s] for 1 replayed second\n", njobs, strstart_time, strend_time, endtime_evt-tmp_time, rate/tick, (rate/2.0)/tick);
+        printf("Clock: njobs=%lu start='%s', end='%s', duration=%ld[s], rate=%.5f[s] for 1 replayed second\n", njobs, strstart_time, strend_time, endtime_evt-tmp_time, rate/tick);
         fflush(stdin);
-        freq_slow = one_second*rate;
-        freq_fast = one_second*(rate/2.0);
-        freq = freq_fast;
-        if (accel_filename != NULL) {
-            amount_slow = amount_fast = 0;
-            for(j = 0; j < naccel_time; j++) {
-                maxtick = accel_times[j] - tmp_time;
-                k = 0;
-                while(k < maxtick) {
-                    usleep(freq);
-                    incr_shmemclock(tick);
-                    k++;
-                }
-                tmp_time = get_shmemclock();
-                if (freq == freq_slow) {
-                    amount_slow += k;
-                    freq = freq_fast;
-                } else {
-                    amount_fast += k;
-                    freq = freq_slow;
-                }
-            }
-            freq = freq_slow;
-        }
+        freq = one_second*rate;
         maxtick=endtime_evt-tmp_time;
         k = 0;
         while(k < maxtick) {
@@ -265,10 +221,6 @@ int main(int argc, char *argv[])
             if (get_shmemclock() >= hard_endtime) {
                 printf("Hard end time reached at %s\n", strhard_time);
             }
-        }
-        if (accel_filename != NULL) {
-            amount_slow+=k;
-            printf("Ticks breakdown - fast: %ld - slow: %ld\n", amount_fast, amount_slow);
         }
     }
 

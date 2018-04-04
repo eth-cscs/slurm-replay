@@ -15,47 +15,14 @@
 #include <slurm/slurm.h>
 
 #include "trace.h"
+#include "logger.h"
 #include "shmemclock.h"
 
-FILE *logger = NULL;
 char *workload_filename = NULL;
 node_trace_t* node_arr_s;
 node_trace_t* node_arr_e;
 unsigned long long nnodes = 0;
-static int daemon_flag = 1;
 double clock_rate = 0.0;
-
-static void log_string(const char* type, char* msg)
-{
-    char log_time[32];
-    time_t t = get_shmemclock();
-    struct tm timestamp_tm;
-
-    localtime_r(&t, &timestamp_tm);
-    strftime(log_time, 32, "%Y-%m-%dT%T", &timestamp_tm);
-    fprintf(logger,"[%s.000] %s: %s\n", log_time, type, msg);
-    fflush(logger);
-}
-
-static void log_error(char *fmt, ...)
-{
-    char dest[1024];
-    va_list argptr;
-    va_start(argptr, fmt);
-    vsprintf(dest, fmt, argptr);
-    va_end(argptr);
-    log_string("error", dest);
-}
-
-static void log_info(char *fmt, ...)
-{
-    char dest[1024];
-    va_list argptr;
-    va_start(argptr, fmt);
-    vsprintf(dest, fmt, argptr);
-    va_end(argptr);
-    log_string("info", dest);
-}
 
 int time_start_comp(const void *v1, const void *v2)
 {
@@ -238,41 +205,6 @@ static void get_args(int argc, char** argv)
 
 }
 
-void daemonize(int daemon_flag)
-{
-    pid_t pid = 0;
-    pid_t sid = 0;
-
-    if (daemon_flag) {
-        pid = fork();
-
-        if  (pid < 0 ) {
-            printf("Daemonizing failed. Exit.");
-            exit(pid);
-        }
-
-        if (pid > 0 ) {
-            // terminate parent process
-            exit(0);
-        }
-
-        umask(0);
-        sid = setsid();
-        if (sid < 0) {
-            printf("Daemonizing failed. Exit.");
-            exit(sid);
-        }
-        close(STDIN_FILENO);
-        close(STDOUT_FILENO);
-        close(STDERR_FILENO);
-
-        logger = fopen("log/node_controller.log", "w+");
-    } else {
-        logger = stdout;
-    }
-}
-
-
 int main(int argc, char *argv[], char *envp[])
 {
     //Open shared priority queue for time clock
@@ -286,7 +218,7 @@ int main(int argc, char *argv[], char *envp[])
     }
 
     // goes in daemon state
-    daemonize(daemon_flag);
+    daemonize(daemon_flag,"log/node_controller.log");
 
     if (read_job_trace(workload_filename) < 0) {
         log_error("a problem was detected when reading trace file.");

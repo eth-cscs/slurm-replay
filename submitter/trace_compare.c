@@ -78,7 +78,8 @@ void getArgs(int argc, char** argv)
 
 static inline double euclidean_dist(time_t x, time_t y)
 {
-    return sqrt( (x-y)*(x-y) );
+//return sqrt( (x-y)*(x-y) );
+    return (y-x);
 }
 
 int job_compare(const void *s1, const void *s2)

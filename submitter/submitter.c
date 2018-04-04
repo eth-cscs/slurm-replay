@@ -16,24 +16,22 @@
 #include <slurm/slurm.h>
 
 #include "trace.h"
+#include "logger.h"
 #include "shmemclock.h"
 #define ONE_OVER_BILLION 1E-9
 
 #define RESV_CREATE 3
 #define RESV_UPDATE 4
 
-FILE *logger = NULL;
 char *tfile = NULL;
 char *username = NULL;
 uid_t userid = 0;
 uid_t groupid = 0;
 char *workload_filename = NULL;
-char *time_filename = NULL;
 job_trace_t* job_arr;
 resv_trace_t* resv_arr;
 unsigned long long njobs = 0;
 unsigned long long nresvs = 0;
-static int daemon_flag = 1;
 double clock_rate = 0.0;
 int *resv_action;
 int use_preset = 1;
@@ -43,38 +41,6 @@ int switch_node = 0;
 int switch_tick = 0;
 int use_runtime = 0;
 double var_timelimit = -1.0;
-
-static void log_string(const char* type, char* msg)
-{
-    char log_time[32];
-    time_t t = get_shmemclock();
-    struct tm timestamp_tm;
-
-    localtime_r(&t, &timestamp_tm);
-    strftime(log_time, 32, "%Y-%m-%dT%T", &timestamp_tm);
-    fprintf(logger,"[%s.000] %s: %s\n", log_time, type, msg);
-    fflush(logger);
-}
-
-static void log_error(char *fmt, ...)
-{
-    char dest[1024];
-    va_list argptr;
-    va_start(argptr, fmt);
-    vsprintf(dest, fmt, argptr);
-    va_end(argptr);
-    log_string("error", dest);
-}
-
-static void log_info(char *fmt, ...)
-{
-    char dest[1024];
-    va_list argptr;
-    va_start(argptr, fmt);
-    vsprintf(dest, fmt, argptr);
-    va_end(argptr);
-    log_string("info", dest);
-}
 
 static void print_job_specs(job_desc_msg_t* dmesg)
 {
@@ -238,7 +204,8 @@ static int create_and_submit_job(job_trace_t jobd)
     }
 
     dmesg.min_nodes = jobd.nodes_alloc;
-    // TODO: Daint specific, check if string starts with "gpu:0" meaning using constraint mc for all partitions except xfer
+    // TODO: Daint specific, check if string starts with "gpu:0" meaning using constraint mc for all partitions except xfer,
+    // one way to avoid that is to do this check at the trace creation
     // Note that sometime the string "gpu" is changed to the number "7696487" in the prodcution db.
     if (strncmp("gpu:0", jobd.gres_alloc, 5) == 0 || strncmp("7696487:0", jobd.gres_alloc,9) == 0) {
         if (strcmp(jobd.partition, "xfer") != 0) {
@@ -370,13 +337,12 @@ static void create_and_submit_resv(resv_trace_t resvd, int action)
     if (output_name) free(output_name);
 }
 
-static void submit_preset_jobs_and_reservations(unsigned long long *npreset_job, unsigned long long *npreset_resv)
+static void create_and_submit_reservations(unsigned long long *npreset_resv)
 {
-    unsigned long long kj = 0, kr = 0;
+    unsigned long long kr = 0;
 
     if (use_preset > 0) {
         for(kr = 0; kr < nresvs; kr++) {
-            //if (resv_arr[kr].preset && resv_action[kr] == RESV_CREATE) {
             if (resv_action[kr] == RESV_CREATE) {
                 create_and_submit_resv(resv_arr[kr], resv_action[kr]);
             } else {
@@ -384,34 +350,22 @@ static void submit_preset_jobs_and_reservations(unsigned long long *npreset_job,
             }
         }
     }
-    /*if (use_preset > 0) {
-        for(kj = 0; kj < njobs; kj++) {
-            if (job_arr[kj].preset) {
-                create_and_submit_job(job_arr[kj]);
-            } else {
-                break;
-            }
-        }
-    }
-    */
-    *npreset_job=kj;
     *npreset_resv=kr;
 }
 
-static void submit_jobs_and_reservations(unsigned long long npreset_job, unsigned long long npreset_resv)
+static void submit_jobs_and_reservations(unsigned long long npreset_resv)
 {
     const int one_second = 1000000;
     int freq;
     time_t current_time = 0;
-    unsigned long long kj, kr;
-    kj = npreset_job;
+    unsigned long long kj = 0, kr;
     kr = npreset_resv;
 
     current_time = get_shmemclock();
 
     freq = one_second*clock_rate;
     while( kj < njobs || kr < nresvs ) {
-        // wait for submission time of next job
+        // wait for submission time of next job or reservation
         while((current_time < job_arr[kj].time_submit || kj >= njobs) && (current_time < resv_arr[kr].time_start || kr >= nresvs)) {
             current_time = get_shmemclock();
             usleep(freq);
@@ -429,11 +383,9 @@ static void submit_jobs_and_reservations(unsigned long long npreset_job, unsigne
 
 
 
-static int read_job_trace(const char* trace_filename, const char* time_filename)
+static int read_job_trace(const char* trace_filename)
 {
-    int trace_file, time_file;
-    int delta = 0;
-    long *time_arr = NULL;
+    int trace_file;
     size_t query_length = 0;
     char query[1024];
     unsigned long k, j;
@@ -458,39 +410,6 @@ static int read_job_trace(const char* trace_filename, const char* time_filename)
         return -1;
     }
     read(trace_file, job_arr, sizeof(job_trace_t)*njobs);
-
-    // create the file containing the list of time for slowdown
-    delta = 60;
-    time_arr = (long*)malloc(sizeof(long)*(njobs*2));
-    j = 0;
-    for(k = 0; k < njobs; k++) {
-        if (j == 0) {
-            time_arr[j] = job_arr[k].time_submit - delta;
-            time_arr[j+1] = job_arr[k].time_submit + delta;
-            j += 2;
-        } else {
-            if (job_arr[k].time_submit - delta < time_arr[j-1]) {
-                time_arr[j-1] = job_arr[k].time_submit + delta;
-            } else {
-                time_arr[j] = job_arr[k].time_submit - delta;
-                time_arr[j+1] = job_arr[k].time_submit + delta;
-                j += 2;
-            }
-
-        }
-    }
-    time_njobs = j;
-    if (time_filename) {
-        time_file = open(time_filename, O_WRONLY);
-        if (time_file < 0) {
-            log_error("opening file %s", time_filename);
-            return -1;
-        }
-        write(time_file, &time_njobs, sizeof(unsigned long long));
-        write(time_file, time_arr, time_njobs*sizeof(long));
-
-        close(time_file);
-    }
 
     read(trace_file, &nresvs, sizeof(unsigned long long));
     resv_arr = (resv_trace_t*)malloc(sizeof(resv_trace_t)*nresvs);
@@ -540,7 +459,7 @@ static int read_job_trace(const char* trace_filename, const char* time_filename)
                 for(k = 0; k < nresvs; k++) {
                     if (resv_arr[k].id_resv == resv_arr[k_last].id_resv) {
                         resv_arr[k].time_end = resv_arr[k_last].time_end;
-//                       log_info("Change reservation %d time_end (%d, %d)", resv_arr[k].id_resv,  resv_arr[k].time_start, resv_arr[k].time_end);
+                        //log_info("Change reservation %d time_end (%d, %d)", resv_arr[k].id_resv,  resv_arr[k].time_start, resv_arr[k].time_end);
                     }
                 }
             }
@@ -561,19 +480,17 @@ static int read_job_trace(const char* trace_filename, const char* time_filename)
 }
 
 char   help_msg[] = "\
-submitter -w <workload_trace> -t <template_script>\n\
-      -u, --user username  user that will be used to launch the jobs, should be the replay user\n\
-      -w, --wrkldfile filename 'filename' is the name of the trace file \n\
-                   containing the information of the jobs to \n\
-                   simulate.\n\
-      -t, --template filename containing the templatied script used by the jobs\n\
-      -D, --nodaemon do not daemonize the process\n\
-      -r, --clockrate clock rate of the simulated clock\n\
-      -m, --time_filename filename where a list of time for slowdown will be written\n\
-      -p, --preset use preset: 0 = none, 1 = job started before start date, 2 = all, 3 = all plus hostlist\n\
-      -c, --timelimit  add a variation of time limit specified by the job. A value of 1.05 will add a 1.05x the real duration as a time limit\n\
-      -x, --use_switch  force to use switch=1 for all jobs and multiply the duration by the value\n\
-      -h, --help           This help message.\n";
+submitter\n\
+      -w <workload_trace> -t <template_script>\n\
+      -u, --user username        user that will be used to launch the jobs, should be the replay user\n\
+      -w, --wrkldfile filename   file is the name of the trace file \n\
+      -t, --template filename    file containing the templatied script used by the jobs\n\
+      -D, --nodaemon             do not daemonize the process\n\
+      -r, --clockrate            clock rate of the Replay-clock\n\
+      -p, --preset               use preset: 0 = none, 1 = job started before trace start date (default), 2 = all jobs have a set priority, 3 = like 2 plus fix hostlist and no reservation\n\
+      -c, --timelimit            add a variation of time limit specified by the job. A value of 1.05 will add a 1.05x the real duration as a time limit\n\
+      -x, --use_switch           x,y,z will use switch=1 for jobs using y nodes and z time in seconds, will apply the factor x to their duration\n\
+      -h, --help                 This help message.\n";
 
 
 
@@ -586,7 +503,6 @@ static void get_args(int argc, char** argv)
         {"nodaemon", 0, 0, 'D'},
         {"use_switch", 1, 0, 'x'},
         {"clockrate", 1, 0, 'r'},
-        {"time_filename", 1, 0, 'm'},
         {"timelimit", 1, 0, 'c'},
         {"preset", 1, 0, 'p'},
         {"help", 0, 0, 'h'}
@@ -598,14 +514,11 @@ static void get_args(int argc, char** argv)
     char tick_v[32];
 
     while (1) {
-        if ((opt_char = getopt_long(argc, argv, "c:ht:w:u:Dr:m:p:x:", long_options, &option_index)) == -1 )
+        if ((opt_char = getopt_long(argc, argv, "c:ht:w:u:Dr:p:x:", long_options, &option_index)) == -1 )
             break;
         switch(opt_char) {
         case ('t'):
             tfile = strdup(optarg);
-            break;
-        case ('m'):
-            time_filename = strdup(optarg);
             break;
         case ('p'):
             use_preset = atoi(optarg);
@@ -670,41 +583,9 @@ static void get_args(int argc, char** argv)
 
 }
 
-void daemonize(int daemon_flag)
-{
-    pid_t pid = 0;
-    pid_t sid = 0;
-
-    if (daemon_flag) {
-        pid = fork();
-
-        if  (pid < 0 ) {
-            printf("Daemonizing failed. Exit.");
-            exit(pid);
-        }
-
-        if (pid > 0 ) {
-            // terminate parent process
-            exit(0);
-        }
-
-        umask(0);
-        sid = setsid();
-        if (sid < 0) {
-            printf("Daemonizing failed. Exit.");
-            exit(sid);
-        }
-        close(STDIN_FILENO);
-        close(STDOUT_FILENO);
-        close(STDERR_FILENO);
-    }
-}
-
-
 int main(int argc, char *argv[])
 {
-    unsigned long long npreset_job = 0, npreset_resv = 0;
-    logger = stdout;
+    unsigned long long npreset_resv = 0;
 
     //Open shared priority queue for time clock
     open_rdonly_shmemclock();
@@ -716,7 +597,7 @@ int main(int argc, char *argv[])
         exit(-1);
     }
 
-    if (read_job_trace(workload_filename, time_filename) < 0) {
+    if (read_job_trace(workload_filename) < 0) {
         log_error("a problem was detected when reading trace file.");
         exit(-1);
     }
@@ -734,13 +615,13 @@ int main(int argc, char *argv[])
     log_info("total reservation records: %llu", nresvs);
 
     //Jobs and reservations are submit when the replayed time clock equal their submission time
-    submit_preset_jobs_and_reservations(&npreset_job, &npreset_resv);
-    log_info("Number of presets: jobs=%llu resvs=%llu\n", npreset_job, npreset_resv);
+    create_and_submit_reservations(&npreset_resv);
+    log_info("Number of pre-created reservations: %llu\n", npreset_resv);
 
     // goes in daemon state
-    daemonize(daemon_flag);
+    daemonize(daemon_flag, "log/submitter.log");
 
-    submit_jobs_and_reservations(npreset_job, npreset_resv);
+    submit_jobs_and_reservations(npreset_resv);
     log_info("submitter ends.");
 
     fclose(logger);

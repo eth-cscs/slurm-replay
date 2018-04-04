@@ -4,20 +4,19 @@
 #include <getopt.h>
 #include <math.h>
 
-
 #include "shmemclock.h"
 #define ONE_OVER_BILLION 1E-9
 
 char   help_msg[] = "\
 job_runner\n\
       -d, --duration   Duration of the runner in seconds\n\
-      -h, --help     This help message.\n\
+      -h, --help       This help message.\n\
       -j, --jobid      Job Id of the runner\n\
       -n, --nnodes     Number of nodes used by the runner\n\
-      -r, --clock_rate Rate of the simulated clock\n\
-      -i, --init_time  Time at which the script was created\n\
+      -r, --clock_rate Clock rate of the Replay-clock\n\
+      -i, --init_time  Time at which the job has been submitted (from the submitter)\n\
       -p, --preset     If the job is a preset jobs or not\n\
-      -e, --end_time   Time at which the jobs ends - used only with preset\n\
+      -e, --end_time   Time at which the jobs ends in the original trace\n\
       -x, --exitcode   Exit code returned by the runner\n";
 
 int preset = 0;
