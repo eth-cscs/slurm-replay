@@ -124,7 +124,8 @@ void getArgs(int argc, char** argv)
     }
 }
 
-void do_special_action(job_trace_t* job_arr, unsigned long long num_rows) {
+void do_special_action(job_trace_t* job_arr, unsigned long long num_rows)
+{
     unsigned long long k, idx = 0;
     unsigned long* job_id;
     int list_file;
