@@ -40,10 +40,11 @@ RUN cd /$REPLAY_USER/slurm-replay/distime && \
 
 # get/patch/compile/install slurm (add dependency to libwtime)
     #wget https://download.schedmd.com/slurm/slurm-$SLURM_VERSION.tar.bz2 && \
+    #patch -p1 < ../slurm-replay/patch/slurm_shmemclock.patch && \
 RUN cd /$REPLAY_USER && \
     tar jxf slurm-$SLURM_VERSION.tar.bz2 && \
     cd slurm-$SLURM_VERSION && \
-    patch -p1 < ../slurm-replay/patch/slurm_shmemclock.patch && \
+    patch -p1 < ../slurm-replay/patch/slurm_cryptonone.patch && \
     patch -p1 < ../slurm-replay/patch/slurm_avoidstepmonitor.patch && \
     patch -p1 < ../slurm-replay/patch/slurm_explicitpriority.patch && \
     ./autogen.sh && \
@@ -73,13 +74,13 @@ RUN mkdir /$REPLAY_USER/data && \
 #     docker build -t mmxcscs/slurm-replay:maximem_slurm-17.02.9 --build-arg REPLAY_USER=maximem .
 #
 # DOCKER command to run:
-#     docker run --rm -it -v /Users/maximem/dev/docker/slurm-replay/data:/maximem/data mmxcscs/slurm-replay:maximem_slurm-17.02.9
+#     docker run --cap-add sys_ptrace --rm -it -v /Users/maximem/dev/docker/slurm-replay/data:/maximem/data --volume /Users/maximem/dev/docker/slurm-replay/data/new_passwd:/etc/passwd --volume /Users/maximem/dev/docker/slurm-replay/data/new_group:/etc/group mmxcscs/slurm-replay:maximem_slurm-17.02.9
 # NOTE FOR DEBUGGING:
 #     before to commit the container use the option docker run --cap-add sys_ptrace to be able to attach a debugger
 #
 #
 # SHIFTER command to run:
-#    shifter --image mmxcscs/slurm-replay:maximem_slurm-17.02.9 --writable-volatile /maximem/slurmR/log --writable-volatile /maximem/slurmR/etc  --writable-volatile /maximem/var --writable-volatile /maximem/var/lib --writable-volatile /maximem/run --writable-volatile /maximem/run/mysqld --writable-volatile /maximem/tmp --writable-volatile /maximem/slurm-replay/submitter --volume /users/maximem/dev/data:/maximem/data /bin/bash
+# shifter run --writable-volatile=/maximem/slurmR/log --writable-volatile=/maximem/slurmR/etc  --writable-volatile=/maximem/var --writable-volatile=/maximem/var/lib --writable-volatile=/maximem/run --writable-volatile=/maximem/run/mysqld --writable-volatile=/maximem/tmp --writable-volatile=/maximem/slurm-replay/submitter --mount=source=/users/maximem/dev/data,destination=/maximem/data,type=bind  mmxcscs/slurm-replay:maximem_slurm-17.02.9 /bin/bash
 #
 
 # Install monthly report tools from CSCS

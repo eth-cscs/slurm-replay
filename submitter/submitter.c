@@ -184,10 +184,10 @@ static int create_and_submit_job(job_trace_t jobd)
     dmesg.job_id = jobd.id_job;
     dmesg.name = strdup(jobd.job_name);
     dmesg.account = strdup(jobd.account);
-    dmesg.user_id = userid;
-    dmesg.group_id = groupid;
+    dmesg.user_id = jobd.id_user;
+    dmesg.group_id = jobd.id_group;
 
-    sprintf(env_str,"/%s/tmp",username);
+    sprintf(env_str,"/tmp");
     dmesg.work_dir = strdup(env_str);
 
     dmesg.qos = strdup(jobd.qos_name);
@@ -218,7 +218,7 @@ static int create_and_submit_job(job_trace_t jobd)
     }
 
     dmesg.environment  = (char**)malloc(sizeof(char*)*2);
-    sprintf(env_str,"HOME=/%s",username);
+    sprintf(env_str,"HOME=/tmp");
     dmesg.environment[0] = strdup(env_str);
     sprintf(env_str,"REPLAY_USER=%s",username);
     dmesg.environment[1] = strdup(env_str);

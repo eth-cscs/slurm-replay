@@ -16,6 +16,67 @@ typedef struct dependency {
     char *dependencies;
 } deps_t;
 
+char * passwd_header = "\
+root:x:0:0::/root:/bin/bash\
+bin:x:1:1::/:/sbin/nologin\
+daemon:x:2:2::/:/sbin/nologin\
+mail:x:8:12::/var/spool/mail:/sbin/nologin\
+ftp:x:14:11::/srv/ftp:/sbin/nologin\
+http:x:33:33::/srv/http:/sbin/nologin\
+nobody:x:65534:65534:Nobody:/:/sbin/nologin\
+dbus:x:81:81:System Message Bus:/:/sbin/nologin\
+systemd-journal-remote:x:982:982:systemd Journal Remote:/:/sbin/nologin\
+systemd-network:x:981:981:systemd Network Management:/:/sbin/nologin\
+systemd-resolve:x:980:980:systemd Resolver:/:/sbin/nologin\
+systemd-coredump:x:979:979:systemd Core Dumper:/:/sbin/nologin\
+uuidd:x:68:68::/:/sbin/nologin\
+";
+
+char * group_header = "\
+root:x:0:root\
+sys:x:3:bin\
+mem:x:8:\
+ftp:x:11:\
+mail:x:12:\
+log:x:19:\
+smmsp:x:25:\
+proc:x:26:\
+games:x:50:\
+lock:x:54:\
+network:x:90:\
+floppy:x:94:\
+scanner:x:96:\
+power:x:98:\
+adm:x:999:daemon\
+wheel:x:998:\
+kmem:x:997:\
+tty:x:5:\
+utmp:x:996:\
+audio:x:995:\
+disk:x:994:\
+input:x:993:\
+kvm:x:992:\
+lp:x:991:\
+optical:x:990:\
+render:x:989:\
+storage:x:988:\
+uucp:x:987:\
+video:x:986:\
+users:x:985:\
+systemd-journal:x:984:\
+rfkill:x:983:\
+bin:x:1:daemon\
+daemon:x:2:bin\
+http:x:33:\
+nobody:x:65534:\
+dbus:x:81:\
+systemd-journal-remote:x:982:\
+systemd-network:x:981:\
+systemd-resolve:x:980:\
+systemd-coredump:x:979:\
+uuidd:x:68:\
+";
+
 char *endtime = NULL;
 char *filename = NULL;
 char *host = NULL;
@@ -254,6 +315,10 @@ int main(int argc, char **argv)
 
     int c,written;
     int trace_file;
+    int group_file;
+    int passwd_file;
+    char group_filename[256];
+    char passwd_filename[256];
     struct tm tmVar;
     time_t time_start;
     time_t time_end;
@@ -339,6 +404,9 @@ int main(int argc, char **argv)
             job_table, resv_table, where_statement);
     printf("\nQuery --> %s\n\n", query);
 
+    sprintf(group_filename, "%s_group", filename);
+    sprintf(passwd_filename, "%s_password", filename);
+
     if (mysql_query(conn, query)) {
         finish_with_error(conn);
     }
@@ -357,6 +425,19 @@ int main(int argc, char **argv)
         printf("Error opening file %s\n", filename);
         exit(-1);
     }
+    if((group_file = open(group_filename, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR |
+                          S_IRGRP | S_IROTH)) < 0) {
+        printf("Error opening file %s\n", group_filename);
+        exit(-1);
+    }
+    if((passwd_file = open(passwd_filename, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR |
+                          S_IRGRP | S_IROTH)) < 0) {
+        printf("Error opening file %s\n", passwd_filename);
+        exit(-1);
+    }
+
+    write(passwd_file, &passwd_header, sizeof(passwd_header));
+    write(group_file, &group_header, sizeof(group_header));
 
     /* write query at the top of the file */
     query_length = strlen(query);
@@ -439,6 +520,10 @@ int main(int argc, char **argv)
             printf("Error writing to file: %d of %ld\n", written, sizeof(job_trace_t));
             exit(-1);
         }
+
+        sprintf(group_item, "%s:x:%d:%s\n", job_trace.
+        written = write(group_file, &group_item, sizeof(group_item));
+root:x:0:root\
 
     }
 

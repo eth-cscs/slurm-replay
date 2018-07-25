@@ -27,8 +27,9 @@ libshmemclock.a: shmemclock.o
 	$(AR) $(ARFLAGS) $@ $+
 	$(RANLIB) $@
 
-libwtime.so: wrapper.o
-	$(CC) $(LDFLAGS) -L. -lshmemclock -lrt -o $@ $+
+libwtime.so: wrapper.o shmemclock.o
+	$(CC) $(LDFLAGS) -lrt -o $@ $+
+	#$(CC) $(LDFLAGS) -L. -lshmemclock -lrt -o $@ $+
 
 clean:
 	rm -f libshmemclock.a libwtime.so shmemclock.o wrapper.o
