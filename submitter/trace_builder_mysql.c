@@ -16,67 +16,6 @@ typedef struct dependency {
     char *dependencies;
 } deps_t;
 
-char * passwd_header = "\
-root:x:0:0::/root:/bin/bash\
-bin:x:1:1::/:/sbin/nologin\
-daemon:x:2:2::/:/sbin/nologin\
-mail:x:8:12::/var/spool/mail:/sbin/nologin\
-ftp:x:14:11::/srv/ftp:/sbin/nologin\
-http:x:33:33::/srv/http:/sbin/nologin\
-nobody:x:65534:65534:Nobody:/:/sbin/nologin\
-dbus:x:81:81:System Message Bus:/:/sbin/nologin\
-systemd-journal-remote:x:982:982:systemd Journal Remote:/:/sbin/nologin\
-systemd-network:x:981:981:systemd Network Management:/:/sbin/nologin\
-systemd-resolve:x:980:980:systemd Resolver:/:/sbin/nologin\
-systemd-coredump:x:979:979:systemd Core Dumper:/:/sbin/nologin\
-uuidd:x:68:68::/:/sbin/nologin\
-";
-
-char * group_header = "\
-root:x:0:root\
-sys:x:3:bin\
-mem:x:8:\
-ftp:x:11:\
-mail:x:12:\
-log:x:19:\
-smmsp:x:25:\
-proc:x:26:\
-games:x:50:\
-lock:x:54:\
-network:x:90:\
-floppy:x:94:\
-scanner:x:96:\
-power:x:98:\
-adm:x:999:daemon\
-wheel:x:998:\
-kmem:x:997:\
-tty:x:5:\
-utmp:x:996:\
-audio:x:995:\
-disk:x:994:\
-input:x:993:\
-kvm:x:992:\
-lp:x:991:\
-optical:x:990:\
-render:x:989:\
-storage:x:988:\
-uucp:x:987:\
-video:x:986:\
-users:x:985:\
-systemd-journal:x:984:\
-rfkill:x:983:\
-bin:x:1:daemon\
-daemon:x:2:bin\
-http:x:33:\
-nobody:x:65534:\
-dbus:x:81:\
-systemd-journal-remote:x:982:\
-systemd-network:x:981:\
-systemd-resolve:x:980:\
-systemd-coredump:x:979:\
-uuidd:x:68:\
-";
-
 char *endtime = NULL;
 char *filename = NULL;
 char *host = NULL;
@@ -95,6 +34,7 @@ static int use_dependencies = 0;
 char *dep_filename = NULL;
 deps_t *depend;
 static int nopreset = 0;
+int port;
 
 int cmpfunc(const void * a, const void * b)
 {
@@ -216,6 +156,7 @@ Usage: mysql_trace_builder [OPTIONS]\n\
                                      format: \"yyyy-MM-DD hh:mm:ss\"\n\
     -d, --dbname     db_name         Name of the database\n\
     -h, --host       db_hostname     Name of machine hosting MySQL DB\n\
+    -P, --port       port            Port number of the machine hosting MySQL DB\n\
     -u, --user       dbuser          Name of user with which to establish a\n\
                                      connection to the DB\n\
     -p, --password   password        Password to connect to the db\n\
@@ -241,6 +182,7 @@ get_args(int argc, char** argv)
         {"dbname", required_argument, 0, 'd'},
         {"help", no_argument,   0, '?'},
         {"password", required_argument,   0, 'p'},
+        {"port", required_argument,   0, 'P'},
         {"where", no_argument,   0, 'w'},
         {"nopreset", no_argument,   0, 'n'},
         {"starttime", required_argument, 0, 's'},
@@ -255,7 +197,7 @@ get_args(int argc, char** argv)
     int opt_char, option_index;
 
     while(1) {
-        if ((opt_char = getopt_long(argc, argv, "d:e:f:h:?s:t:r:u:p:wa:v:x:n", long_options, &option_index)) == -1 )
+        if ((opt_char = getopt_long(argc, argv, "d:e:f:h:?s:t:r:u:p:P:wa:v:x:n", long_options, &option_index)) == -1 )
             break;
         switch  (opt_char) {
         case ('p'):
@@ -271,6 +213,9 @@ get_args(int argc, char** argv)
             break;
         case ('f'):
             filename = optarg;
+            break;
+        case ('P'):
+            port = atoi(optarg);
             break;
         case ('h'):
             host = optarg;
@@ -317,6 +262,8 @@ int main(int argc, char **argv)
     int trace_file;
     int group_file;
     int passwd_file;
+    char group_item[256];
+    char user_item[256];
     char group_filename[256];
     char passwd_filename[256];
     struct tm tmVar;
@@ -351,7 +298,7 @@ int main(int argc, char **argv)
     }
 
     conn = mysql_init(NULL);
-    if (!mysql_real_connect(conn, host, user, password, dbname, 0, NULL, 0)) {
+    if (!mysql_real_connect(conn, host, user, password, dbname, port, NULL, 0)) {
         finish_with_error(conn);
     }
 
@@ -398,14 +345,15 @@ int main(int argc, char **argv)
     sprintf(query, "SELECT t.account, t.exit_code, t.job_name, "
             "t.id_job, q.name, t.id_user, t.id_group, r.resv_name, t.nodelist, t.nodes_alloc, t.partition, t.state, "
             "t.timelimit, t.time_submit, t.time_eligible, t.time_start, t.time_end, t.time_suspended, "
-            "t.gres_alloc, t.priority "
+            "t.gres_alloc, t.priority, a.user "
             "FROM %s as t LEFT JOIN %s as r ON t.id_resv = r.id_resv AND t.time_start >= r.time_start and t.time_end <= r.time_end "
-            "LEFT JOIN qos_table as q ON q.id = t.id_qos %s",
-            job_table, resv_table, where_statement);
+            "LEFT JOIN qos_table as q ON q.id = t.id_qos "
+            "LEFT JOIN %s as a ON t.id_assoc = a.id_assoc %s",
+            job_table, resv_table, assoc_table, where_statement);
     printf("\nQuery --> %s\n\n", query);
 
     sprintf(group_filename, "%s_group", filename);
-    sprintf(passwd_filename, "%s_password", filename);
+    sprintf(passwd_filename, "%s_passwd", filename);
 
     if (mysql_query(conn, query)) {
         finish_with_error(conn);
@@ -435,9 +383,6 @@ int main(int argc, char **argv)
         printf("Error opening file %s\n", passwd_filename);
         exit(-1);
     }
-
-    write(passwd_file, &passwd_header, sizeof(passwd_header));
-    write(group_file, &group_header, sizeof(group_header));
 
     /* write query at the top of the file */
     query_length = strlen(query);
@@ -521,10 +466,19 @@ int main(int argc, char **argv)
             exit(-1);
         }
 
-        sprintf(group_item, "%s:x:%d:%s\n", job_trace.
-        written = write(group_file, &group_item, sizeof(group_item));
-root:x:0:root\
+        sprintf(group_item, "%s:x:%d:%s\n", job_trace.account, job_trace.id_group, job_trace.account);
+        written = write(group_file, &group_item, strlen(group_item));
+        if(written != strlen(group_item)) {
+            printf("Error writing to file: %d of %ld\n", written, strlen(group_item));
+            exit(-1);
+        }
 
+        sprintf(user_item, "%s:*:%d:%d:x:/users/%s:/usr/local/bin/bash\n", row[20], job_trace.id_user, job_trace.id_group, row[20]);
+        written = write(passwd_file, &user_item, strlen(user_item));
+        if(written != strlen(user_item)) {
+            printf("Error writing to file: %d of %ld\n", written, strlen(user_item));
+            exit(-1);
+        }
     }
 
     printf("\nSuccessfully written file %s : Total number of jobs = %llu, preset jobs = %llu\n", filename, num_rows, npreset_jobs);

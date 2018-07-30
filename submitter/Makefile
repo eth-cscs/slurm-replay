@@ -10,7 +10,7 @@ LDFLAGS :=
 LIB_SHMEMCLOCK := -L$(DISTIME_PATH) -lshmemclock -lrt
 LIB_SLURM := -L$(SLURM_PATH)/lib -lslurm
 LIB_MATH := -lm
-MYSQL_LIBS := -L/usr/lib -L/usr/lib64/mysql  -lmysqlclient -lpthread -lz -lm -ldl -lssl -lcrypto
+MYSQL_LIBS := -L/usr/local/opt/openssl/lib -L/usr/lib -L/usr/local/lib  -lmysqlclient -lpthread -lz -lm -ldl -lssl -lcrypto
 INCLUDES := -I$(DISTIME_PATH) -I$(SLURM_PATH)/include
 
 # Target rules
