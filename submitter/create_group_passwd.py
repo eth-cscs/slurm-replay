@@ -15,8 +15,6 @@ if __name__ == '__main__':
 
     passwd=dict()
     group=dict()
-    unknown_counter = 0
-    unknown=dict()
 
     with open(cmdline.group) as csvfile:
         spamreader = csv.reader(csvfile, delimiter=':')
@@ -31,17 +29,8 @@ if __name__ == '__main__':
             username, uid, gid = row
             if not gid in passwd:
                 passwd[gid]=list()
-            if username == '(null)':
-                if uid not in unknown:
-                   username = 'unknown'+str(unknown_counter)
-                   unknown_counter+=1
-                   unknown[uid]=username
-                else:
-                    username = unknown[uid]
             if (username, uid) not in passwd[gid]:
                passwd[gid].append((username, uid))
-
-
 
     with open(cmdline.name+'_etc_group','w') as f:
         for gid, name in group.items():

@@ -405,9 +405,9 @@ int main(int argc, char **argv)
         printf("\n");*/
 
         job_trace.preset = 0;
-        sprintf(job_trace.account, "%s", row[0]);
+        sprintf(job_trace.account, "acct%s", row[6]);
         job_trace.exit_code = atoi(row[1]);
-        sprintf(job_trace.job_name, "%s", row[2]);
+        sprintf(job_trace.job_name, "job%s", row[3]);
         job_trace.id_job = atoi(row[3]);
         sprintf(job_trace.qos_name, "%s", row[4]);
         job_trace.id_user = atoi(row[5]);
@@ -466,14 +466,14 @@ int main(int argc, char **argv)
             exit(-1);
         }
 
-        sprintf(group_item, "%s:%d\n", job_trace.account, job_trace.id_group);
+        sprintf(group_item, "acct%d:%d\n", job_trace.id_group, job_trace.id_group);
         written = write(group_file, &group_item, strlen(group_item));
         if(written != strlen(group_item)) {
             printf("Error writing to file: %d of %ld\n", written, strlen(group_item));
             exit(-1);
         }
 
-        sprintf(user_item, "%s:%d:%d\n", row[20], job_trace.id_user, job_trace.id_group);
+        sprintf(user_item, "user%d:%d:%d\n", job_trace.id_user, job_trace.id_user, job_trace.id_group);
         written = write(passwd_file, &user_item, strlen(user_item));
         if(written != strlen(user_item)) {
             printf("Error writing to file: %d of %ld\n", written, strlen(user_item));
