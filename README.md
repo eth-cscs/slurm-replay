@@ -1,8 +1,8 @@
 # Slurm-Replay
 
 Slurm Replay allows replaying traces of job scheduled on HPC system using Slurm.
-By using the same Slurm configuration and unmodified slurm base-code used by a production HPC system, one can replay jobs that have been submitted.
-Slurm-Replay enable the capability to investigate different Slurm configurations or policies and see their impacts on an production workload.
+By using the same Slurm configuration and unmodified Slurm code-base used by a production HPC system, one can replay jobs that have been submitted.
+Slurm-Replay enables the capability to investigate different Slurm configurations or policies and see their impacts on an production workload.
 
 # Documentation
 For more information, check out the
