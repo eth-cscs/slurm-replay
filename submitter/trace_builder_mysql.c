@@ -466,14 +466,14 @@ int main(int argc, char **argv)
             exit(-1);
         }
 
-        sprintf(group_item, "%s:x:%d:%s\n", job_trace.account, job_trace.id_group, job_trace.account);
+        sprintf(group_item, "%s:%d\n", job_trace.account, job_trace.id_group);
         written = write(group_file, &group_item, strlen(group_item));
         if(written != strlen(group_item)) {
             printf("Error writing to file: %d of %ld\n", written, strlen(group_item));
             exit(-1);
         }
 
-        sprintf(user_item, "%s:*:%d:%d:x:/users/%s:/usr/local/bin/bash\n", row[20], job_trace.id_user, job_trace.id_group, row[20]);
+        sprintf(user_item, "%s:%d:%d\n", row[20], job_trace.id_user, job_trace.id_group);
         written = write(passwd_file, &user_item, strlen(user_item));
         if(written != strlen(user_item)) {
             printf("Error writing to file: %d of %ld\n", written, strlen(user_item));
