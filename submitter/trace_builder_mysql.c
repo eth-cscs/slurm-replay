@@ -21,10 +21,11 @@ char *filename = NULL;
 char *host = NULL;
 char *dbname = NULL;
 char *starttime = NULL;
-char *job_table = NULL;
-char *resv_table = NULL;
-char *assoc_table = NULL;
-char *event_table = NULL;
+char *cluster = NULL;
+char job_table[256];
+char resv_table[256];
+char assoc_table[256];
+char event_table[256];
 char *user = NULL;
 char *password;
 static int use_where = 1;
@@ -156,14 +157,11 @@ Usage: mysql_trace_builder [OPTIONS]\n\
                                      format: \"yyyy-MM-DD hh:mm:ss\"\n\
     -d, --dbname     db_name         Name of the database\n\
     -h, --host       db_hostname     Name of machine hosting MySQL DB\n\
+    -p, --password   password        Password to connect to the db\n\
     -P, --port       port            Port number of the machine hosting MySQL DB\n\
     -u, --user       dbuser          Name of user with which to establish a\n\
                                      connection to the DB\n\
-    -p, --password   password        Password to connect to the db\n\
-    -t, --job_table  db_job_table    Name of the MySQL table to query to obtain job information\n\
-    -r, --resv_table db_resv_table   Name of the MySQL table to query to obtain reservation infomartion\n\
-    -a, --assoc_table db_assoc_table   Name of the MySQL table to query to obtain associationss infomartion\n\
-    -v, --event_table db_event_table   Name of the MySQL table to query to obtain event information about node availability\n\
+    -c, --cluster    cluster_name     Name of the cluster used by the Slurm database to extract data\n\
     -f, --file       filename        Name of the output trace file being created\n\
     -x, --dependencies filename      Name of the file containing the dependencies\n\
     -w, --where                      Do not use the where statement for the  SQL query to retrieve the data\n\
@@ -186,10 +184,7 @@ get_args(int argc, char** argv)
         {"where", no_argument,   0, 'w'},
         {"nopreset", no_argument,   0, 'n'},
         {"starttime", required_argument, 0, 's'},
-        {"job_table", required_argument, 0, 't'},
-        {"resv_table", required_argument, 0, 'r'},
-        {"assoc_table", required_argument, 0, 'a'},
-        {"event_table", required_argument, 0, 'v'},
+        {"cluster", required_argument, 0, 'c'},
         {"dependencies", required_argument, 0, 'x'},
         {"user", required_argument, 0, 'u'},
         {0, 0, 0, 0}
@@ -197,7 +192,7 @@ get_args(int argc, char** argv)
     int opt_char, option_index;
 
     while(1) {
-        if ((opt_char = getopt_long(argc, argv, "d:e:f:h:?s:t:r:u:p:P:wa:v:x:n", long_options, &option_index)) == -1 )
+        if ((opt_char = getopt_long(argc, argv, "s:e:d:h:p:P:u:c:f:x:wn?", long_options, &option_index)) == -1 )
             break;
         switch  (opt_char) {
         case ('p'):
@@ -232,17 +227,12 @@ get_args(int argc, char** argv)
         case ('s'):
             starttime = optarg;
             break;
-        case ('t'):
-            job_table = optarg;
-            break;
-        case ('r'):
-            resv_table = optarg;
-            break;
-        case ('a'):
-            assoc_table = optarg;
-            break;
-        case ('v'):
-            event_table = optarg;
+        case ('c'):
+            cluster = optarg;
+            sprintf(job_table,"%s_job_table",cluster);
+            sprintf(resv_table,"%s_resv_table",cluster);
+            sprintf(assoc_table,"%s_assoc_table",cluster);
+            sprintf(event_table,"%s_event_table",cluster);
             break;
         case ('u'):
             user = optarg;
@@ -291,8 +281,8 @@ int main(int argc, char **argv)
 
     get_args(argc, argv);
 
-    if ((user == NULL) || (host == NULL) || (dbname == NULL) || (filename == NULL) || (job_table == NULL) || (resv_table == NULL)|| (event_table == NULL)) {
-        printf("user, host, dbname and trace file name cannot be NULL!\n");
+    if ((user == NULL) || (host == NULL) || (dbname == NULL) || (filename == NULL) || (cluster == NULL)) {
+        printf("user, host, dbname, cluster and trace file name cannot be NULL!\n");
         print_usage();
         exit(-1);
     }
@@ -302,8 +292,8 @@ int main(int argc, char **argv)
         finish_with_error(conn);
     }
 
-    if ((starttime == NULL) || (job_table == NULL)) {
-        printf("starttime and job table cannot be NULL!\n");
+    if ((starttime == NULL) || (cluster == NULL)) {
+        printf("starttime and cluster cannot be NULL!\n");
         print_usage();
         exit(-1);
     }
@@ -485,7 +475,7 @@ int main(int argc, char **argv)
     mysql_free_result(result_job);
 
     // process reservation data
-    if (do_resv && resv_table != NULL && assoc_table != NULL) {
+    if (do_resv) {
         memset(query,'\0',1024);
         sprintf(query, "SELECT r.id_resv, r.time_start, r.time_end, r.nodelist, r.resv_name, GROUP_CONCAT(DISTINCT a.acct), r.flags, r.tres "
                 "FROM %s AS r INNER JOIN %s AS a ON FIND_IN_SET(a.id_assoc,r.assoclist) "
@@ -535,7 +525,7 @@ int main(int argc, char **argv)
     }
 
     // process event data
-    if (do_event && event_table != NULL) {
+    if (do_event) {
         memset(query,'\0',1024);
         snprintf(query, 1024*sizeof(char), "SELECT e.time_start, e.time_end, e.node_name, e.reason, e.state "
                  "FROM %s AS e "
