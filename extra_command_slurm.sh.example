@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# exceptionel setup to allow large jobs to run from account=s299
+# scontrol update partition=large maxnodes=7000 minnodes=500
+# scontrol update partition=large allowaccount=s299

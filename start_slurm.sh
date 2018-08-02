@@ -27,65 +27,20 @@ mkdir $SLURM_DIR/log/slurmd
 mkdir $SLURM_DIR/log/archive
 
 # Setup configuration
-if (( $CONFDATE < 170901 )); then
-    echo "!!! WARNING using old version of slurm config files !!!"
-    f=0
-    for k in $(ls -1 conf/slurm.conf_*); do
-        t=${k##*_}
-        if (( $t < $CONFDATE )); then
-        f=$t
-        else
-        if (( $f == 0 )); then
-            f=$t
-        fi
-        break
-        fi
-    done
-    cp "conf/slurm.conf_$f" etc/slurm.conf
-    ./configure_slurm.sh etc/slurm.conf
-
-    f=0
-    for k in $(ls -1 conf/gres.conf_*); do
-        t=${k##*_}
-        if (( $t < $CONFDATE )); then
-        f=$t
-        else
-        if (( $f == 0 )); then
-            f=$t
-        fi
-        break
-        fi
-    done
-    cp "conf/gres.conf_$f" etc/gres.conf
-
-    f=0
-    for k in $(ls -1 conf/topology.conf_*); do
-        t=${k##*_}
-        if (( $t < $CONFDATE )); then
-        f=$t
-        else
-        if (( $f == 0 )); then
-            f=$t
-        fi
-        break
-        fi
-    done
-    cp "conf/topology.conf_$f" etc/topology.conf
-else
-    echo "Slurm configuration from git:"
-    cd ../data/slurmcfg
-    # TODO check if we are not already at the right revision
-    git checkout daint &>/dev/null
-    t=20${CONFDATE:0:2}-${CONFDATE:2:2}-${CONFDATE:4:2}
-    git checkout $(git rev-list -1 --until="$t" daint)
-    cd /$REPLAY_USER/slurm-replay
-    cp "../data/slurmcfg/slurm.conf" etc/slurm.conf
-    cp "../data/slurmcfg/gres.conf" etc/gres.conf
-    cp "../data/slurmcfg/topology.conf" etc/topology.conf
-    ./configure_slurm.sh etc/slurm.conf
-    if [ -f "../data/extra_configure_slurm.sh" ]; then
-        ../data/./extra_configure_slurm.sh etc/slurm.conf
-    fi
+echo "Slurm configuration from git:"
+cd ../data/slurmcfg
+# TODO check if we are not already at the right revision
+git checkout daint &>/dev/null
+t=20${CONFDATE:0:2}-${CONFDATE:2:2}-${CONFDATE:4:2}
+git checkout $(git rev-list -1 --until="$t" daint)
+cd /$REPLAY_USER/slurm-replay
+cp "../data/slurmcfg/slurm.conf" etc/slurm.conf
+cp "../data/slurmcfg/gres.conf" etc/gres.conf
+cp "../data/slurmcfg/topology.conf" etc/topology.conf
+cp "../data/slurmcfg/slurmdbd.conf" etc/slurmdbd.conf
+./configure_slurm.sh etc/slurm.conf
+if [ -f "../data/extra_configure_slurm.sh" ]; then
+    ../data/./extra_configure_slurm.sh etc/slurm.conf
 fi
 
 ./start_slurmdbd.sh $SLURM_REPLAY_LIB
@@ -104,8 +59,7 @@ partitions=$(sinfo -o %R --noheader)
 for p in $partitions; do
     scontrol update PartitionName=$p state=UP
 done;
-# exceptionel setup for maintenance on Sept 28th 22:30 to Sept 29th 8:00
-# to allows DCA++ jobs to run account=s299
-scontrol update partition=large maxnodes=7000 minnodes=500
-scontrol update partition=large allowaccount=s299
+if [ -f "../data/extra_command_slurm.sh" ]; then
+   ../data/./extra_command_slurm.sh
+fi
 echo "done."
