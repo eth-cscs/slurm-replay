@@ -16,7 +16,7 @@ RUN pacman -Sy --noconfirm autoconf automake git gawk gcc mpfr make mariadb wget
 RUN  ln -sf /usr/share/zoneinfo/CET /etc/localtime
 
 # create a user slurm and set mariadb to be user dependent (non-root)
-# do not /home in case it cannot be mounted by the container technology
+# do not use /home in case it cannot be mounted by the container technology
 RUN useradd -ms /bin/bash -d /$REPLAY_USER $REPLAY_USER && \
     mkdir -p /run/mysqld && \
     ln -s /$REPLAY_USER/run/mysqld/mysqld.lock /run/mysqld/mysqld.sock && \
@@ -39,8 +39,7 @@ RUN cd /$REPLAY_USER/slurm-replay/distime && \
     make
 
 # get/patch/compile/install slurm (add dependency to libwtime)
-    #wget https://download.schedmd.com/slurm/slurm-$SLURM_VERSION.tar.bz2 && \
-    #patch -p1 < ../slurm-replay/patch/slurm_shmemclock.patch && \
+#wget https://download.schedmd.com/slurm/slurm-$SLURM_VERSION.tar.bz2 && \
 RUN cd /$REPLAY_USER && \
     tar jxf slurm-$SLURM_VERSION.tar.bz2 && \
     cd slurm-$SLURM_VERSION && \
@@ -57,8 +56,7 @@ RUN cd /$REPLAY_USER && \
     ln -s /$REPLAY_USER/slurmR/log log && \
     ln -s /$REPLAY_USER/slurmR/etc etc
 
-#    rm -Rf /$REPLAY_USER/slurm-$SLURM_VERSION/ && \
-# install replay binaries, need to be done after installing slurm (depend on libslurm)
+# install replay binaries, need to be done after installing slurm (it depends on libslurm)
 RUN cd /$REPLAY_USER/slurm-replay/submitter && \
     make
 
@@ -82,16 +80,6 @@ RUN mkdir /$REPLAY_USER/data && \
 # SHIFTER command to run:
 # shifter run --writable-volatile=/maximem/slurmR/log --writable-volatile=/maximem/slurmR/etc  --writable-volatile=/maximem/var --writable-volatile=/maximem/var/lib --writable-volatile=/maximem/run --writable-volatile=/maximem/run/mysqld --writable-volatile=/maximem/tmp --writable-volatile=/maximem/slurm-replay/submitter --mount=source=/users/maximem/dev/data,destination=/maximem/data,type=bind  mmxcscs/slurm-replay:maximem_slurm-17.02.9 /bin/bash
 #
-
-# Install monthly report tools from CSCS
-#COPY monthlyrpts /$REPLAY_USER/slurm-replay
-#RUN cd /$REPLAY_USER/slurm-replay/monthlyrpts/2.0.0/src && \
-#    make && make install && \
-#    echo "export PATH=\$PATH:/$REPLAY_USER/slurm-replay/monthlyrpts/2.0.0/src" >> /$REPLAY_USER/.bashrc && \
-#    echo "export MONTHLYRPTS_ROOT=/maximem/slurm-replay/monthlyrpts/2.0.0" >> /$REPLAY_USER/.bashrc && \
-#    echo "export MONTHLYRPTS_RPTS=/maximem/slurm-replay/monthlyrpts/2.0.0/reports" >> /$REPLAY_USER/.bashrc && \
-#    echo "export MONTHLYRPTS_PLOTS=/maximem/slurm-replay/monthlyrpts/2.0.0/plots" >> /$REPLAY_USER/.bashrc
-
 
 # for convenience
 WORKDIR /$REPLAY_USER/slurm-replay
