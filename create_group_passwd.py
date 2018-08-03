@@ -31,6 +31,8 @@ if __name__ == '__main__':
         spamreader = csv.reader(csvfile, delimiter=':')
         for row in spamreader:
             username, uid, gid = row
+            if username == '(null)':
+                username = 'unknown'
             if not gid in passwd:
                 passwd[gid]=list()
                 all_gids.append(int(gid))
