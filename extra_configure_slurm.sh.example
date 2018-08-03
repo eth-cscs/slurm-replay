@@ -1,13 +1,11 @@
 #!/bin/bash
 
-FILE="$1"
-
 # Change topology setup
-#sed -i -e "/TopologyParam[[:space:]]*=/ s/TopologyParam[[:space:]]*=.*/TopologyParam=TopoOptional/" $FILE
+#sed -i -e "/TopologyParam[[:space:]]*=/ s/TopologyParam[[:space:]]*=.*/TopologyParam=TopoOptional/" etc/slurm.conf
 
 
 # Change schedule parameters
-#sed -i -e "/SchedulerParameters[[:space:]]*=/ s/default_queue_depth=[[:digit:]]*/default_queue_depth=30000/" $FILE
-#sed -i -e "/SchedulerParameters[[:space:]]*=/ s/max_rpc_cnt=[[:digit:]]*/max_rpc_cnt=3000/" $FILE
-#sed -i -e "/SchedulerParameters[[:space:]]*=/ s/$/,bf_max_time=900,pack_serial_at_end,bf_yield_sleep=1000000/" $FILE
+#sed -i -e "/SchedulerParameters[[:space:]]*=/ s/default_queue_depth=[[:digit:]]*/default_queue_depth=30000/" etc/slurm.conf
+#sed -i -e "/SchedulerParameters[[:space:]]*=/ s/max_rpc_cnt=[[:digit:]]*/max_rpc_cnt=3000/" etc/slurm.conf
+#sed -i -e "/SchedulerParameters[[:space:]]*=/ s/$/,bf_max_time=900,pack_serial_at_end,bf_yield_sleep=1000000/" etc/slurm.conf
 

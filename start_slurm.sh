@@ -21,26 +21,29 @@ export LD_LIBRARY_PATH="$SLURM_DIR/lib:$LD_LIBRARY_PATH"
 killall -q -9 slurmd slurmctld slurmstepd
 
 rm -Rf /$REPLAY_USER/tmp/slurm-*.out
-rm -Rf $SLURM_DIR/log/*
-mkdir $SLURM_DIR/log/state
-mkdir $SLURM_DIR/log/slurmd
-mkdir $SLURM_DIR/log/archive
+rm -Rf $SLURM_DIR/log
+mkdir -p $SLURM_DIR/log/state
+mkdir -p $SLURM_DIR/log/slurmd
+mkdir -p $SLURM_DIR/log/archive
 
 # Setup configuration
 echo "Slurm configuration from git:"
 cd ../data/slurmcfg
 # TODO check if we are not already at the right revision
-git checkout daint &>/dev/null
 t=20${CONFDATE:0:2}-${CONFDATE:2:2}-${CONFDATE:4:2}
 git checkout $(git rev-list -1 --until="$t" daint)
 cd /$REPLAY_USER/slurm-replay
 cp "../data/slurmcfg/slurm.conf" etc/slurm.conf
 cp "../data/slurmcfg/gres.conf" etc/gres.conf
 cp "../data/slurmcfg/topology.conf" etc/topology.conf
-cp "../data/slurmcfg/slurmdbd.conf" etc/slurmdbd.conf
+if [ -f "../data/slurmcfg/slurmdbd.conf" ]; then
+  cp "../data/slurmcfg/slurmdbd.conf" etc/slurmdbd.conf
+else
+  cp "../data/slurmdbd.conf" etc/slurmdbd.conf
+fi
 ./configure_slurm.sh etc/slurm.conf
 if [ -f "../data/extra_configure_slurm.sh" ]; then
-    ../data/./extra_configure_slurm.sh etc/slurm.conf
+    ../data/./extra_configure_slurm.sh
 fi
 
 ./start_slurmdbd.sh $SLURM_REPLAY_LIB

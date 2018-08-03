@@ -1,7 +1,7 @@
 #!/bin/bash
 
 SLURM_FILE="etc/slurm.conf"
-SLURMDDB_FILE="etc/slurmdbd.conf"
+SLURMDBD_FILE="etc/slurmdbd.conf"
 
 # Comment lines
 token="BackupController[[:space:]]*= BackupAddr[[:space:]]*= Prolog[[:space:]]*= BurstBufferType[[:space:]]*= PrologSlurmctld[[:space:]]*= Epilog[[:space:]]*= EpilogSlurmctld[[:space:]]*= UnkillableStepProgram[[:space:]]*= JobSubmitPlugins[[:space:]]*= JobCompLoc[[:space:]]*="

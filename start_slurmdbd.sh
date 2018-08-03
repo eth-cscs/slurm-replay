@@ -35,11 +35,6 @@ echo -n  "Starting slurmdbd... "
 
 killall -q -9 slurmdbd
 
-rm -Rf $SLURM_DIR/log
-mkdir $SLURM_DIR/log/state
-mkdir $SLURM_DIR/log/slurmd
-mkdir $SLURM_DIR/log/archive
-
 eval "$SLURM_REPLAY_LIB slurmdbd $VERBOSE"
 sleep 1
 echo "done."
