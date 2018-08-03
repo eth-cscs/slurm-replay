@@ -2,7 +2,7 @@
 FROM base/archlinux
 MAINTAINER Maxime Martinasso <maxime.martinasso@cscs.ch>
 ARG SLURM_VERSION=17.02.9
-ARG REPLAY_USER=slurm
+ARG REPLAY_USER=replayuser
 
 ENV SLURM_VERSION $SLURM_VERSION
 ENV REPLAY_USER $REPLAY_USER
