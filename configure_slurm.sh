@@ -10,42 +10,42 @@ for t in $token; do
 done
 
 # Change the plugin types to none
-sed -i -e "/AuthType[[:space:]]*=/ s/munge/none/" $SLURM_FILE
-sed -i -e "/CryptoType[[:space:]]*=/ s/munge/none/" $SLURM_FILE
-sed -i -e "/JobContainerType[[:space:]]*=/ s/cncu/none/" $SLURM_FILE
-sed -i -e "/ProctrackType[[:space:]]*=/ s/cray/linuxproc/" $SLURM_FILE
-sed -i -e "/TaskPlugin[[:space:]]*=/ s/task.*/task\/none/" $SLURM_FILE
-sed -i -e "/JobCompType[[:space:]]*=/ s/jobcomp.*/jobcomp\/none/" $SLURM_FILE
-sed -i -e "/AcctGatherEnergyType[[:space:]]*=/ s/cray/none/" $SLURM_FILE
-sed -i -e "/AcctGatherType[[:space:]]*=/ s/linux/none/" $SLURM_FILE
+sed -i -e "s/AuthType[[:space:]]*=.*/AuthType=auth\/none/" $SLURM_FILE
+sed -i -e "s/CryptoType[[:space:]]*=.*/CryptoType=crypto\/none/" $SLURM_FILE
+sed -i -e "s/JobContainerType[[:space:]]*=.*/JobContainerType=job_container\/none/" $SLURM_FILE
+sed -i -e "s/ProctrackType[[:space:]]*=.*/ProctrackType=proctrack\/linuxproc/" $SLURM_FILE
+sed -i -e "s/TaskPlugin[[:space:]]*=.*/TaskPlugin=task\/none/" $SLURM_FILE
+sed -i -e "s/JobCompType[[:space:]]*=.*/JobCompType=jobcomp\/none/" $SLURM_FILE
+sed -i -e "s/AcctGatherEnergyType[[:space:]]*=.*/AcctGatherEnergyType=acct_gather_ernergy\/none/" $SLURM_FILE
+sed -i -e "s/AcctGatherType[[:space:]]*=.*/AcctGatherType=jobacct_gather\/none/" $SLURM_FILE
 
 # Timeout value
-sed -i -e "/SlurmdTimeout[[:space:]]*=/ s/SlurmdTimeout[[:space:]]*=[[:digit:]]*/SlurmdTimeout=0/" $SLURM_FILE
+sed -i -e "s/SlurmdTimeout[[:space:]]*=[[:digit:]]*/SlurmdTimeout=0/" $SLURM_FILE
 
 
 # Debug level
-sed -i -e "/SlurmdDebug[[:space:]]*=/ s/info/error/" $SLURM_FILE
-sed -i -e "/SlurmctldDebug[[:space:]]*=/ s/debug/error/" $SLURM_FILE
+sed -i -e "s/SlurmdDebug[[:space:]]*=.*/SlurmdDebug=error/" $SLURM_FILE
+sed -i -e "s/SlurmctldDebug[[:space:]]*=.*/SlurmctldDebug=error/" $SLURM_FILE
 
 # Set up to local hosts
-sed -i -e "/ControlMachine[[:space:]]*=/ s/daint.*/localhost/" $SLURM_FILE
+sed -i -e "s/ControlMachine[[:space:]]*=.*/ControlMachine=localhost/" $SLURM_FILE
 sed -i -e "/ControlMachine[[:space:]]*=/a\
 ControlAddr=localhost\n\
 SlurmdUser=$REPLAY_USER\
 " $SLURM_FILE
-sed -i -e "s/SlurmUser[[:space:]]*=root/SlurmUser=$REPLAY_USER/" $SLURM_FILE
+sed -i -e "s/SlurmUser[[:space:]]*=.*/SlurmUser=$REPLAY_USER/" $SLURM_FILE
 
 # Set up directories
-sed -i -e "/SlurmctldPidFile[[:space:]]*=/ s/SlurmctldPidFile[[:space:]]*=.*/SlurmctldPidFile=\/$REPLAY_USER\/slurmR\/log\/slurmctld.pid/" $SLURM_FILE
-sed -i -e "/SlurmctldLogFile[[:space:]]*=/ s/SlurmctldLogFile[[:space:]]*=.*/SlurmctldLogFile=\/$REPLAY_USER\/slurmR\/log\/slurmctld.log/" $SLURM_FILE
-sed -i -e "/SlurmdPidFile[[:space:]]*=/ s/SlurmdPidFile[[:space:]]*=.*/SlurmdPidFile=\/$REPLAY_USER\/slurmR\/log\/slurmd.pid/" $SLURM_FILE
-sed -i -e "/SlurmdLogFile[[:space:]]*=/ s/SlurmdLogFile[[:space:]]*=.*/SlurmdLogFile=\/$REPLAY_USER\/slurmR\/log\/slurmd\/slurmd.log/" $SLURM_FILE
-sed -i -e "/SlurmdSpoolDir[[:space:]]*=/ s/SlurmdSpoolDir[[:space:]]*=.*/SlurmdSpoolDir=\/$REPLAY_USER\/slurmR\/log/" $SLURM_FILE
-sed -i -e "/StateSaveLocation[[:space:]]*=/ s/StateSaveLocation[[:space:]]*=.*/StateSaveLocation=\/$REPLAY_USER\/slurmR\/log\/state/" $SLURM_FILE
+sed -i -e "s/SlurmctldPidFile[[:space:]]*=.*/SlurmctldPidFile=\/$REPLAY_USER\/slurmR\/log\/slurmctld.pid/" $SLURM_FILE
+sed -i -e "s/SlurmctldLogFile[[:space:]]*=.*/SlurmctldLogFile=\/$REPLAY_USER\/slurmR\/log\/slurmctld.log/" $SLURM_FILE
+sed -i -e "s/SlurmdPidFile[[:space:]]*=.*/SlurmdPidFile=\/$REPLAY_USER\/slurmR\/log\/slurmd.pid/" $SLURM_FILE
+sed -i -e "s/SlurmdLogFile[[:space:]]*=.*/SlurmdLogFile=\/$REPLAY_USER\/slurmR\/log\/slurmd\/slurmd.log/" $SLURM_FILE
+sed -i -e "s/SlurmdSpoolDir[[:space:]]*=.*/SlurmdSpoolDir=\/$REPLAY_USER\/slurmR\/log/" $SLURM_FILE
+sed -i -e "s/StateSaveLocation[[:space:]]*=.*/StateSaveLocation=\/$REPLAY_USER\/slurmR\/log\/state/" $SLURM_FILE
 
 # Accounting
-sed -i -e "/AccountingStorageHost[[:space:]]*=/ s/AccountingStorageHost[[:space:]]*=.*/AccountingStorageHost=localhost/" $SLURM_FILE
-sed -i -e "/AccountingStorageBackupHost[[:space:]]*=/ s/AccountingStorageBackupHost[[:space:]]*=.*/AccountingStorageBackupHost=localhost/" $SLURM_FILE
+sed -i -e "s/AccountingStorageHost[[:space:]]*=.*/AccountingStorageHost=localhost/" $SLURM_FILE
+sed -i -e "s/AccountingStorageBackupHost[[:space:]]*=.*/AccountingStorageBackupHost=localhost/" $SLURM_FILE
 sed -i -e "/AccountingStorageBackupHost[[:space:]]*=/a\
 AccountingStorageUser=$REPLAY_USER\n\
 AccountingStoragePass=\"\" \
@@ -56,16 +56,16 @@ sed -i -e "/NodeName[[:space:]]*=/s/$/\ NodeAddr=localhost\ NodeHostname=localho
 sed -i -e "/NodeName[[:space:]]*=/s/#/\ NodeAddr=localhost\ NodeHostname=localhost &/" $SLURM_FILE
 
 # Other changes
-sed -i -e '/#\ XC\ NODES\ #####/a\
+sed -i -e '1,/^NodeName=.*/ {/^NodeName=.*/i\
 # Adding frontend\
 FrontendName=localhost FrontendAddr=localhost Port=7000
-' $SLURM_FILE
+}' $SLURM_FILE
 sed -i -e "/DebugFlags=/a\
 PluginDir=/$REPLAY_USER/slurmR/lib/slurm\
 " $SLURM_FILE
 
 # configure SlurmDBD
-sed -i -e "s/SlurmUser[[:space:]]*=slurm/SlurmUser=$REPLAY_USER/" $SLURMDBD_FILE
-sed -i -e "s/StorageUser[[:space:]]*=slurm/StorageUser=$REPLAY_USER/" $SLURMDBD_FILE
-sed -i -e "/PidFile[[:space:]]*=/ s/PidFile[[:space:]]*=.*/PidFile=\/$REPLAY_USER\/slurmR\/log\/slurmdbd.pid/" $SLURMDBD_FILE
-sed -i -e "/LogFile[[:space:]]*=/ s/LogFile[[:space:]]*=.*/LogFile=\/$REPLAY_USER\/slurmR\/log\/slurmdbd.log/" $SLURMDBD_FILE
+sed -i -e "s/SlurmUser[[:space:]]*=.*/SlurmUser=$REPLAY_USER/" $SLURMDBD_FILE
+sed -i -e "s/StorageUser[[:space:]]*=.*/StorageUser=$REPLAY_USER/" $SLURMDBD_FILE
+sed -i -e "s/PidFile[[:space:]]*=.*/PidFile=\/$REPLAY_USER\/slurmR\/log\/slurmdbd.pid/" $SLURMDBD_FILE
+sed -i -e "s/LogFile[[:space:]]*=.*/LogFile=\/$REPLAY_USER\/slurmR\/log\/slurmdbd.log/" $SLURMDBD_FILE
