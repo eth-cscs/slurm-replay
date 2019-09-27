@@ -16,7 +16,7 @@ sed -i -e "s/JobContainerType[[:space:]]*=.*/JobContainerType=job_container\/non
 sed -i -e "s/ProctrackType[[:space:]]*=.*/ProctrackType=proctrack\/linuxproc/" $SLURM_FILE
 sed -i -e "s/TaskPlugin[[:space:]]*=.*/TaskPlugin=task\/none/" $SLURM_FILE
 sed -i -e "s/JobCompType[[:space:]]*=.*/JobCompType=jobcomp\/none/" $SLURM_FILE
-sed -i -e "s/AcctGatherEnergyType[[:space:]]*=.*/AcctGatherEnergyType=acct_gather_ernergy\/none/" $SLURM_FILE
+sed -i -e "s/AcctGatherEnergyType[[:space:]]*=.*/AcctGatherEnergyType=acct_gather_energy\/none/" $SLURM_FILE
 sed -i -e "s/AcctGatherType[[:space:]]*=.*/AcctGatherType=jobacct_gather\/none/" $SLURM_FILE
 
 # Timeout value
