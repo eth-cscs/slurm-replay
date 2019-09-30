@@ -81,7 +81,7 @@ END_TIME="$(( $END_TIME + $TIME_ENDPAD ))"
 
 NJOBS="$(trace_list -n -w "$WORKLOAD" | wc -l)"
 
-CONF_TIME="$(trace_list -n -w "$WORKLOAD" -u | awk '{print $5;}' | sort -n | head -n 1 | sed 's/2017/17/' | tr -d '-')"
+CONF_TIME="$(trace_list -n -w "$WORKLOAD" -u | awk '{print $5;}' | sort -n | head -n 1 | tr -d '-' | cut -c 3-8)"
 # Add initial time
 ticker -s "$START_TIME"
 

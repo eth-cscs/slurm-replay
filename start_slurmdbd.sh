@@ -13,9 +13,9 @@ echo -n  "Starting mysql... "
 if [ ! -f "/$REPLAY_USER/var/lib/mysql-bin.index" ]; then
 rm -Rf /$REPLAY_USER/var/lib/*
 rm -Rf /$REPLAY_USER/run/mysqld/*
-mysql_install_db --user="$REPLAY_USER" --basedir="/usr" --datadir="/$REPLAY_USER/var/lib" &> /dev/null
+mysql_install_db &> /dev/null
 fi
-mysqld_safe --datadir="/$REPLAY_USER/var/lib" &> /dev/null &
+mysqld_safe &> /dev/null &
 sleep 5
 echo "done."
 fi

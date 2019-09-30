@@ -4,7 +4,7 @@ SLURM_FILE="etc/slurm.conf"
 SLURMDBD_FILE="etc/slurmdbd.conf"
 
 # Comment lines
-token="BackupController[[:space:]]*= BackupAddr[[:space:]]*= Prolog[[:space:]]*= BurstBufferType[[:space:]]*= PrologSlurmctld[[:space:]]*= Epilog[[:space:]]*= EpilogSlurmctld[[:space:]]*= UnkillableStepProgram[[:space:]]*= JobSubmitPlugins[[:space:]]*= JobCompLoc[[:space:]]*="
+token="BackupController[[:space:]]*= BackupAddr[[:space:]]*= Prolog[[:space:]]*= BurstBufferType[[:space:]]*= PrologSlurmctld[[:space:]]*= Epilog[[:space:]]*= EpilogSlurmctld[[:space:]]*= UnkillableStepProgram[[:space:]]*= JobSubmitPlugins[[:space:]]*= JobCompLoc[[:space:]]*= PrologFlags[[:space:]]*="
 for t in $token; do
    sed -i -e "/$t/ s/^#*/#/" $SLURM_FILE
 done

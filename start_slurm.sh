@@ -1,6 +1,7 @@
 #!/bin/bash
 
 #VERBOSE="-v"
+CLUSTER="daint"
 
 if [ ! -z "$1" -a ! -z "$2" ]; then
    export LD_LIBRARY_PATH="$1:$LD_LIBRARY_PATH"
@@ -31,7 +32,7 @@ echo "Slurm configuration from git:"
 cd ../data/slurmcfg
 # TODO check if we are not already at the right revision
 t=20${CONFDATE:0:2}-${CONFDATE:2:2}-${CONFDATE:4:2}
-git checkout $(git rev-list -1 --until="$t" daint)
+git checkout $(git rev-list -1 --until="$t" $CLUSTER)
 cd /$REPLAY_USER/slurm-replay
 cp "../data/slurmcfg/slurm.conf" etc/slurm.conf
 cp "../data/slurmcfg/gres.conf" etc/gres.conf
@@ -51,9 +52,9 @@ fi
 # With front-end
 echo -n  "Starting slurmctld and slurmd... "
 eval "$SLURM_REPLAY_LIB slurmd $VERBOSE -c "
-sleep 2
+sleep 10
 eval "$SLURM_REPLAY_LIB slurmctld $VERBOSE -c "
-sleep 5
+sleep 30
 nodes=$(sinfo -o %N --noheader)
 scontrol update NodeName=$nodes state=DOWN Reason="complete slurm replay setup"
 scontrol update NodeName=$nodes state=RESUME Reason="complete slurm replay setup"

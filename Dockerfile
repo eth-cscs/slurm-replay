@@ -1,7 +1,6 @@
-# select image
-FROM base/archlinux
+FROM debian:stable
 MAINTAINER Maxime Martinasso <maxime.martinasso@cscs.ch>
-ARG SLURM_VERSION=17.02.9
+ARG SLURM_VERSION=18.08.8
 ARG REPLAY_USER=replayuser
 
 ENV SLURM_VERSION $SLURM_VERSION
@@ -9,8 +8,7 @@ ENV REPLAY_USER $REPLAY_USER
 
 # install packages
 # Note do not install sudo - sudo does not work within Shifter
-RUN pacman -Sy --noconfirm autoconf automake git gawk gcc mpfr make mariadb wget patch python gtk2 pkgconf fakeroot vim bc groff gdb valgrind strace && \
-               rm -rf /var/cache/pacman/pkg
+RUN apt-get update && apt-get --assume-yes install autoconf automake git gawk gcc libmpfr6 make wget patch python pkgconf fakeroot vim bc groff gdb valgrind strace psmisc lsof net-tools libtool gtk+2.0 mariadb-client mariadb-server libmariadb-dev libmariadbclient-dev
 
 # set timezone to CET
 RUN  ln -sf /usr/share/zoneinfo/CET /etc/localtime
@@ -18,20 +16,30 @@ RUN  ln -sf /usr/share/zoneinfo/CET /etc/localtime
 # create a user slurm and set mariadb to be user dependent (non-root)
 # do not use /home in case it cannot be mounted by the container technology
 RUN useradd -ms /bin/bash -d /$REPLAY_USER $REPLAY_USER && \
-    mkdir -p /run/mysqld && \
-    ln -s /$REPLAY_USER/run/mysqld/mysqld.lock /run/mysqld/mysqld.sock && \
-    sed -i -e "s/socket[[:space:]]*=.*/socket=\/$REPLAY_USER\/run\/mysqld\/mysqld.lock/g" /etc/mysql/my.cnf && \
-    sed -i -e "s/#innodb_buffer_pool_size[[:space:]]*=.*/innodb_buffer_pool_size=1024M/g" /etc/mysql/my.cnf && \
-    sed -i -e "s/#innodb_log_file_size[[:space:]]*=.*/innodb_log_file_size=64M/g" /etc/mysql/my.cnf && \
-    sed -i -e "s/#innodb_lock_wait_timeout[[:space:]]*=.*/innodb_lock_wait_timeout=900/g" /etc/mysql/my.cnf
+    mkdir -p /var/run/mysqld && \
+    mkdir -p /$REPLAY_USER/run/mysqld && \
+    mkdir -p /$REPLAY_USER/var/lib/mysql && \
+    mkdir -p /$REPLAY_USER/var/log/mysql && \
+    mkdir -p /$REPLAY_USER/data && \
+    ln -s /$REPLAY_USER/run/mysqld/mysqld.lock /var/run/mysqld/mysqld.sock && \
+    sed -i -e "s/user[[:space:]]*=.*/user=$REPLAY_USER/g" /etc/mysql/mariadb.conf.d/50-server.cnf && \
+    sed -i -e "s/socket[[:space:]]*=.*/socket=\/$REPLAY_USER\/run\/mysqld\/mysqld.lock/g" /etc/mysql/mariadb.conf.d/50-server.cnf && \
+    sed -i -e "s/pid-file[[:space:]]*=.*/pid-file=\/$REPLAY_USER\/run\/mysqld\/mysqld.pid/g" /etc/mysql/mariadb.conf.d/50-server.cnf && \
+    sed -i -e "s/datadir[[:space:]]*=.*/datadir=\/$REPLAY_USER\/var\/lib\/mysql/g" /etc/mysql/mariadb.conf.d/50-server.cnf && \
+    sed -i -e "s/log_error[[:space:]]*=.*/log_error=\/$REPLAY_USER\/var\/log\/mysql\/error.log/g" /etc/mysql/mariadb.conf.d/50-server.cnf && \
+    sed -i -e "s/socket[[:space:]]*=.*/socket=\/$REPLAY_USER\/run\/mysqld\/mysqld.lock/g" /etc/mysql/mariadb.conf.d/50-mysqld_safe.cnf && \
+    sed -i -e "s/socket[[:space:]]*=.*/socket=\/$REPLAY_USER\/run\/mysqld\/mysqld.lock/g" /etc/mysql/mariadb.conf.d/50-client.cnf && \
+    sed -i -e "/^\[client-server\]/a [mysqld]" /etc/mysql/mariadb.cnf && \
+    sed -i -e "/^\[mysqld\]/a innodb_buffer_pool_size=1024M" /etc/mysql/mariadb.cnf && \
+    sed -i -e "/^\[mysqld\]/a innodb_log_file_size=64M" /etc/mysql/mariadb.cnf && \
+    sed -i -e "/^\[mysqld\]/a innodb_lock_wait_timeout=900" /etc/mysql/mariadb.cnf
 
 USER $REPLAY_USER
 COPY . /$REPLAY_USER/slurm-replay
 COPY slurm-$SLURM_VERSION.tar.bz2 /$REPLAY_USER
 
 USER root
-RUN chown -R $REPLAY_USER:$REPLAY_USER /$REPLAY_USER/slurm-replay
-RUN chown -R $REPLAY_USER:$REPLAY_USER /$REPLAY_USER/slurm-$SLURM_VERSION.tar.bz2
+RUN chown -R $REPLAY_USER:$REPLAY_USER /$REPLAY_USER
 
 USER $REPLAY_USER
 # install replay libraries - libwtime need to be built before slurm
@@ -60,25 +68,18 @@ RUN cd /$REPLAY_USER && \
 RUN cd /$REPLAY_USER/slurm-replay/submitter && \
     make
 
-# create volume where traces and databases tables are located
-# use "-v " when starting the container
-RUN mkdir /$REPLAY_USER/data && \
-    mkdir -p /$REPLAY_USER/var/lib && \
-    mkdir -p /$REPLAY_USER/run/mysqld && \
-    mkdir /$REPLAY_USER/tmp
-
 #
 # DOCKER build command:
-#     docker build -t mmxcscs/slurm-replay:maximem_slurm-17.02.9 --build-arg REPLAY_USER=maximem .
+#     docker build -t mmxcscs/slurm-replay:replayuser_slurm-18.08.8 --build-arg REPLAY_USER=replayuser .
 #
 # DOCKER command to run:
-#     docker run --cap-add sys_ptrace --rm -it -v /Users/maximem/dev/docker/slurm-replay/data:/maximem/data --volume /Users/maximem/dev/docker/slurm-replay/data/new_passwd:/etc/passwd --volume /Users/maximem/dev/docker/slurm-replay/data/new_group:/etc/group mmxcscs/slurm-replay:maximem_slurm-17.02.9
+#     docker run --cap-add sys_ptrace --rm -it -v /Users/replayuser/dev/docker/slurm-replay/data:/replayuser/data --volume /Users/replayuser/dev/docker/slurm-replay/data/new_passwd:/etc/passwd --volume /Users/replayuser/dev/docker/slurm-replay/data/new_group:/etc/group mmxcscs/slurm-replay:replayuser_slurm-18.08.8
 # NOTE FOR DEBUGGING:
 #     before to commit the container use the option docker run --cap-add sys_ptrace to be able to attach a debugger
 #
 #
 # SHIFTER command to run:
-# shifter run --writable-volatile=/maximem/slurmR/log --writable-volatile=/maximem/slurmR/etc  --writable-volatile=/maximem/var --writable-volatile=/maximem/var/lib --writable-volatile=/maximem/run --writable-volatile=/maximem/run/mysqld --writable-volatile=/maximem/tmp --writable-volatile=/maximem/slurm-replay/submitter --mount=source=/users/maximem/dev/data,destination=/maximem/data,type=bind  mmxcscs/slurm-replay:maximem_slurm-17.02.9 /bin/bash
+# shifter run --writable-volatile=/replayuser/slurmR/log --writable-volatile=/replayuser/slurmR/etc  --writable-volatile=/replayuser/var --writable-volatile=/replayuser/var/lib --writable-volatile=/replayuser/run --writable-volatile=/replayuser/run/mysqld --writable-volatile=/replayuser/tmp --writable-volatile=/replayuser/slurm-replay/submitter --mount=source=/users/replayuser/dev/data,destination=/replayuser/data,type=bind  mmxcscs/slurm-replay:replayuser_slurm-18.08.8 /bin/bash
 #
 
 # for convenience
