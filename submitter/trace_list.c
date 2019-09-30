@@ -140,7 +140,7 @@ void do_special_action(job_trace_t* job_arr, unsigned long long num_rows)
         if ( fact < 0.5 && job_arr[k].state == 3) {
             job_id[idx] = job_arr[k].id_job;
             idx++;
-            printf("%d %ld %ld %.2f\n",job_arr[k].id_job, duration, job_arr[k].timelimit*60, fact);
+            printf("%d %ld %d %.2f\n",job_arr[k].id_job, duration, job_arr[k].timelimit*60, fact);
         }
     }
     printf("number of special jobs: %lld\n", idx);

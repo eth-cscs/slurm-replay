@@ -1,6 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
+#ifdef __APPLE__
 #include <mysql/mysql.h>
+#else
+#include <mariadb/mysql.h>
+#endif
 #include <fcntl.h>
 #include <string.h>
 #include <unistd.h>

@@ -266,7 +266,7 @@ static int create_and_submit_job(job_trace_t jobd)
     dmesg.script = strdup(script);
     rv = slurm_submit_batch_job(&dmesg, &respMsg);
     if (rv != SLURM_SUCCESS ) {
-        log_error("%d slurm_submit_batch_job: %s [submit number=%d]", dmesg.job_id, slurm_strerror(slurm_get_errno()), count);
+        log_error("%d slurm_submit_batch_job: error=%s [count=%d]", dmesg.job_id, slurm_strerror(slurm_get_errno()), count);
         print_job_specs(&dmesg);
     }
 
@@ -314,18 +314,18 @@ static void create_and_submit_resv(resv_trace_t resvd, int action)
         dmesg.start_time = resvd.time_start;
         output_name = slurm_create_reservation(&dmesg);
         if (output_name == NULL) {
-            log_error("%d slurm_create_reservation: %s %s [submit number=%d]", resvd.id_resv, resvd.resv_name, slurm_strerror(slurm_get_errno()), count);
+            log_error("%d slurm_create_reservation: name=%s error=%s [count=%d]", resvd.id_resv, resvd.resv_name, slurm_strerror(slurm_get_errno()), count);
         } else {
-            log_info("reservation created: %s count=%d",output_name, count);
+            log_info("reservation created: name=%s [count=%d]",output_name, count);
         }
     }
     if (action == RESV_UPDATE) {
         // do not update time_emd and time_start
         res = slurm_update_reservation(&dmesg);
         if ( res != 0) {
-            log_error("%d slurm_update_reservation: %s %s count=%d", resvd.id_resv, resvd.resv_name, slurm_strerror(res), count);
+            log_error("%d slurm_update_reservation: name=%s error=%s [count=%d]", resvd.id_resv, resvd.resv_name, slurm_strerror(res), count);
         } else {
-            log_info("updated reservation: %s count=%d",resvd.resv_name, count);
+            log_info("updated reservation: name=%s [count=%d]",resvd.resv_name, count);
         }
     }
     count++;

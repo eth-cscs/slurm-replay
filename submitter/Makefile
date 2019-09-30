@@ -3,6 +3,7 @@ DISTIME_PATH ?= ../distime
 SLURM_PATH ?= ../../slurmR
 
 # compiler flags
+OS := $(shell uname)
 CC := gcc
 #CCFLAGS := -O0 -g
 CCFLAGS := -O2
@@ -10,7 +11,13 @@ LDFLAGS :=
 LIB_SHMEMCLOCK := -L$(DISTIME_PATH) -lshmemclock -lrt
 LIB_SLURM := -L$(SLURM_PATH)/lib -lslurm
 LIB_MATH := -lm
-MYSQL_LIBS := -L/usr/local/opt/openssl/lib -L/usr/lib -L/usr/local/lib  -lmysqlclient -lpthread -lz -lm -ldl -lssl -lcrypto
+ifeq ($(OS),Darwin)
+  MYSQL_LIBS :=  -L/usr/local/lib -lmysqlclient
+  LIB_COMMON := -L/usr/local/opt/openssl/lib -L/usr/lib -lpthread -lz -lm -ldl -lssl -lcrypto
+else
+  MYSQL_LIBS := -L/usr/lib/x86_64-linux-gnu -lmariadb
+  LIB_COMMON :=
+endif
 INCLUDES := -I$(DISTIME_PATH) -I$(SLURM_PATH)/include
 
 # Target rules
@@ -47,7 +54,7 @@ trace_builder_mysql.o: trace_builder_mysql.c
 	$(CC) $(CCFLAGS) $(INCLUDES) -o $@ -c $<
 
 trace_builder_mysql: trace_builder_mysql.o
-	$(CC) $(LDFLAGS) $(MYSQL_LIBS) -o $@ $+
+	$(CC) $(LDFLAGS) $(MYSQL_LIBS) $(LIB_COMMON) -o $@ $+
 
 trace_compare.o: trace_compare.c
 	$(CC) $(CCFLAGS) $(INCLUDES) -o $@ -c $<
@@ -71,7 +78,7 @@ db_correctness.o: db_correctness.c
 	$(CC) $(CCFLAGS) $(INCLUDES) -o $@ -c $<
 
 db_correctness: db_correctness.o
-	$(CC) $(LDFLAGS) $(MYSQL_LIBS) -o $@ $+
+	$(CC) $(LDFLAGS) $(MYSQL_LIBS) $(LIB_COMMON) -o $@ $+
 clean:
 	rm -f submitter submitter.o
 	rm -f node_controller node_controller.o
