@@ -73,7 +73,7 @@ RUN cd /$REPLAY_USER/slurm-replay/submitter && \
 #     docker build -t mmxcscs/slurm-replay:replayuser_slurm-18.08.8 --build-arg REPLAY_USER=replayuser .
 #
 # DOCKER command to run:
-#     docker run --cap-add sys_ptrace --rm -it -v /Users/replayuser/dev/docker/slurm-replay/data:/replayuser/data --volume /Users/replayuser/dev/docker/slurm-replay/data/new_passwd:/etc/passwd --volume /Users/replayuser/dev/docker/slurm-replay/data/new_group:/etc/group mmxcscs/slurm-replay:replayuser_slurm-18.08.8
+#     docker run --cap-add sys_ptrace --rm -it -v /Users/replayuser/dev/docker/slurm-replay/data:/replayuser/data --volume /Users/replayuser/dev/docker/slurm-replay/data/new_passwd:/etc/passwd --volume /Users/replayuser/dev/docker/slurm-replay/data/new_group:/etc/group -h localhost mmxcscs/slurm-replay:replayuser_slurm-18.08.8
 # NOTE FOR DEBUGGING:
 #     before to commit the container use the option docker run --cap-add sys_ptrace to be able to attach a debugger
 #
