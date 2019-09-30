@@ -21,6 +21,7 @@ sed -i -e "s/AcctGatherType[[:space:]]*=.*/AcctGatherType=jobacct_gather\/none/"
 
 # Timeout value
 sed -i -e "s/SlurmdTimeout[[:space:]]*=[[:digit:]]*/SlurmdTimeout=0/" $SLURM_FILE
+sed -i -e "s/MessageTimeout[[:space:]]*=[[:digit:]]*/MessageTimeout=240/" $SLURM_FILE
 
 
 # Debug level
