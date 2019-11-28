@@ -262,6 +262,18 @@ get_args(int argc, char** argv)
     }
 }
 
+/* This function should be changed depending on the Slurm configuration and data stored in the database. For instance, on Piz Daint some constraint are not clearly stored in the Slurm database and should be parsed */
+const char* reconstruct_constraint(const char* gres) {
+   if (strncmp("gpu:0", gres, 5) == 0 || strncmp("7696487:0", gres, 9) == 0) {
+        return "mc";
+   } else {
+        if (strncmp("gpu:", gres, 4) == 0 || strncmp("7696487:", gres, 8) == 0) {
+             return "gpu";
+        }
+   }
+   return gres;
+}
+
 int main(int argc, char **argv)
 {
 
@@ -456,7 +468,7 @@ int main(int argc, char **argv)
             job_trace.time_start = time_start;
         }
         job_trace.time_suspended = strtol(row[17], NULL, 0);
-        sprintf(job_trace.gres_alloc, "%s", row[18]);
+        strcpy(job_trace.gres_alloc, reconstruct_constraint(row[18]));
         job_trace.priority = atoi(row[19]);
 
         //printf("[%d] submit=%ld start=%ld end=%ld\n", job_trace.id_job,  job_trace.time_submit, job_trace.time_start, job_trace.time_end);
