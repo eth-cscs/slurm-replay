@@ -192,25 +192,13 @@ static int create_and_submit_job(job_trace_t jobd)
 
     dmesg.qos = strdup(jobd.qos_name);
     dmesg.partition = strdup(jobd.partition);
-    if (strcmp("normal",jobd.partition) != 0 && \
-        strcmp("xfer",jobd.partition) != 0 && \
-        strcmp("large",jobd.partition) != 0 && \
-        strcmp("debug",jobd.partition) != 0 && \
-        strcmp("low",jobd.partition) != 0 && \
-        strcmp("prepost",jobd.partition) != 0 && \
-        strcmp("2go",jobd.partition) != 0) {
-        log_info("job skipped: job_id=%u partition=%s count=%d", jobd.id_job, jobd.partition, count);
-        return 0;
-    }
 
     dmesg.min_nodes = jobd.nodes_alloc;
     // TODO: Daint specific, check if string starts with "gpu:0" meaning using constraint mc for all partitions except xfer,
     // one way to avoid that is to do this check at the trace creation
     // Note that sometime the string "gpu" is changed to the number "7696487" in the prodcution db.
     if (strncmp("gpu:0", jobd.gres_alloc, 5) == 0 || strncmp("7696487:0", jobd.gres_alloc,9) == 0) {
-        if (strcmp(jobd.partition, "xfer") != 0) {
             dmesg.features = strdup("mc");
-        }
     } else {
         if (strncmp("gpu:", jobd.gres_alloc, 4) == 0 || strncmp("7696487:", jobd.gres_alloc,8) == 0) {
             dmesg.features = strdup("gpu");

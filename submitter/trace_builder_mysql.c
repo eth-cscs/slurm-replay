@@ -31,6 +31,7 @@ char resv_table[256];
 char assoc_table[256];
 char event_table[256];
 char *user = NULL;
+char partitions[2048] = "";
 char *password;
 static int use_where = 1;
 static int do_resv = 1;
@@ -166,6 +167,7 @@ Usage: mysql_trace_builder [OPTIONS]\n\
     -u, --user       dbuser          Name of user with which to establish a\n\
                                      connection to the DB\n\
     -c, --cluster    cluster_name     Name of the cluster used by the Slurm database to extract data\n\
+    -a, --partition partition    a partition to include in the trace, this option should be repeated if more than one partition should be considered\n\
     -f, --file       filename        Name of the output trace file being created\n\
     -x, --dependencies filename      Name of the file containing the dependencies\n\
     -w, --where                      Do not use the where statement for the  SQL query to retrieve the data\n\
@@ -191,12 +193,14 @@ get_args(int argc, char** argv)
         {"cluster", required_argument, 0, 'c'},
         {"dependencies", required_argument, 0, 'x'},
         {"user", required_argument, 0, 'u'},
+        {"partition", required_argument, 0, 'a'},
         {0, 0, 0, 0}
     };
     int opt_char, option_index;
+    char tmp[256];
 
     while(1) {
-        if ((opt_char = getopt_long(argc, argv, "s:e:d:h:p:P:u:c:f:x:wn?", long_options, &option_index)) == -1 )
+        if ((opt_char = getopt_long(argc, argv, "s:e:d:h:p:P:u:c:a:f:x:wn?", long_options, &option_index)) == -1 )
             break;
         switch  (opt_char) {
         case ('p'):
@@ -240,6 +244,15 @@ get_args(int argc, char** argv)
             break;
         case ('u'):
             user = optarg;
+            break;
+        case ('a'):
+            if (strlen(partitions) == 0) {
+                sprintf(tmp,"'%s'", optarg);
+                strcpy(partitions,tmp);
+            } else {
+                sprintf(tmp,",'%s'", optarg);
+                strcat(partitions,tmp);
+            }
             break;
         case ('x'):
             dep_filename = strdup(optarg);
@@ -332,8 +345,8 @@ int main(int argc, char **argv)
         sprintf(where_statement,
                 "WHERE t.time_submit < %lu AND t.time_end > %lu AND t.time_start < %lu AND "
                 "t.state <> 7 AND "
-                "t.nodes_alloc > 0 AND t.partition IN ('normal','xfer','large','low','debug','prepost','2go')",
-                time_end, time_start, time_end);
+                "t.nodes_alloc > 0 AND t.partition IN (%s)",
+                time_end, time_start, time_end, partitions);
     }
     memset(query,'\0',1024);
     sprintf(query, "SELECT t.account, t.exit_code, t.job_name, "
