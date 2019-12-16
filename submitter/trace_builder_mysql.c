@@ -32,6 +32,7 @@ char assoc_table[256];
 char event_table[256];
 char *user = NULL;
 char partitions[2048] = "";
+char accounts[16384] = "";
 char *password;
 static int use_where = 1;
 static int do_resv = 1;
@@ -167,7 +168,8 @@ Usage: mysql_trace_builder [OPTIONS]\n\
     -u, --user       dbuser          Name of user with which to establish a\n\
                                      connection to the DB\n\
     -c, --cluster    cluster_name     Name of the cluster used by the Slurm database to extract data\n\
-    -a, --partition partition    a partition to include in the trace, this option should be repeated if more than one partition should be considered\n\
+    -t, --partition partition    a partition to include in the trace, this option should be repeated if more than one partition should be considered\n\
+    -a, --account account        an account to include in the trace, this option should be repeated if more than one account should be considered\n\
     -f, --file       filename        Name of the output trace file being created\n\
     -x, --dependencies filename      Name of the file containing the dependencies\n\
     -w, --where                      Do not use the where statement for the  SQL query to retrieve the data\n\
@@ -193,14 +195,15 @@ get_args(int argc, char** argv)
         {"cluster", required_argument, 0, 'c'},
         {"dependencies", required_argument, 0, 'x'},
         {"user", required_argument, 0, 'u'},
-        {"partition", required_argument, 0, 'a'},
+        {"partition", required_argument, 0, 't'},
+        {"account", required_argument, 0, 'a'},
         {0, 0, 0, 0}
     };
     int opt_char, option_index;
     char tmp[256];
 
     while(1) {
-        if ((opt_char = getopt_long(argc, argv, "s:e:d:h:p:P:u:c:a:f:x:wn?", long_options, &option_index)) == -1 )
+        if ((opt_char = getopt_long(argc, argv, "s:e:d:h:p:P:u:c:a:t:f:x:wn?", long_options, &option_index)) == -1 )
             break;
         switch  (opt_char) {
         case ('p'):
@@ -245,13 +248,22 @@ get_args(int argc, char** argv)
         case ('u'):
             user = optarg;
             break;
-        case ('a'):
+        case ('t'):
             if (strlen(partitions) == 0) {
                 sprintf(tmp,"'%s'", optarg);
                 strcpy(partitions,tmp);
             } else {
                 sprintf(tmp,",'%s'", optarg);
                 strcat(partitions,tmp);
+            }
+            break;
+        case ('a'):
+            if (strlen(accounts) == 0) {
+                sprintf(tmp,"'%s'", optarg);
+                strcpy(accounts,tmp);
+            } else {
+                sprintf(tmp,",'%s'", optarg);
+                strcat(accounts,tmp);
             }
             break;
         case ('x'):
@@ -274,6 +286,7 @@ const char* reconstruct_constraint(const char* gres) {
    return gres;
 }
 
+#define MAX_CHAR 1024
 int main(int argc, char **argv)
 {
 
@@ -281,17 +294,19 @@ int main(int argc, char **argv)
     int trace_file;
     int group_file;
     int passwd_file;
-    char group_item[256];
-    char user_item[256];
-    char group_filename[256];
-    char passwd_filename[256];
+    char group_item[MAX_CHAR];
+    char user_item[MAX_CHAR];
+    char group_filename[MAX_CHAR];
+    char passwd_filename[MAX_CHAR];
     struct tm tmVar;
     time_t time_start;
     time_t time_end;
     int CET = -3600;
 
-    char query[1024];
-    char where_statement[256];
+    char query[4*MAX_CHAR];
+    char where_statement[16*MAX_CHAR];
+    char account_statement[16*MAX_CHAR];
+    char partition_statement[16*MAX_CHAR];
     size_t query_length;
     //unsigned int num_fields;
     unsigned long long num_rows, npreset_jobs;
@@ -357,8 +372,18 @@ int main(int argc, char **argv)
         sprintf(where_statement,
                 "WHERE t.time_submit < %lu AND t.time_end > %lu AND t.time_start < %lu AND "
                 "t.state <> 7 AND "
-                "t.nodes_alloc > 0 AND t.partition IN (%s)",
-                time_end, time_start, time_end, partitions);
+                "t.nodes_alloc > 0",
+                time_end, time_start, time_end);
+        if (strlen(partitions) > 0) {
+               sprintf(partition_statement,
+                " AND t.partition IN (%s)", partitions);
+               strcat(where_statement, partition_statement);
+        }
+        if (strlen(accounts) > 0) {
+               sprintf(account_statement,
+                " AND t.account IN (%s)", accounts);
+               strcat(where_statement, account_statement);
+        }
     }
     memset(query,'\0',1024);
     sprintf(query, "SELECT t.account, t.exit_code, t.job_name, "
