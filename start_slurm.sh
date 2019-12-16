@@ -1,16 +1,33 @@
 #!/bin/bash
 
 #VERBOSE="-v"
-CLUSTER="daint"
 
-if [ ! -z "$1" -a ! -z "$2" ]; then
-   export LD_LIBRARY_PATH="$1:$LD_LIBRARY_PATH"
-   SLURM_REPLAY_LIB="LD_PRELOAD=$2"
-   if [ ! -z "$3" ]; then
-       CONFDATE="$3"
-    fi
-elif [ ! -z "$1" -a -z "$2" ]; then
-       CONFDATE="$1"
+while getopts ":c:l:t:" opt; do
+case $opt in
+    c)
+       CLUSTER="$OPTARG"
+    ;;
+    l)
+       LIBNAME=$(basename $OPTARG)
+       LIBDIR=$(dirname $OPTARG)
+       export LD_LIBRARY_PATH="$LIBDIR:$LD_LIBRARY_PATH"
+       SLURM_REPLAY_LIB="LD_PRELOAD=$LIBNAME"
+    ;;
+    t)
+       CONFDATE="$OPTARG"
+    ;;
+    :)
+       echo "Option -$OPTARG requires an argument."
+       exit 1
+    ;;
+esac
+done
+
+if [ -z "$CLUSTER" ]; then
+   CLUSTER="daint"
+fi
+if [ -z "$CONFDATE" ]; then
+   CONFDATE=$(date '+%y%m%d')
 fi
 
 SLURM_DIR="/$REPLAY_USER/slurmR"
@@ -66,4 +83,5 @@ done;
 if [ -f "../data/extra_command_slurm.sh" ]; then
    ../data/./extra_command_slurm.sh
 fi
+sacctmgr -i create user name=$REPLAY_USER cluster=$CLUSTER account=root
 echo "done."

@@ -86,7 +86,7 @@ CONF_TIME="$(trace_list -n -w "$WORKLOAD" -u | awk '{print $5;}' | sort -n | hea
 ticker -s "$START_TIME"
 
 # Initiate slurm and slurmdb
-./start_slurm.sh "$SLURM_REPLAY/distime" "$SLURM_REPLAY_LIB" "$CONF_TIME"
+./start_slurm.sh -c "daint" -l "$SLURM_REPLAY/distime/$SLURM_REPLAY_LIB" -t "$CONF_TIME"
 
 echo "Slurm is configured and ready:"
 echo
