@@ -85,6 +85,9 @@ CONF_TIME="$(trace_list -n -w "$WORKLOAD" -u | awk '{print $5;}' | sort -n | hea
 # Add initial time
 ticker -s "$START_TIME"
 
+# Initiate rest-shell access
+./start_restshell.sh
+
 # Initiate slurm and slurmdb
 ./start_slurm.sh -c "daint" -l "$SLURM_REPLAY/distime/$SLURM_REPLAY_LIB" -t "$CONF_TIME"
 

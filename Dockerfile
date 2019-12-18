@@ -8,7 +8,7 @@ ENV REPLAY_USER $REPLAY_USER
 
 # install packages
 # Note do not install sudo - sudo does not work within Shifter
-RUN apt-get update && apt-get --assume-yes install autoconf automake git gawk gcc libmpfr6 make wget patch python pkgconf fakeroot vim bc groff gdb valgrind strace psmisc lsof net-tools libtool gtk+2.0 mariadb-client mariadb-server libmariadb-dev libmariadbclient-dev
+RUN apt-get update && apt-get --assume-yes install autoconf automake git gawk gcc libmpfr6 make wget patch python pkgconf fakeroot vim bc groff gdb valgrind strace psmisc lsof net-tools libtool gtk+2.0 mariadb-client mariadb-server libmariadb-dev libmariadbclient-dev libssl-dev python-pip
 
 # set timezone to CET
 RUN  ln -sf /usr/share/zoneinfo/CET /etc/localtime
@@ -33,6 +33,11 @@ RUN useradd -ms /bin/bash -d /$REPLAY_USER $REPLAY_USER && \
     sed -i -e "/^\[mysqld\]/a innodb_buffer_pool_size=1024M" /etc/mysql/mariadb.cnf && \
     sed -i -e "/^\[mysqld\]/a innodb_log_file_size=64M" /etc/mysql/mariadb.cnf && \
     sed -i -e "/^\[mysqld\]/a innodb_lock_wait_timeout=900" /etc/mysql/mariadb.cnf
+
+# Setup REST Shell
+RUN pip install git+https://github.com/treytabner/rest-shell.git && \
+    pip install simplejson && \
+    mkdir -p /$REPLAY_USER/var/log/restshell
 
 USER $REPLAY_USER
 COPY . /$REPLAY_USER/slurm-replay
