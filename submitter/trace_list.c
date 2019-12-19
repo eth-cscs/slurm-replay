@@ -245,7 +245,8 @@ int main(int argc, char *argv[])
 
     free(job_arr);
 
-    if (reservation) {
+    read(trace_file, &num_rows, sizeof(unsigned long long));
+    if (reservation && num_rows > 0) {
 
         if (!noheader) {
             printf("\t%8s \t%10s \%10s \t%19s \t%19s \t%8s \t%8s \t%10s\n",
@@ -253,8 +254,6 @@ int main(int argc, char *argv[])
             printf("\t%8s \t%10s \%10s \t%19s \t%19s \t%8s \t%8s \t%10s\n",
                    "=====", "=======", "====", "=====", "===", "========", "=====", "====");
         }
-
-        read(trace_file, &num_rows, sizeof(unsigned long long));
 
         resv_arr = (resv_trace_t*)malloc(sizeof(resv_trace_t)*num_rows);
         read(trace_file, resv_arr, sizeof(resv_trace_t)*num_rows);
@@ -279,13 +278,14 @@ int main(int argc, char *argv[])
                    resv_arr[k].tres);
         }
         free(resv_arr);
-    }
-
-    if (event) {
-        if (reservation != 0) {
-            read(trace_file, &num_rows, sizeof(unsigned long long));
+    } else {
+        if (num_rows > 0) {
             lseek(trace_file, num_rows*sizeof(resv_trace_t), SEEK_CUR);
         }
+    }
+
+    read(trace_file, &num_rows, sizeof(unsigned long long));
+    if (event && num_rows > 0) {
 
         if (!noheader) {
             printf("\t%19s \t%19s \t%10s \t%10s \t%8s\n",
@@ -294,7 +294,6 @@ int main(int argc, char *argv[])
                    "=====", "===", "========", "======", "=====");
         }
 
-        read(trace_file, &num_rows, sizeof(unsigned long long));
 
         node_arr = (node_trace_t*)malloc(sizeof(node_trace_t)*num_rows);
         read(trace_file, node_arr, sizeof(node_trace_t)*num_rows);

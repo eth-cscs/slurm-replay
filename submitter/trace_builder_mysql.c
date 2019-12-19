@@ -581,6 +581,9 @@ int main(int argc, char **argv)
         }
         printf("\nSuccessfully written file %s : Total number of reservations = %llu\n", filename, num_rows);
         mysql_free_result(result_resv);
+    } else {
+        num_rows = 0;
+        write(trace_file, &num_rows, sizeof(unsigned long long));
     }
 
     // process event data
@@ -690,6 +693,9 @@ int main(int argc, char **argv)
         }
         printf("\nSuccessfully written file %s : Total number of events = %llu\n", filename, num_rows);
         mysql_free_result(result_node);
+    } else {
+        num_rows = 0;
+        write(trace_file, &num_rows, sizeof(unsigned long long));
     }
 
     if (use_dependencies) {
