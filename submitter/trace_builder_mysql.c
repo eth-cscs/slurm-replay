@@ -607,7 +607,7 @@ int main(int argc, char **argv)
         write(trace_file, &num_rows, sizeof(unsigned long long));
 
         memset(&fix_node_trace, 0, sizeof(node_trace_t));
-        while ((row = mysql_fetch_row(result_resv))) {
+        while ((row = mysql_fetch_row(result_node))) {
             //printf("read %s %s %s\n",row[0], row[1], row[2]);
             k++;
             if (fix_node_trace.time_start == 0) {
