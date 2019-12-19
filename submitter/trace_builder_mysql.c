@@ -174,6 +174,7 @@ Usage: mysql_trace_builder [OPTIONS]\n\
     -x, --dependencies filename      Name of the file containing the dependencies\n\
     -w, --where                      Do not use the where statement for the  SQL query to retrieve the data\n\
     -n, --noprest                    Do not preset the jobs\n\
+    -r, --noreservation              Do not include reservation, reservations used by jobs will be set to null\n\
     -?, --help                       This help message\n\n\
 ");
 }
@@ -197,17 +198,21 @@ get_args(int argc, char** argv)
         {"user", required_argument, 0, 'u'},
         {"partition", required_argument, 0, 't'},
         {"account", required_argument, 0, 'a'},
+        {"noreservation", no_argument, 0, 'r'},
         {0, 0, 0, 0}
     };
     int opt_char, option_index;
     char tmp[256];
 
     while(1) {
-        if ((opt_char = getopt_long(argc, argv, "s:e:d:h:p:P:u:c:a:t:f:x:wn?", long_options, &option_index)) == -1 )
+        if ((opt_char = getopt_long(argc, argv, "s:e:d:rh:p:P:u:c:a:t:f:x:wn?", long_options, &option_index)) == -1 )
             break;
         switch  (opt_char) {
         case ('p'):
             password = strdup(optarg);
+            break;
+        case ('r'):
+            do_resv = 0;
             break;
         case ('w'):
             use_where = 0;
@@ -456,7 +461,7 @@ int main(int argc, char **argv)
         sprintf(job_trace.qos_name, "%s", row[4]);
         job_trace.id_user = atoi(row[5]);
         job_trace.id_group = atoi(row[6]);
-        if (row[7] != NULL) {
+        if (do_resv && row[7] != NULL) {
             sprintf(job_trace.resv_name, "%s", row[7]);
         } else {
             job_trace.resv_name[0] = '\0';;
