@@ -684,9 +684,10 @@ int main(int argc, char **argv)
         }
 
         // update number of node events
-        lseek(trace_file, cur_offset, SEEK_SET);
-        write(trace_file, &w_num_rows, sizeof(unsigned long long));
-
+        if (w_num_rows != num_rows) {
+           lseek(trace_file, cur_offset, SEEK_SET);
+           write(trace_file, &w_num_rows, sizeof(unsigned long long));
+        }
         printf("\nSuccessfully written file %s : Total number of events = %llu\n", filename, num_rows);
         mysql_free_result(result_node);
     }
@@ -695,6 +696,7 @@ int main(int argc, char **argv)
         free(depend);
     }
 
+    close(trace_file);
     mysql_close(conn);
-    exit(0);
+    return 0;
 }

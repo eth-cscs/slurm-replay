@@ -282,7 +282,7 @@ int main(int argc, char *argv[])
     }
 
     if (event) {
-        if (!reservation) {
+        if (reservation != 0) {
             read(trace_file, &num_rows, sizeof(unsigned long long));
             lseek(trace_file, num_rows*sizeof(resv_trace_t), SEEK_CUR);
         }
@@ -318,5 +318,6 @@ int main(int argc, char *argv[])
         free(node_arr);
     }
 
+    close(trace_file);
     return 0;
 }
