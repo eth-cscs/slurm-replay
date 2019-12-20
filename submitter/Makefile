@@ -29,7 +29,7 @@ submitter.o: submitter.c
 	$(CC) $(CCFLAGS) $(INCLUDES) -o $@ -c $<
 
 submitter: submitter.o
-	$(CC) $(LDFLAGS) -o $@ $+ $(LIB_SLURM) $(LIB_SHMEMCLOCK)
+	$(CC) $(LDFLAGS) -o $@ $+ $(LIB_SLURM) $(LIB_SHMEMCLOCK) $(LIB_MATH)
 
 node_controller.o: node_controller.c
 	$(CC) $(CCFLAGS) $(INCLUDES) -o $@ -c $<

@@ -18,6 +18,14 @@
 #include "logger.h"
 #include "shmemclock.h"
 
+
+#define IS_NODE_IDLE(_X)		\
+	((_X->node_state & NODE_STATE_BASE) == NODE_STATE_IDLE)
+
+#define IS_NODE_DRAIN(_X)		\
+	(_X->node_state & NODE_STATE_DRAIN)
+
+
 char *workload_filename = NULL;
 node_trace_t* node_arr_s;
 node_trace_t* node_arr_e;
@@ -46,6 +54,29 @@ int time_end_comp(const void *v1, const void *v2)
         return 1;
     else
         return 0;
+}
+
+static int check_node_before_update(node_trace_t noded, int action)
+{
+    int to_update = 0;
+    node_info_msg_t *nodeinfo;
+    node_info_t *node_ptr;
+    int res;
+
+    // update node only on certain state and action
+    res = slurm_load_node_single(&nodeinfo, noded.node_name, SHOW_ALL);
+    if ( res != SLURM_SUCCESS) {
+        log_error("slurm_load_node_single: %s for %s", slurm_strerror(slurm_get_errno()), noded.node_name);
+    } else {
+        node_ptr = &(nodeinfo->node_array[0]);
+        to_update = node_ptr && ((action == NODE_STATE_DRAIN && IS_NODE_IDLE(node_ptr)) ||
+                    (action == NODE_RESUME && IS_NODE_DRAIN(node_ptr)));
+    }
+    if (! to_update ) {
+        log_info("wrong expected state, do not update node state of %s", noded.node_name);
+    }
+    slurm_free_node_info_msg(nodeinfo);
+    return to_update;
 }
 
 static void update_node_state(node_trace_t noded, int action)
@@ -108,11 +139,13 @@ static void control_nodes()
         }
 
         if (current_time >= node_arr_s[ks].time_start && ks < nnodes) {
-            update_node_state(node_arr_s[ks], NODE_STATE_DRAIN);
+            if (check_node_before_update(node_arr_s[ks], NODE_STATE_DRAIN))
+                update_node_state(node_arr_s[ks], NODE_STATE_DRAIN);
             ks++;
         }
         if (current_time >= node_arr_e[ke].time_end && ke < nnodes) {
-            update_node_state(node_arr_e[ke], NODE_RESUME);
+            if (check_node_before_update(node_arr_e[ke], NODE_RESUME))
+                update_node_state(node_arr_e[ke], NODE_RESUME);
             ke++;
         }
     }

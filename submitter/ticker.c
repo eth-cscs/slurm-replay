@@ -172,7 +172,7 @@ int main(int argc, char *argv[])
     if (enable_set) {
         strftime(strstart_time, sizeof(strstart_time), "%Y-%m-%d %H:%M:%S", localtime(&time_evt));
         set_shmemclock(time_evt);
-        printf("Set time to %s\n", strstart_time);
+        printf("Set time to %s | %lu\n", strstart_time, time_evt);
     }
 
     if (enable_get) {
