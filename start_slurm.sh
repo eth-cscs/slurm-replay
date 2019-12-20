@@ -47,9 +47,15 @@ mkdir -p $SLURM_DIR/log/archive
 # Setup configuration
 echo "Slurm configuration from git:"
 cd ../data/slurmcfg
-# TODO check if we are not already at the right revision
 t=20${CONFDATE:0:2}-${CONFDATE:2:2}-${CONFDATE:4:2}
-git checkout $(git rev-list -1 --until="$t" $CLUSTER)
+target_revision=$(git rev-list -1 --until="$t" $CLUSTER)
+current_revision=$(git rev-parse HEAD)
+if [ "$target_revision" != "$current_revision" ]; then
+   git checkout "$target_revision"
+else
+   echo "using current revision: $current_revision"
+fi
+echo "done."
 cd /$REPLAY_USER/slurm-replay
 cp "../data/slurmcfg/slurm.conf" etc/slurm.conf
 cp "../data/slurmcfg/gres.conf" etc/gres.conf

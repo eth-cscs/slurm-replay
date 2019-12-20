@@ -111,7 +111,7 @@ if [[ -z "$SUBMITTER_RUNTIME" && -z "$SUBMITTER_SWITCH" ]]; then
     submitter -w "$WORKLOAD" -t template.script -r "$CLOCK_RATE" -u "$REPLAY_USER" -p "$PRESET"
 fi
 if (( $PRESET < 3 )); then
-    node_controller -w "$WORKLOAD"
+    node_controller -w "$WORKLOAD" -r "$CLOCK_RATE"
 fi
 sleep 3
 echo "done."

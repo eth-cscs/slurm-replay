@@ -4,7 +4,7 @@ SLURM_FILE="etc/slurm.conf"
 SLURMDBD_FILE="etc/slurmdbd.conf"
 
 # Comment lines
-token="BackupController[[:space:]]*= BackupAddr[[:space:]]*= Prolog[[:space:]]*= BurstBufferType[[:space:]]*= PrologSlurmctld[[:space:]]*= Epilog[[:space:]]*= EpilogSlurmctld[[:space:]]*= UnkillableStepProgram[[:space:]]*= JobSubmitPlugins[[:space:]]*= JobCompLoc[[:space:]]*= PrologFlags[[:space:]]*="
+token="BackupController[[:space:]]*= BackupAddr[[:space:]]*= Prolog[[:space:]]*= BurstBufferType[[:space:]]*= PrologSlurmctld[[:space:]]*= Epilog[[:space:]]*= EpilogSlurmctld[[:space:]]*= UnkillableStepProgram[[:space:]]*= JobSubmitPlugins[[:space:]]*= JobCompLoc[[:space:]]*= PrologFlags[[:space:]]*= SwitchType[[:space:]]*= CoreSpecPlugin[[:space:]]*= SelectType[[:space:]]*= SelectTypeParameters[[:space:]]*="
 for t in $token; do
    sed -i -e "/$t/ s/^#*/#/" $SLURM_FILE
 done
@@ -29,7 +29,9 @@ sed -i -e "s/SlurmdDebug[[:space:]]*=.*/SlurmdDebug=error/" $SLURM_FILE
 sed -i -e "s/SlurmctldDebug[[:space:]]*=.*/SlurmctldDebug=error/" $SLURM_FILE
 
 # Set up to local hosts
-sed -i -e "s/ControlMachine[[:space:]]*=.*/ControlMachine=localhost/" $SLURM_FILE
+sed -i -e "/^ControlAddr[[:space:]]*=.*/ d" $SLURM_FILE
+sed -i -e "/^SlurmdUser[[:space:]]*=.*/ d" $SLURM_FILE
+sed -i -e "s/^ControlMachine[[:space:]]*=.*/ControlMachine=localhost/" $SLURM_FILE
 sed -i -e "/ControlMachine[[:space:]]*=/a\
 ControlAddr=localhost\n\
 SlurmdUser=$REPLAY_USER\
@@ -43,6 +45,7 @@ sed -i -e "s/SlurmdPidFile[[:space:]]*=.*/SlurmdPidFile=\/$REPLAY_USER\/slurmR\/
 sed -i -e "s/SlurmdLogFile[[:space:]]*=.*/SlurmdLogFile=\/$REPLAY_USER\/slurmR\/log\/slurmd\/slurmd.log/" $SLURM_FILE
 sed -i -e "s/SlurmdSpoolDir[[:space:]]*=.*/SlurmdSpoolDir=\/$REPLAY_USER\/slurmR\/log/" $SLURM_FILE
 sed -i -e "s/StateSaveLocation[[:space:]]*=.*/StateSaveLocation=\/$REPLAY_USER\/slurmR\/log\/state/" $SLURM_FILE
+sed -i -e "s/SlurmSchedLogFile[[:space:]]*=.*/SlurmSchedLogFile=\/$REPLAY_USER\/slurmR\/log\/slurmctld_sched.log/" $SLURM_FILE
 
 # Accounting
 sed -i -e "s/AccountingStorageHost[[:space:]]*=.*/AccountingStorageHost=localhost/" $SLURM_FILE
@@ -53,8 +56,11 @@ AccountingStoragePass=\"\" \
 " $SLURM_FILE
 
 # Add NodeAddr and NodeHostname
-sed -i -e "/NodeName[[:space:]]*=/s/$/\ NodeAddr=localhost\ NodeHostname=localhost/" $SLURM_FILE
-sed -i -e "/NodeName[[:space:]]*=/s/#/\ NodeAddr=localhost\ NodeHostname=localhost &/" $SLURM_FILE
+sed -i -e "/^NodeName[[:space:]]*=/s/NodeHostname=.* /NodeHostname=localhost /" $SLURM_FILE
+sed -i -e "/^NodeName[[:space:]]*=/s/NodeAddr=.* /NodeAddr=localhost /" $SLURM_FILE
+sed -i -e "/^NodeName[[:space:]]*=.*NodeAddr=.*/{p;d}; /^NodeName[[:space:]]*=/s/$/\ NodeAddr=localhost/" $SLURM_FILE
+sed -i -e "/^NodeName[[:space:]]*=.*NodeHostname=.*/{p;d}; /^NodeName[[:space:]]*=/s/$/\ NodeHostname=localhost/" $SLURM_FILE
+sed -i -e "/^NodeName[[:space:]]*=/s/#.*/\ NodeAddr=localhost\ NodeHostname=localhost/" $SLURM_FILE
 
 # Other changes
 sed -i -e '1,/^NodeName=.*/ {/^NodeName=.*/i\
