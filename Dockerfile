@@ -36,8 +36,9 @@ RUN useradd -ms /bin/bash -d /$REPLAY_USER $REPLAY_USER && \
 
 # Setup REST Shell
 RUN pip install git+https://github.com/treytabner/rest-shell.git && \
-    pip install simplejson && \
+    pip install simplejson python-hostlist && \
     mkdir -p /$REPLAY_USER/var/log/restshell
+COPY executor /bin
 
 USER $REPLAY_USER
 COPY . /$REPLAY_USER/slurm-replay
@@ -64,6 +65,7 @@ RUN cd /$REPLAY_USER && \
     make -j4 && make -j4 install && \
     mkdir /$REPLAY_USER/slurmR/etc && \
     mkdir /$REPLAY_USER/slurmR/log && \
+    mkdir /$REPLAY_USER/slurmR/slurm_helper && \
     rm -Rf /$REPLAY_USER/slurm-$SLURM_VERSION.tar.bz2 && \
     cd /$REPLAY_USER/slurm-replay && \
     ln -s /$REPLAY_USER/slurmR/log log && \
@@ -89,7 +91,7 @@ RUN cd /$REPLAY_USER/slurm-replay/submitter && \
 
 # for convenience
 WORKDIR /$REPLAY_USER/slurm-replay
-RUN echo "export PATH=\$PATH:/$REPLAY_USER/slurmR/bin:/$REPLAY_USER/slurmR/sbin:/$REPLAY_USER/slurm-replay/submitter:/$REPLAY_USER/slurm-replay/monthlyrpts/2.0.0/bin" >> /$REPLAY_USER/.bashrc && \
+RUN echo "export PATH=\$PATH:/$REPLAY_USER/slurmR/bin:/$REPLAY_USER/slurmR/sbin:/$REPLAY_USER/slurm-replay/submitter:/$REPLAY_USER/slurmR/slurm_helper" >> /$REPLAY_USER/.bashrc && \
     echo "export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:/$REPLAY_USER/slurmR/lib:/$REPLAY_USER/slurm-replay/distime" >> /$REPLAY_USER/.bashrc && \
     echo "alias vi='vim'" >> /$REPLAY_USER/.bashrc
 
