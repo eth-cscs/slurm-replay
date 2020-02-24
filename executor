@@ -1,0 +1,8 @@
+#!/bin/bash
+
+CMD="$1"
+
+export PATH=$PATH:/${REPLAY_USER}/slurmR/bin:/${REPLAY_USER}/slurmR/sbin:/${REPLAY_USER}/slurm-replay/submitter:/${REPLAY_USER}/slurmR/slurm_helper
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/${REPLAY_USER}/slurmR/lib:/${REPLAY_USER}/slurm-replay/distime
+export SLURM_TIME_FORMAT="%Y-%m-%dT%H:%M:%S"
+eval "$CMD"
