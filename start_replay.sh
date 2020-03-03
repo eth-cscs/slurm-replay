@@ -124,6 +124,11 @@ echo "done."
 #    echo "done."
 #fi
 
+# extra action before to start like blocking until an event is triggered
+if [ -f "../data/extra_action.sh" ]; then
+  ../data/./extra_action.sh
+fi
+
 # Make time progress at a faster rate
 DURATION=$(( $END_TIME - $START_TIME ))
 END_REPLAY=$( echo "$DURATION*($CLOCK_RATE)" | bc -l)

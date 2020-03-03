@@ -45,17 +45,19 @@ mkdir -p $SLURM_DIR/log/slurmd
 mkdir -p $SLURM_DIR/log/archive
 
 # Setup configuration
-echo "Slurm configuration from git:"
-cd ../data/slurmcfg
-t=20${CONFDATE:0:2}-${CONFDATE:2:2}-${CONFDATE:4:2}
-target_revision=$(git rev-list -1 --until="$t" $CLUSTER)
-current_revision=$(git rev-parse HEAD)
-if [ "$target_revision" != "$current_revision" ]; then
-   git checkout "$target_revision"
-else
-   echo "using current revision: $current_revision"
+if [ -f "../data/slurmcfg/.git/config" ]; then
+   echo "Slurm configuration from git:"
+   cd ../data/slurmcfg
+   t=20${CONFDATE:0:2}-${CONFDATE:2:2}-${CONFDATE:4:2}
+   target_revision=$(git rev-list -1 --until="$t" $CLUSTER)
+   current_revision=$(git rev-parse HEAD)
+   if [ "$target_revision" != "$current_revision" ]; then
+      git checkout "$target_revision"
+   else
+      echo "using current revision: $current_revision"
+   fi
+   echo "done."
 fi
-echo "done."
 cd /$REPLAY_USER/slurm-replay
 cp "../data/slurmcfg/slurm.conf" etc/slurm.conf
 cp "../data/slurmcfg/gres.conf" etc/gres.conf
@@ -78,16 +80,17 @@ eval "$SLURM_REPLAY_LIB slurmd $VERBOSE -c "
 sleep 10
 eval "$SLURM_REPLAY_LIB slurmctld $VERBOSE -c "
 sleep 30
-nodes=$(sinfo -o %N --noheader)
-scontrol update NodeName=$nodes state=DOWN Reason="complete slurm replay setup"
-scontrol update NodeName=$nodes state=RESUME Reason="complete slurm replay setup"
-scontrol update FrontEnd=localhost state=RESUME Reason="complete slurm replay setup"
-partitions=$(sinfo -o %R --noheader)
-for p in $partitions; do
-    scontrol update PartitionName=$p state=UP
-done;
 if [ -f "../data/extra_command_slurm.sh" ]; then
    ../data/./extra_command_slurm.sh
+else
+   nodes=$(sinfo -o %N --noheader)
+   scontrol update NodeName=$nodes state=DOWN Reason="complete slurm replay setup"
+   scontrol update NodeName=$nodes state=RESUME Reason="complete slurm replay setup"
+   scontrol update FrontEnd=localhost state=RESUME Reason="complete slurm replay setup"
+   partitions=$(sinfo -o %R --noheader)
+   for p in $partitions; do
+       scontrol update PartitionName=$p state=UP
+   done;
 fi
 sacctmgr -i create user name=$REPLAY_USER cluster=$CLUSTER account=root
 echo "done."

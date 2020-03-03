@@ -8,7 +8,7 @@ ENV REPLAY_USER $REPLAY_USER
 
 # install packages
 # Note do not install sudo - sudo does not work within Shifter
-RUN apt-get update && apt-get --assume-yes install autoconf automake git gawk gcc libmpfr6 make wget patch python pkgconf fakeroot vim bc groff gdb valgrind strace psmisc lsof net-tools libtool gtk+2.0 mariadb-client mariadb-server libmariadb-dev libmariadbclient-dev libssl-dev python-pip
+RUN apt-get update && apt-get --assume-yes install autoconf automake git gawk gcc libmpfr6 make wget patch python pkgconf fakeroot vim bc groff gdb valgrind strace psmisc lsof net-tools libtool gtk+2.0 mariadb-client mariadb-server libmariadb-dev libmariadbclient-dev libssl-dev python-pip inotify-tools
 
 # set timezone to CET
 RUN  ln -sf /usr/share/zoneinfo/CET /etc/localtime
