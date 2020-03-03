@@ -33,6 +33,7 @@ char event_table[256];
 char *user = NULL;
 char partitions[2048] = "";
 char accounts[16384] = "";
+char *special_accounts;
 char *password;
 static int use_where = 1;
 static int do_resv = 1;
@@ -170,6 +171,7 @@ Usage: mysql_trace_builder [OPTIONS]\n\
     -c, --cluster    cluster_name     Name of the cluster used by the Slurm database to extract data\n\
     -t, --partition partition    a partition to include in the trace, this option should be repeated if more than one partition should be considered\n\
     -a, --account account        an account to include in the trace, this option should be repeated if more than one account should be considered\n\
+    -A, --special_account account_string        to be used in a like form  \"LIKE 'd%%'\" with d the value provided\n\
     -f, --file       filename        Name of the output trace file being created\n\
     -x, --dependencies filename      Name of the file containing the dependencies\n\
     -w, --where                      Do not use the where statement for the  SQL query to retrieve the data\n\
@@ -198,6 +200,7 @@ get_args(int argc, char** argv)
         {"user", required_argument, 0, 'u'},
         {"partition", required_argument, 0, 't'},
         {"account", required_argument, 0, 'a'},
+        {"special_account", required_argument, 0, 'A'},
         {"noreservation", no_argument, 0, 'r'},
         {0, 0, 0, 0}
     };
@@ -205,7 +208,7 @@ get_args(int argc, char** argv)
     char tmp[256];
 
     while(1) {
-        if ((opt_char = getopt_long(argc, argv, "s:e:d:rh:p:P:u:c:a:t:f:x:wn?", long_options, &option_index)) == -1 )
+        if ((opt_char = getopt_long(argc, argv, "s:e:d:rh:p:P:u:c:a:A:t:f:x:wn?", long_options, &option_index)) == -1 )
             break;
         switch  (opt_char) {
         case ('p'):
@@ -271,6 +274,9 @@ get_args(int argc, char** argv)
                 strcat(accounts,tmp);
             }
             break;
+        case ('A'):
+            special_accounts = strdup(optarg);
+            break;
         case ('x'):
             dep_filename = strdup(optarg);
             use_dependencies = 1;
@@ -279,9 +285,10 @@ get_args(int argc, char** argv)
     }
 }
 
-/* This function should be changed depending on the Slurm configuration and data stored in the database. For instance, on Piz Daint some constraint are not clearly stored in the Slurm database and should be parsed */
+/* This function should be changed depending on the Slurm configuration and data stored in the database.
+ * For instance, on Piz Daint some constraint are not clearly stored in the Slurm database and should be parsed */
 const char* reconstruct_constraint(const char* gres) {
-   if (strncmp("gpu:0", gres, 5) == 0 || strncmp("7696487:0", gres, 9) == 0) {
+   if (strncmp("craynetwork:", gres, 12) == 0 || strncmp("gpu:0", gres, 5) == 0 || strncmp("7696487:0", gres, 9) == 0) {
         return "mc";
    } else {
         if (strncmp("gpu:", gres, 4) == 0 || strncmp("7696487:", gres, 8) == 0) {
@@ -376,9 +383,12 @@ int main(int argc, char **argv)
 
         sprintf(where_statement,
                 "WHERE t.time_submit < %lu AND t.time_end > %lu AND t.time_start < %lu AND "
-                "t.state <> 7 AND "
+                "t.time_start > 0 AND t.state <> 7 AND t.state < 12 AND "
                 "t.nodes_alloc > 0",
                 time_end, time_start, time_end);
+        if (! do_resv) {
+               strcat(where_statement, " AND r.resv_name IS NULL");
+        }
         if (strlen(partitions) > 0) {
                sprintf(partition_statement,
                 " AND t.partition IN (%s)", partitions);
@@ -388,6 +398,11 @@ int main(int argc, char **argv)
                sprintf(account_statement,
                 " AND t.account IN (%s)", accounts);
                strcat(where_statement, account_statement);
+        } else {
+            if (strlen(special_accounts) > 0) {
+                    sprintf(account_statement, " AND t.account LIKE '%s%%' AND t.account NOT LIKE 'sm%%' AND t.account NOT LIKE 'cad%%' AND t.account NOT LIKE 'csstaff' AND t.account NOT LIKE 'crs%%' AND t.account NOT LIKE 'class%%' AND t.account NOT LIKE 'cray'", special_accounts);
+               strcat(where_statement, account_statement);
+            }
         }
     }
     memset(query,'\0',1024);
