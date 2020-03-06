@@ -63,10 +63,26 @@ export PATH="$SLURM_REPLAY/submitter:$PATH"
 export PATH="$SLURM_DIR/bin:$SLURM_DIR/sbin:$PATH"
 export LD_LIBRARY_PATH="$SLURM_REPLAY/distime:$SLURM_DIR/lib:$LD_LIBRARY_PATH"
 
-# Do not enable when using on a batch system, killing srun will kill the sbatch job
-PROCESS_TOKILL="slurmd slurmctld slurmstepd slurmdbd submitter ticker job_runner node_controller"
-killall -q -9 $PROCESS_TOKILL
-trap "killall -q -9 $PROCESS_TOKILL" SIGTERM EXIT
+REPLAY_WORKLOAD_DIR="../data/replay.${WORKLOAD##*/}.$NAME.$CLOCK_RATE"
+CT=0
+while [ -d "$REPLAY_WORKLOAD_DIR.$CT" ]; do
+    CT=$(( $CT + 1 ))
+done
+REPLAY_WORKLOAD_DIR="$REPLAY_WORKLOAD_DIR.$CT"
+mkdir $REPLAY_WORKLOAD_DIR
+
+finalize() {
+   LOGFILE="log/slurmctld.log log/slurmd/*.log log/submitter.log log/slurmdbd.log log/node_controller.log"
+   grep -E "\[[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}\] error:" $LOGFILE &> $REPLAY_WORKLOAD_DIR/error.log
+   cat $REPLAY_WORKLOAD_DIR/error.log
+   cp $LOGFILE $REPLAY_WORKLOAD_DIR
+   # Do not kill srun
+   PROCESS_TOKILL="slurmd slurmctld slurmstepd slurmdbd submitter ticker job_runner node_controller"
+   killall -q -9 $PROCESS_TOKILL
+}
+trap finalize SIGTERM EXIT
+
+
 
 rm -Rf /dev/shm/ShmemClock*
 
@@ -147,21 +163,11 @@ echo -n "Collecting data... "
 # http://slurm-dev.schedmd.narkive.com/FkIMYBpQ/consistency-checks-and-missing-time-start-in-slurmdbd
 # should we use sacctmgr runaway?
 db_correctness -u "$REPLAY_USER" -p "" -h "localhost" -d "slurm_acct_db" -t daint_job_table -s daint_step_table
-REPLAY_WORKLOAD_DIR="../data/replay.${WORKLOAD##*/}.$NAME.$CLOCK_RATE"
-CT=0
-while [ -d "$REPLAY_WORKLOAD_DIR.$CT" ]; do
-    CT=$(( $CT + 1 ))
-done
-REPLAY_WORKLOAD_DIR="$REPLAY_WORKLOAD_DIR.$CT"
-mkdir $REPLAY_WORKLOAD_DIR
 REPLAY_WORKLOAD="$REPLAY_WORKLOAD_DIR/replay.${WORKLOAD##*/}"
 trace_builder_mysql -f "$REPLAY_WORKLOAD" -u "$REPLAY_USER" -p "" -h "localhost" -d "slurm_acct_db"  -w -c daint -s "$STR_START_TIME" -n
 echo "trace_builder_mysql -f \"$REPLAY_WORKLOAD\" -u \"$REPLAY_USER\" -p \"\" -h \"localhost\" -d \"slurm_acct_db\" -w -c daint -s \"$STR_START_TIME\" -n"
 echo "done."
 echo
 echo "ERROR IF ANY:"
-LOGFILE="log/slurmctld.log log/slurmd/*.log log/submitter.log log/slurmdbd.log log/node_controller.log"
-grep -E "\[[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}\] error:" $LOGFILE &> $REPLAY_WORKLOAD_DIR/error.log
-cat $REPLAY_WORKLOAD_DIR/error.log
-cp $LOGFILE $REPLAY_WORKLOAD_DIR
+finalize
 trace_metrics -w "$REPLAY_WORKLOAD" > $REPLAY_WORKLOAD_DIR/metrics.log
