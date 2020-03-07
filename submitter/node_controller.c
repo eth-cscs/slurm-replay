@@ -22,6 +22,9 @@
 #define IS_NODE_IDLE(_X)		\
 	((_X->node_state & NODE_STATE_BASE) == NODE_STATE_IDLE)
 
+#define IS_NODE_DOWN(_X)		\
+	((_X->node_state & NODE_STATE_BASE) == NODE_STATE_DOWN)
+
 #define IS_NODE_DRAIN(_X)		\
 	(_X->node_state & NODE_STATE_DRAIN)
 
@@ -56,24 +59,40 @@ int time_end_comp(const void *v1, const void *v2)
         return 0;
 }
 
+static char * node_state_string(node_info_t *node_ptr) {
+    if (node_ptr) {
+        if (IS_NODE_IDLE(node_ptr))
+            return "IDLE";
+        if (IS_NODE_DRAIN(node_ptr))
+            return "DRAIN";
+        if (IS_NODE_DOWN(node_ptr))
+            return "DOWN";
+    }
+    return "UNKNOWN";
+}
+
 static int check_node_before_update(node_trace_t noded, int action)
 {
+    char *info;
     int to_update = 0;
     node_info_msg_t *nodeinfo;
-    node_info_t *node_ptr;
+    node_info_t *node_ptr = NULL;
     int res;
 
     // update node only on certain state and action
     res = slurm_load_node_single(&nodeinfo, noded.node_name, SHOW_ALL);
+    node_ptr = &(nodeinfo->node_array[0]);
     if ( res != SLURM_SUCCESS) {
         log_error("slurm_load_node_single: %s for %s", slurm_strerror(slurm_get_errno()), noded.node_name);
     } else {
-        node_ptr = &(nodeinfo->node_array[0]);
         to_update = node_ptr && ((action == NODE_STATE_DRAIN && IS_NODE_IDLE(node_ptr)) ||
                     (action == NODE_RESUME && IS_NODE_DRAIN(node_ptr)));
-    }
-    if (! to_update ) {
-        log_info("wrong expected state, do not update node state of %s", noded.node_name);
+        if (! to_update ) {
+            info = "RESUME";
+            if (action == NODE_STATE_DRAIN)
+                info = "DRAINED";
+            log_info("wrong state: %s, to update %s to %s", node_state_string(node_ptr), noded.node_name, info);
+        }
     }
     slurm_free_node_info_msg(nodeinfo);
     return to_update;
