@@ -315,7 +315,7 @@ int main(int argc, char **argv)
     time_t time_end;
     int CET = -3600;
 
-    char query[4*MAX_CHAR];
+    char query[16*MAX_CHAR];
     char where_statement[16*MAX_CHAR];
     char account_statement[16*MAX_CHAR];
     char partition_statement[16*MAX_CHAR];
@@ -400,12 +400,16 @@ int main(int argc, char **argv)
                strcat(where_statement, account_statement);
         } else {
             if (strlen(special_accounts) > 0) {
-                    sprintf(account_statement, " AND t.account LIKE '%s%%' AND t.account NOT LIKE 'sm%%' AND t.account NOT LIKE 'cad%%' AND t.account NOT LIKE 'csstaff' AND t.account NOT LIKE 'crs%%' AND t.account NOT LIKE 'class%%' AND t.account NOT LIKE 'cray'", special_accounts);
-               strcat(where_statement, account_statement);
+                if (strcmp(special_accounts, "rest") != 0) {
+                    sprintf(account_statement, " AND t.account LIKE '%s%%'", special_accounts);
+                } else {
+                    strcpy(account_statement, " AND t.account NOT LIKE 'jenscscs%' AND t.account NOT LIKE 'mr%' AND t.account NOT LIKE 'pr%' AND t.account NOT LIKE 's%' AND t.account NOT LIKE 'uzh%'");
+                }
+                strcat(where_statement, account_statement);
             }
         }
     }
-    memset(query,'\0',1024);
+    memset(query,'\0',16*MAX_CHAR);
     sprintf(query, "SELECT t.account, t.exit_code, t.job_name, "
             "t.id_job, q.name, t.id_user, t.id_group, r.resv_name, t.nodelist, t.nodes_alloc, t.partition, t.state, "
             "t.timelimit, t.time_submit, t.time_eligible, t.time_start, t.time_end, t.time_suspended, "

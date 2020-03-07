@@ -3,7 +3,7 @@
 
 #define TINYTEXT_SIZE 128
 #define TEXT_SIZE 1512
-
+#define LARGETEXT_SIZE 16*1024
 typedef struct job_trace {
     char account[TINYTEXT_SIZE];
     int exit_code;
@@ -13,7 +13,7 @@ typedef struct job_trace {
     int id_user;
     int id_group;
     char resv_name[TINYTEXT_SIZE];
-    char nodelist[TEXT_SIZE];
+    char nodelist[LARGETEXT_SIZE];
     int nodes_alloc;
     char partition[TINYTEXT_SIZE];
     char dependencies[TEXT_SIZE];
