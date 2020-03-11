@@ -1,7 +1,7 @@
 #!/bin/bash
 
 
-while getopts ":w:r:n:p:c:x:" opt; do
+while getopts ":w:r:n:p:c:x:P:" opt; do
 case $opt in
     w)
        WORKLOAD="$OPTARG"
@@ -20,6 +20,9 @@ case $opt in
     ;;
     x)
        SUBMITTER_SWITCH="$OPTARG"
+    ;;
+    P)
+       REPLAY_PORT="$OPTARG"
     ;;
     :)
        echo "Option -$OPTARG requires an argument."
@@ -41,6 +44,13 @@ fi
 if [ -z "$NAME" ]; then
     NAME="unknown"
 fi
+if [ ! -z "$REPLAY_PORT" ]; then
+    export RESTSHELL_PORT=$(( $REPLAY_PORT +1 ))
+    export MYSQL_PORT=$(( $REPLAY_PORT +2 ))
+    export SLURMCTLD_PORT=$(( $REPLAY_PORT +3 ))
+    export SLURMD_PORT=$(( $REPLAY_PORT +4 ))
+fi
+
 TICK="1"
 CLOCK_RATE=$(echo "$RATE*$TICK" | bc -l)
 if (( $PRESET == 0 )); then

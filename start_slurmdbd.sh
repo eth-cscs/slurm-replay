@@ -3,6 +3,10 @@
 VERBOSE="-v"
 SLURM_REPLAY_LIB="$1"
 
+if [ -z "$MYSQL_PORT" ]; then
+   MYSQL_PORT=3366
+fi
+
 SLURM_DIR="/$REPLAY_USER/slurmR"
 export PATH="$SLURM_DIR/bin:$SLURM_DIR/sbin:$PATH"
 
@@ -11,11 +15,11 @@ if ! pgrep -x "mysqld" > /dev/null
 then
 echo -n  "Starting mysql... "
 if [ ! -f "/$REPLAY_USER/var/lib/mysql-bin.index" ]; then
-rm -Rf /$REPLAY_USER/var/lib/*
+rm -Rf /$REPLAY_USER/var/lib/mysql
 rm -Rf /$REPLAY_USER/run/mysqld/*
 mysql_install_db &> /dev/null
 fi
-mysqld_safe &> /dev/null &
+mysqld_safe -P ${MYSQL_PORT} &> /dev/null &
 sleep 5
 echo "done."
 fi

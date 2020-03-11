@@ -38,6 +38,14 @@ SlurmdUser=$REPLAY_USER\
 " $SLURM_FILE
 sed -i -e "s/SlurmUser[[:space:]]*=.*/SlurmUser=$REPLAY_USER/" $SLURM_FILE
 
+# Set up ports
+if [ ! -z "$SLURMCTLD_PORT" ]; then
+sed -i -e "s/SlurmctldPort[[:space:]]*=.*/SlurmctldPort=$SLURMCTLD_PORT/" $SLURM_FILE
+fi
+if [ ! -z "$SLURMD_PORT" ]; then
+sed -i -e "s/SlurmdPort[[:space:]]*=.*/SlurmdPort=$SLURMD_PORT/" $SLURM_FILE
+fi
+
 # Set up directories
 sed -i -e "s/SlurmctldPidFile[[:space:]]*=.*/SlurmctldPidFile=\/$REPLAY_USER\/slurmR\/log\/slurmctld.pid/" $SLURM_FILE
 sed -i -e "s/SlurmctldLogFile[[:space:]]*=.*/SlurmctldLogFile=\/$REPLAY_USER\/slurmR\/log\/slurmctld.log/" $SLURM_FILE
