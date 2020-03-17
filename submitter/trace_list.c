@@ -165,10 +165,10 @@ int main(int argc, char *argv[])
     char end[20];
     const char *qosname = "normal";
     size_t query_length = 0;
-    char query[1024];
+    char query[16*MAX_CHAR];
     unsigned long long num_rows;
     unsigned long long k;
-    memset(query,'\0',1024);
+    memset(query,'\0',16*MAX_CHAR);
 
     getArgs(argc, argv);
 

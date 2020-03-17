@@ -298,7 +298,6 @@ const char* reconstruct_constraint(const char* gres) {
    return gres;
 }
 
-#define MAX_CHAR 1024
 int main(int argc, char **argv)
 {
 

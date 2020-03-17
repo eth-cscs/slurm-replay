@@ -1,6 +1,7 @@
 #ifndef _TRACE_H_
 #define _TRACE_H_
 
+#define MAX_CHAR 1024
 #define TINYTEXT_SIZE 128
 #define TEXT_SIZE 1512
 #define LARGETEXT_SIZE 16*1024
