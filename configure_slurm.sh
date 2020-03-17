@@ -39,12 +39,22 @@ SlurmdUser=$REPLAY_USER\
 sed -i -e "s/SlurmUser[[:space:]]*=.*/SlurmUser=$REPLAY_USER/" $SLURM_FILE
 
 # Set up ports
-if [ ! -z "$SLURMCTLD_PORT" ]; then
-sed -i -e "s/SlurmctldPort[[:space:]]*=.*/SlurmctldPort=$SLURMCTLD_PORT/" $SLURM_FILE
+if [ ! -z "$SLURMCTLD_PORT1" ]; then
+sed -i -e "s/SlurmctldPort[[:space:]]*=.*/SlurmctldPort=${SLURMCTLD_PORT1}-${SLURMCTLD_PORT2}/" $SLURM_FILE
 fi
 if [ ! -z "$SLURMD_PORT" ]; then
 sed -i -e "s/SlurmdPort[[:space:]]*=.*/SlurmdPort=$SLURMD_PORT/" $SLURM_FILE
 fi
+if [ ! -z "$SLURMDBD_PORT" ]; then
+sed -i -e "s/DbdPort[[:space:]]*=.*/DbdPort=$SLURMDBD_PORT/" $SLURMDBD_FILE
+sed -i -e "s/AccountingStoragePort[[:space:]]*=.*/AccountingStoragePort=$SLURMDBD_PORT/" $SLURM_FILE
+fi
+if [ ! -z "$MYSQL_PORT" ]; then
+sed -i -e "s/StoragePort[[:space:]]*=.*/StoragePort=$MYSQL_PORT/" $SLURMDBD_FILE
+fi
+
+# No return to service of DOWN nodes
+sed -i -e "s/ReturnToService[[:space:]]*=.*/ReturnToService=0/" $SLURM_FILE
 
 # Set up directories
 sed -i -e "s/SlurmctldPidFile[[:space:]]*=.*/SlurmctldPidFile=\/$REPLAY_USER\/slurmR\/log\/slurmctld.pid/" $SLURM_FILE
@@ -71,10 +81,9 @@ sed -i -e "/^NodeName[[:space:]]*=.*NodeHostname=.*/{p;d}; /^NodeName[[:space:]]
 sed -i -e "/^NodeName[[:space:]]*=/s/#.*/\ NodeAddr=localhost\ NodeHostname=localhost/" $SLURM_FILE
 
 # Other changes
-sed -i -e '1,/^NodeName=.*/ {/^NodeName=.*/i\
-# Adding frontend\
-FrontendName=localhost FrontendAddr=localhost Port=7000
-}' $SLURM_FILE
+sed -i -e "1,/^NodeName=.*/ {/^NodeName=.*/i\
+FrontendName=localhost FrontendAddr=localhost Port=$FRONTEND_PORT
+}" $SLURM_FILE
 sed -i -e "/DebugFlags=/a\
 PluginDir=/$REPLAY_USER/slurmR/lib/slurm\
 " $SLURM_FILE

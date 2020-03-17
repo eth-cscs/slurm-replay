@@ -13,9 +13,14 @@ void *clock_ptr;
 
 static inline void _open_shmemclock(int flag1, int flag2)
 {
-    int fd;
+    int fd = -1;
+    const char* shmem_name = getenv("DISTIME_SHMEMCLOCK_NAME");
+    if (shmem_name == NULL) {
+       fd = shm_open("/ShmemClock", O_CREAT | flag1, S_IRUSR | S_IWUSR );
+    } else {
+       fd = shm_open(shmem_name, O_CREAT | flag1, S_IRUSR | S_IWUSR );
+    }
 
-    fd = shm_open("/ShmemClock", O_CREAT | flag1, S_IRUSR | S_IWUSR );
     if ( fd < 0 ) {
         err(1,"Error opening shared memory");
     }

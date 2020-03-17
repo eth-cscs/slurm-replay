@@ -60,6 +60,7 @@ static void print_job_specs(job_desc_msg_t* dmesg)
     log_info("\t\tdmesg->env_size: %d", dmesg->env_size);
     log_info("\t\tdmesg->environment[0]: (%s)", dmesg->environment[0]);
     log_info("\t\tdmesg->environment[1]: (%s)", dmesg->environment[1]);
+    log_info("\t\tdmesg->environment[2]: (%s)", dmesg->environment[2]);
     log_info("\t\tdmesg->script: (%s)", dmesg->script);
 }
 
@@ -200,7 +201,10 @@ static int create_and_submit_job(job_trace_t jobd)
     dmesg.environment[0] = strdup(env_str);
     sprintf(env_str,"REPLAY_USER=%s",username);
     dmesg.environment[1] = strdup(env_str);
-    dmesg.env_size = 2;
+    const char* shmem_name = getenv("DISTIME_SHMEMCLOCK_NAME");
+    sprintf(env_str,"DISTIME_SHMEMCLOCK_NAME=%s",shmem_name);
+    dmesg.environment[2] = strdup(env_str);
+    dmesg.env_size = 3;
 
     if (use_preset != 3) {
         dmesg.reservation   = strdup(jobd.resv_name);

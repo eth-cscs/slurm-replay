@@ -1,7 +1,7 @@
 #!/bin/bash
 
 
-while getopts ":w:r:n:p:c:x:P:" opt; do
+while getopts ":w:r:n:p:c:x:P:s:" opt; do
 case $opt in
     w)
        WORKLOAD="$OPTARG"
@@ -24,6 +24,9 @@ case $opt in
     P)
        REPLAY_PORT="$OPTARG"
     ;;
+    s)
+       REPLAY_STARTTIME="$OPTARG"
+    ;;
     :)
        echo "Option -$OPTARG requires an argument."
        exit 1
@@ -44,11 +47,21 @@ fi
 if [ -z "$NAME" ]; then
     NAME="unknown"
 fi
+export FRONTEND_PORT=7000
 if [ ! -z "$REPLAY_PORT" ]; then
     export RESTSHELL_PORT=$(( $REPLAY_PORT +1 ))
     export MYSQL_PORT=$(( $REPLAY_PORT +2 ))
-    export SLURMCTLD_PORT=$(( $REPLAY_PORT +3 ))
-    export SLURMD_PORT=$(( $REPLAY_PORT +4 ))
+    export SLURMCTLD_PORT1=$(( $REPLAY_PORT +3 ))
+    export SLURMCTLD_PORT2=$(( $REPLAY_PORT +4 ))
+    export SLURMD_PORT=$(( $REPLAY_PORT +5 ))
+    export SLURMDBD_PORT=$(( $REPLAY_PORT +6 ))
+    export FRONTEND_PORT=$(( $REPLAY_PORT +7 ))
+fi
+
+#set up passwd and group
+if [ -f "/$REPLAY_USER/data/${WORKLOAD}_etc_passwd" ]; then
+cp "/$REPLAY_USER/data/${WORKLOAD}_etc_passwd" /etc/passwd
+cp "/$REPLAY_USER/data/${WORKLOAD}_etc_group" /etc/group
 fi
 
 TICK="1"
@@ -86,6 +99,7 @@ finalize() {
    grep -E "\[[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}\] error:" $LOGFILE &> $REPLAY_WORKLOAD_DIR/error.log
    cat $REPLAY_WORKLOAD_DIR/error.log
    cp $LOGFILE $REPLAY_WORKLOAD_DIR
+   trap - SIGTERM EXIT
    # Do not kill srun
    PROCESS_TOKILL="slurmd slurmctld slurmstepd slurmdbd submitter ticker job_runner node_controller"
    killall -q -9 $PROCESS_TOKILL
@@ -93,11 +107,18 @@ finalize() {
 trap finalize SIGTERM EXIT
 
 
-
+if [ -z "$DISTIME_SHMEMCLOCK_NAME" ]; then
 rm -Rf /dev/shm/ShmemClock*
+else
+rm -Rf /dev/shm/${DISTIME_SHMEMCLOCK_NAME}*
+fi
 
 TIME_STARTPAD=300
-START_TIME="$(trace_list -n -w "$WORKLOAD" | awk '{print $5;}' | sort -n | head -n 1)"
+if [ -z "$REPLAY_STARTTIME" ]; then
+   START_TIME="$(trace_list -n -w "$WORKLOAD" | awk '{print $5;}' | sort -n | head -n 1)"
+else
+   START_TIME="$REPLAY_STARTTIME"
+fi
 STR_START_TIME=$(date -d @$START_TIME +'%Y-%m-%d %H:%M:%S')
 START_TIME="$(( $START_TIME - $TIME_STARTPAD ))"
 
@@ -109,7 +130,9 @@ NJOBS="$(trace_list -n -w "$WORKLOAD" | wc -l)"
 
 CONF_TIME="$(trace_list -n -w "$WORKLOAD" -u | awk '{print $5;}' | sort -n | head -n 1 | tr -d '-' | cut -c 3-8)"
 # Add initial time
+
 ticker -s "$START_TIME"
+echo "current replay date: $(ticker -g)"
 
 # Initiate rest-shell access
 ./start_restshell.sh

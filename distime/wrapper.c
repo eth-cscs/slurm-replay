@@ -9,8 +9,8 @@ unsigned int sleep(unsigned int seconds)
 {
     time_t cur_time;
     if (init == 0) {
-	    open_rdonly_shmemclock();
-	    init = 1;
+        open_rdonly_shmemclock();
+        init = 1;
     }
     cur_time = get_shmemclock();
     while(get_shmemclock() < cur_time+seconds);
@@ -22,8 +22,8 @@ time_t time(time_t *tloc)
 {
     time_t t;
     if (init == 0) {
-	    open_rdonly_shmemclock();
-	    init = 1;
+        open_rdonly_shmemclock();
+        init = 1;
     }
     t = get_shmemclock();
     if (tloc)
@@ -34,6 +34,10 @@ time_t time(time_t *tloc)
 
 int gettimeofday(struct timeval *tv, struct timezone *tz)
 {
+    if (init == 0) {
+        open_rdonly_shmemclock();
+        init = 1;
+    }
     tv->tv_sec = get_shmemclock();
     tv->tv_usec = 0;
 }
