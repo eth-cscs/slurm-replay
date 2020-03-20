@@ -85,10 +85,11 @@ static int check_node_before_update(node_trace_t noded, int action)
     if ( res != SLURM_SUCCESS) {
         log_error("slurm_load_node_single: %s for %s", slurm_strerror(slurm_get_errno()), noded.node_name);
     } else {
-        to_update = node_ptr && ((action == NODE_STATE_DRAIN && IS_NODE_IDLE(node_ptr)) ||
-                    (action == NODE_RESUME && IS_NODE_DRAIN(node_ptr)));
+        to_update = node_ptr &&
+                    ((action == NODE_STATE_DRAIN && !IS_NODE_DRAIN(node_ptr)) ||
+                    (action == NODE_STATE_UNDRAIN && IS_NODE_DRAIN(node_ptr)));
         if (! to_update ) {
-            info = "RESUME";
+            info = "UNDRAINED";
             if (action == NODE_STATE_DRAIN)
                 info = "DRAINED";
             log_info("wrong state: %s, to update %s to %s", node_state_string(node_ptr), noded.node_name, info);
@@ -114,9 +115,9 @@ static void update_node_state(node_trace_t noded, int action)
         info = "DRAINED";
         dmesg.node_state = NODE_STATE_DRAIN;
     }
-    if (action == NODE_RESUME) {
-        info = "RESUMED";
-        dmesg.node_state = NODE_RESUME;
+    if (action == NODE_STATE_UNDRAIN) {
+        info = "UNDRAINED";
+        dmesg.node_state = NODE_STATE_UNDRAIN;
     }
 
     res = slurm_update_node(&dmesg);
@@ -163,8 +164,8 @@ static void control_nodes()
             ks++;
         }
         if (current_time >= node_arr_e[ke].time_end && ke < nnodes) {
-            if (check_node_before_update(node_arr_e[ke], NODE_RESUME))
-                update_node_state(node_arr_e[ke], NODE_RESUME);
+            if (check_node_before_update(node_arr_e[ke], NODE_STATE_UNDRAIN))
+                update_node_state(node_arr_e[ke], NODE_STATE_UNDRAIN);
             ke++;
         }
     }
