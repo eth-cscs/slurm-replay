@@ -3,7 +3,7 @@
 
 #define MAX_CHAR 1024
 #define TINYTEXT_SIZE 128
-#define TEXT_SIZE 1512
+#define TEXT_SIZE 8*1024
 #define LARGETEXT_SIZE 16*1024
 typedef struct job_trace {
     char account[TINYTEXT_SIZE];

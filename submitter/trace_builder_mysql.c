@@ -32,8 +32,7 @@ char assoc_table[256];
 char event_table[256];
 char *user = NULL;
 char partitions[2048] = "";
-char accounts[16384] = "";
-char *special_accounts;
+char *extra_where = NULL;
 char *password;
 static int use_where = 1;
 static int do_resv = 1;
@@ -168,10 +167,9 @@ Usage: mysql_trace_builder [OPTIONS]\n\
     -P, --port       port            Port number of the machine hosting MySQL DB\n\
     -u, --user       dbuser          Name of user with which to establish a\n\
                                      connection to the DB\n\
-    -c, --cluster    cluster_name     Name of the cluster used by the Slurm database to extract data\n\
-    -t, --partition partition    a partition to include in the trace, this option should be repeated if more than one partition should be considered\n\
-    -a, --account account        an account to include in the trace, this option should be repeated if more than one account should be considered\n\
-    -A, --special_account account_string        to be used in a like form  \"LIKE 'd%%'\" with d the value provided\n\
+    -c, --cluster    cluster_name    Name of the cluster used by the Slurm database to extract data\n\
+    -t, --partition partition        a partition to include in the trace, this option should be repeated if more than one partition should be considered\n\
+    -W, --Where                      extra SQL statements added to the where clause\n\
     -f, --file       filename        Name of the output trace file being created\n\
     -x, --dependencies filename      Name of the file containing the dependencies\n\
     -w, --where                      Do not use the where statement for the  SQL query to retrieve the data\n\
@@ -199,8 +197,7 @@ get_args(int argc, char** argv)
         {"dependencies", required_argument, 0, 'x'},
         {"user", required_argument, 0, 'u'},
         {"partition", required_argument, 0, 't'},
-        {"account", required_argument, 0, 'a'},
-        {"special_account", required_argument, 0, 'A'},
+        {"extra_where", required_argument, 0, 'W'},
         {"noreservation", no_argument, 0, 'r'},
         {0, 0, 0, 0}
     };
@@ -208,7 +205,7 @@ get_args(int argc, char** argv)
     char tmp[256];
 
     while(1) {
-        if ((opt_char = getopt_long(argc, argv, "s:e:d:rh:p:P:u:c:a:A:t:f:x:wn?", long_options, &option_index)) == -1 )
+        if ((opt_char = getopt_long(argc, argv, "s:e:d:rh:p:P:u:c:t:f:x:wW:n?", long_options, &option_index)) == -1 )
             break;
         switch  (opt_char) {
         case ('p'):
@@ -265,17 +262,8 @@ get_args(int argc, char** argv)
                 strcat(partitions,tmp);
             }
             break;
-        case ('a'):
-            if (strlen(accounts) == 0) {
-                sprintf(tmp,"'%s'", optarg);
-                strcpy(accounts,tmp);
-            } else {
-                sprintf(tmp,",'%s'", optarg);
-                strcat(accounts,tmp);
-            }
-            break;
-        case ('A'):
-            special_accounts = strdup(optarg);
+        case ('W'):
+            extra_where = strdup(optarg);
             break;
         case ('x'):
             dep_filename = strdup(optarg);
@@ -314,9 +302,8 @@ int main(int argc, char **argv)
     time_t time_end;
     int CET = -3600;
 
-    char query[16*MAX_CHAR];
-    char where_statement[16*MAX_CHAR];
-    char account_statement[16*MAX_CHAR];
+    char query[512*MAX_CHAR];
+    char where_statement[256*MAX_CHAR];
     char partition_statement[16*MAX_CHAR];
     size_t query_length;
     //unsigned int num_fields;
@@ -355,14 +342,14 @@ int main(int argc, char **argv)
 
     memset(&tmVar, 0, sizeof(struct tm));
     if ( strptime(starttime, "%Y-%m-%d %H:%M:%S", &tmVar) != NULL ) {
-        time_start = mktime(&tmVar)+CET;
+        time_start = mktime(&tmVar);//+CET;
     } else {
         printf("ERROR: starttime not valid.\n");
         print_usage();
         exit(-1);
     }
 
-    memset(where_statement,'\0',256);
+    memset(where_statement,'\0',256*MAX_CHAR);
     if (use_where) {
         /*validate input parameter to build the query*/
         if (endtime == NULL) {
@@ -373,7 +360,7 @@ int main(int argc, char **argv)
 
         memset(&tmVar, 0, sizeof(struct tm));
         if ( strptime(endtime, "%Y-%m-%d %H:%M:%S", &tmVar) != NULL ) {
-            time_end = mktime(&tmVar)+CET;
+            time_end = mktime(&tmVar);//+CET;
         } else {
             printf("ERROR: endtime not valid.\n");
             print_usage();
@@ -381,10 +368,10 @@ int main(int argc, char **argv)
         }
 
         sprintf(where_statement,
-                "WHERE t.time_submit < %lu AND t.time_end > %lu AND t.time_start < %lu AND "
-                "t.time_start > 0 AND t.state <> 7 AND t.state < 12 AND "
+                "WHERE t.time_submit <= %lu AND t.time_end >= %lu AND t.time_start >= %lu AND t.time_start <= %lu AND "
+                "t.state <> 7 AND t.state < 12 AND "
                 "t.nodes_alloc > 0",
-                time_end, time_start, time_end);
+                time_end, time_start, time_start, time_end);
         if (! do_resv) {
                strcat(where_statement, " AND r.resv_name IS NULL");
         }
@@ -393,22 +380,11 @@ int main(int argc, char **argv)
                 " AND t.partition IN (%s)", partitions);
                strcat(where_statement, partition_statement);
         }
-        if (strlen(accounts) > 0) {
-               sprintf(account_statement,
-                " AND t.account IN (%s)", accounts);
-               strcat(where_statement, account_statement);
-        } else {
-            if (strlen(special_accounts) > 0) {
-                if (strcmp(special_accounts, "rest") != 0) {
-                    sprintf(account_statement, " AND t.account LIKE '%s%%'", special_accounts);
-                } else {
-                    strcpy(account_statement, " AND t.account NOT LIKE 'jenscscs%' AND t.account NOT LIKE 'mr%' AND t.account NOT LIKE 'pr%' AND t.account NOT LIKE 's%' AND t.account NOT LIKE 'uzh%'");
-                }
-                strcat(where_statement, account_statement);
-            }
+        if (extra_where && strlen(extra_where) > 0) {
+               strcat(where_statement, extra_where);
         }
     }
-    memset(query,'\0',16*MAX_CHAR);
+    memset(query,'\0',512*MAX_CHAR);
     sprintf(query, "SELECT t.account, t.exit_code, t.job_name, "
             "t.id_job, q.name, t.id_user, t.id_group, r.resv_name, t.nodelist, t.nodes_alloc, t.partition, t.state, "
             "t.timelimit, t.time_submit, t.time_eligible, t.time_start, t.time_end, t.time_suspended, "
@@ -553,7 +529,7 @@ int main(int argc, char **argv)
 
     // process reservation data
     if (do_resv) {
-        memset(query,'\0',1024);
+        memset(query,'\0',512*MAX_CHAR);
         sprintf(query, "SELECT r.id_resv, r.time_start, r.time_end, r.nodelist, r.resv_name, GROUP_CONCAT(DISTINCT a.acct), r.flags, r.tres "
                 "FROM %s AS r INNER JOIN %s AS a ON FIND_IN_SET(a.id_assoc,r.assoclist) "
                 "WHERE r.time_start < %lu AND r.time_end > %lu  AND r.time_end - r.time_start < 15770000 "
@@ -606,8 +582,8 @@ int main(int argc, char **argv)
 
     // process event data
     if (do_event) {
-        memset(query,'\0',1024);
-        snprintf(query, 1024*sizeof(char), "SELECT e.time_start, e.time_end, e.node_name, e.reason, e.state "
+        memset(query,'\0',512*MAX_CHAR);
+        sprintf(query, "SELECT e.time_start, e.time_end, e.node_name, e.reason, e.state "
                  "FROM %s AS e "
                  "WHERE e.time_start < %lu AND e.time_end > %lu AND e.node_name <> '' "
                  "ORDER BY e.node_name, e.time_end", event_table, time_end, time_start);
