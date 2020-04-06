@@ -23,7 +23,7 @@ INCLUDES := -I$(DISTIME_PATH) -I$(SLURM_PATH)/include
 # Target rules
 all: clean build
 
-build: submitter ticker job_runner trace_builder_mysql trace_list trace_compare trace_metrics node_controller db_correctness
+build: submitter ticker job_runner node_controller db_correctness
 
 submitter.o: submitter.c
 	$(CC) $(CCFLAGS) $(INCLUDES) -o $@ -c $<
@@ -37,7 +37,6 @@ node_controller.o: node_controller.c
 node_controller: node_controller.o
 	$(CC) $(LDFLAGS) -o $@ $+ $(LIB_SHMEMCLOCK) $(LIB_SLURM)
 
-
 ticker.o: ticker.c
 	$(CC) $(CCFLAGS) $(INCLUDES) -o $@ -c $<
 
@@ -50,30 +49,6 @@ job_runner.o: job_runner.c
 job_runner: job_runner.o
 	$(CC) $(LDFLAGS) -o $@ $+ $(LIB_SHMEMCLOCK) $(LIB_SLURM) $(LIB_MATH)
 
-trace_builder_mysql.o: trace_builder_mysql.c
-	$(CC) $(CCFLAGS) $(INCLUDES) -o $@ -c $<
-
-trace_builder_mysql: trace_builder_mysql.o
-	$(CC) $(LDFLAGS) $(MYSQL_LIBS) $(LIB_COMMON) -o $@ $+
-
-trace_compare.o: trace_compare.c
-	$(CC) $(CCFLAGS) $(INCLUDES) -o $@ -c $<
-
-trace_compare: trace_compare.o
-	$(CC) $(LDFLAGS) $(LIB_MATH) -o $@ $+
-
-trace_metrics.o: trace_metrics.c
-	$(CC) $(CCFLAGS) $(INCLUDES) -o $@ -c $<
-
-trace_metrics: trace_metrics.o
-	$(CC) $(LDFLAGS) $(LIB_MATH) -o $@ $+
-
-trace_list.o: trace_list.c
-	$(CC) $(CCFLAGS) $(INCLUDES) -o $@ -c $<
-
-trace_list: trace_list.o
-	$(CC) $(LDFLAGS) -o $@ $+
-
 db_correctness.o: db_correctness.c
 	$(CC) $(CCFLAGS) $(INCLUDES) -o $@ -c $<
 
@@ -84,8 +59,4 @@ clean:
 	rm -f node_controller node_controller.o
 	rm -f ticker ticker.o
 	rm -f job_runner job_runner.o
-	rm -f trace_builder_mysql trace_builder_mysql.o
-	rm -f trace_compare trace_compare.o
-	rm -f trace_metrics trace_metrics.o
-	rm -f trace_list trace_list.o
 	rm -f db_correctness db_correctness.o

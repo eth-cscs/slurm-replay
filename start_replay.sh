@@ -199,6 +199,7 @@ db_correctness -u "$REPLAY_USER" -p "" -h "localhost" -d "slurm_acct_db" -t dain
 REPLAY_WORKLOAD="$REPLAY_WORKLOAD_DIR/replay.${WORKLOAD##*/}"
 trace_builder_mysql -f "$REPLAY_WORKLOAD" -u "$REPLAY_USER" -p "" -h "localhost" -d "slurm_acct_db"  -w -c daint -s "$STR_START_TIME" -n
 echo "trace_builder_mysql -f \"$REPLAY_WORKLOAD\" -u \"$REPLAY_USER\" -p \"\" -h \"localhost\" -d \"slurm_acct_db\" -w -c daint -s \"$STR_START_TIME\" -n"
+python tracetools/./wl_to_pickle.py -wl "${REPLAY_WORKLOAD}"
 echo "done."
 echo
 echo "ERROR IF ANY:"

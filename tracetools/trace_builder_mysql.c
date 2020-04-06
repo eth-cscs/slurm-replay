@@ -446,7 +446,7 @@ int main(int argc, char **argv)
             printf("%s ", row[i] ? row[i] : "NULL");
         }
         printf("\n");*/
-
+        memset(&job_trace, 0, sizeof(job_trace_t));
         job_trace.preset = 0;
         sprintf(job_trace.account, "%s", row[0]);
         job_trace.exit_code = atoi(row[1]);
@@ -494,6 +494,7 @@ int main(int argc, char **argv)
         job_trace.time_suspended = strtol(row[17], NULL, 0);
         strcpy(job_trace.gres_alloc, reconstruct_constraint(row[18]));
         job_trace.priority = atoi(row[19]);
+        sprintf(job_trace.user, "%s", row[20]);
 
         //printf("[%d] submit=%ld start=%ld end=%ld\n", job_trace.id_job,  job_trace.time_submit, job_trace.time_start, job_trace.time_end);
         if (use_dependencies) {
@@ -551,6 +552,7 @@ int main(int argc, char **argv)
 
         while ((row = mysql_fetch_row(result_resv))) {
 
+            memset(&resv_trace, 0, sizeof(resv_trace_t));
             resv_trace.id_resv = atoi(row[0]);
             resv_trace.time_start = strtol(row[1], NULL, 0);
             if (resv_trace.time_start < time_start) {

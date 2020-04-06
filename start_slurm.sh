@@ -92,5 +92,5 @@ else
        scontrol update PartitionName=$p state=UP
    done;
 fi
-sacctmgr -i create user name=$REPLAY_USER cluster=$CLUSTER account=root
+sacctmgr -i create user name=$REPLAY_USER cluster=$CLUSTER account=root &>/dev/null
 echo "done."

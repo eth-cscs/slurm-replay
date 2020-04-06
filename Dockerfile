@@ -36,7 +36,7 @@ RUN useradd -ms /bin/bash -d /$REPLAY_USER $REPLAY_USER && \
 
 # Setup REST Shell
 RUN pip install git+https://github.com/treytabner/rest-shell.git && \
-    pip install simplejson python-hostlist && \
+    pip install simplejson python-hostlist pandas && \
     mkdir -p /$REPLAY_USER/var/log/restshell
 COPY executor /bin
 
@@ -73,6 +73,8 @@ RUN cd /$REPLAY_USER && \
 
 # install replay binaries, need to be done after installing slurm (it depends on libslurm)
 RUN cd /$REPLAY_USER/slurm-replay/submitter && \
+    make && \
+    cd /$REPLAY_USER/slurm-replay/tracetools && \
     make
 
 #
@@ -91,7 +93,7 @@ RUN cd /$REPLAY_USER/slurm-replay/submitter && \
 
 # for convenience
 WORKDIR /$REPLAY_USER/slurm-replay
-RUN echo "export PATH=\$PATH:/$REPLAY_USER/slurmR/bin:/$REPLAY_USER/slurmR/sbin:/$REPLAY_USER/slurm-replay/submitter:/$REPLAY_USER/slurmR/slurm_helper" >> /$REPLAY_USER/.bashrc && \
+RUN echo "export PATH=\$PATH:/$REPLAY_USER/slurmR/bin:/$REPLAY_USER/slurmR/sbin:/$REPLAY_USER/slurm-replay/submitter:/$REPLAY_USER/slurm-replay/tracetools:/$REPLAY_USER/slurmR/slurm_helper" >> /$REPLAY_USER/.bashrc && \
     echo "export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:/$REPLAY_USER/slurmR/lib:/$REPLAY_USER/slurm-replay/distime" >> /$REPLAY_USER/.bashrc && \
     echo "alias vi='vim'" >> /$REPLAY_USER/.bashrc
 
