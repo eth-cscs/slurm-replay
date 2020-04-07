@@ -368,10 +368,10 @@ int main(int argc, char **argv)
         }
 
         sprintf(where_statement,
-                "WHERE t.time_submit <= %lu AND t.time_end >= %lu AND t.time_start >= %lu AND t.time_start <= %lu AND "
+                "WHERE t.time_submit <= %lu AND t.time_end >= %lu AND t.time_start > 0 AND t.time_start <= %lu AND "
                 "t.state <> 7 AND t.state < 12 AND "
                 "t.nodes_alloc > 0",
-                time_end, time_start, time_start, time_end);
+                time_end, time_start, time_end);
         if (! do_resv) {
                strcat(where_statement, " AND r.resv_name IS NULL");
         }
@@ -442,14 +442,14 @@ int main(int argc, char **argv)
     npreset_jobs=0;
     while ((row = mysql_fetch_row(result_job))) {
 
-        /*for( i = 0; i < num_fields; i++) {
+        /*for( int i = 0; i < num_fields; i++) {
             printf("%s ", row[i] ? row[i] : "NULL");
         }
         printf("\n");*/
         memset(&job_trace, 0, sizeof(job_trace_t));
         job_trace.preset = 0;
         sprintf(job_trace.account, "%s", row[0]);
-        job_trace.exit_code = atoi(row[1]);
+        job_trace.exit_code = 99999;//atoi(row[1]);
         sprintf(job_trace.job_name, "%s", row[2]);
         job_trace.id_job = atoi(row[3]);
         sprintf(job_trace.qos_name, "%s", row[4]);
@@ -496,7 +496,6 @@ int main(int argc, char **argv)
         job_trace.priority = atoi(row[19]);
         sprintf(job_trace.user, "%s", row[20]);
 
-        //printf("[%d] submit=%ld start=%ld end=%ld\n", job_trace.id_job,  job_trace.time_submit, job_trace.time_start, job_trace.time_end);
         if (use_dependencies) {
             lookfor(job_trace.id_job, num_rows, job_trace.dependencies, &(job_trace.switches));
         } else {

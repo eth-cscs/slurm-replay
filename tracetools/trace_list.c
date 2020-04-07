@@ -7,8 +7,11 @@
 #include <time.h>
 #include <string.h>
 #include <getopt.h>
+#include <errno.h>
 
 #include "trace.h"
+
+extern int errono;
 
 static int time_format = 0;
 static int reservation = 0;
@@ -165,10 +168,10 @@ int main(int argc, char *argv[])
     char end[20];
     const char *qosname = "normal";
     size_t query_length = 0;
-    char query[16*MAX_CHAR];
+    char query[512*MAX_CHAR];
     unsigned long long num_rows;
     unsigned long long k;
-    memset(query,'\0',16*MAX_CHAR);
+    memset(query,'\0',512*MAX_CHAR);
 
     getArgs(argc, argv);
 
@@ -189,7 +192,7 @@ int main(int argc, char *argv[])
     read(trace_file, &num_rows, sizeof(unsigned long long));
 
     if (display_query) {
-        printf("%s\n",query);
+        printf("%s\nnum_rows=%llu\n",query,num_rows);
     }
 
     if (!noheader) {
@@ -200,8 +203,13 @@ int main(int argc, char *argv[])
     }
 
     job_arr = (job_trace_t*)malloc(sizeof(job_trace_t)*num_rows);
-    read(trace_file, job_arr, sizeof(job_trace_t)*num_rows);
-
+    ssize_t read_size = read(trace_file, job_arr, sizeof(job_trace_t)*num_rows);
+    if (read_size != num_rows*sizeof(job_trace_t)) {
+        printf("Error wrong size read %zd vs %llu\n",read_size, sizeof(job_trace_t)*num_rows);
+        printf("Check that size of the trace is <2GB.\n");
+        printf("%s\n",strerror(errno));
+        exit(-1);
+    }
 
     for(k = 0; k < num_rows; k++) {
         if (time_format) {

@@ -7,34 +7,35 @@ from datetime import datetime
 import ctypes
 
 MAX_CHAR='S1024'
-TINYTEXT_SIZE='S128'
-TEXT_SIZE='S8192'
+TINYTEXT_SIZE='S10'
+SMALLTEXT_SIZE='S128'
+MEDTEXT_SIZE='S2048'
 LARGETEXT_SIZE='S16384'
 job_trace_t = np.dtype([
-    ("account", TINYTEXT_SIZE),
-    ("exit_code", 'i4'),
-    ("job_name", TINYTEXT_SIZE),
-    ("id_job", 'i4'),
+    ("account", 'S10'),#TINYTEXT_SIZE),
+    ("exit_code", 'i'),
+    ("job_name", SMALLTEXT_SIZE),
+    ("id_job", 'i'),
     ("qos_name", TINYTEXT_SIZE),
-    ("id_user", 'i4'),
-    ("id_group", 'i4'),
-    ("resv_name", TINYTEXT_SIZE),
-    ("nodelist", LARGETEXT_SIZE),
-    ("nodes_alloc", 'i4'),
+    ("id_user", 'i'),
+    ("id_group", 'i'),
+    ("resv_name", MEDTEXT_SIZE),
+    ("nodelist", MEDTEXT_SIZE),
+    ("nodes_alloc", 'i'),
     ("partition", TINYTEXT_SIZE),
-    ("dependencies", TEXT_SIZE),
-    ("switches", 'i4'),
-    ("state", 'i4'),
-    ("timelimit", 'i4'),
-    ("time_submit", 'i8'),
-    ("time_eligible", 'i8'),
-    ("time_start", 'i8'),
-    ("time_end", 'i8'),
-    ("time_suspended", 'i8'),
-    ("gres_alloc", TEXT_SIZE),
-    ("preset", 'i4'),
-    ("priority", 'i4'),
-    ("user", TINYTEXT_SIZE),
+    ("dependencies", LARGETEXT_SIZE),
+    ("switches", 'i'),
+    ("state", 'i'),
+    ("timelimit", 'i'),
+    ("time_submit", np.int_),
+    ("time_eligible", np.int_),
+    ("time_start", np.int_),
+    ("time_end", np.int_),
+    ("time_suspended", np.int_),
+    ("gres_alloc", TINYTEXT_SIZE),
+    ("preset", 'i'),
+    ("priority", 'i'),
+    ("user", TINYTEXT_SIZE)
     ])
 
 def find_node_type(gres):
@@ -55,11 +56,10 @@ def state_str(state):
 
 def getworkload_binarytodf(wl_name):
     f = open(wl_name, "rb")
-    query_length = np.fromfile(f, dtype=np.int64, count=1)
-    query_t = np.dtype((np.str_, query_length[0]))
-    query = np.fromfile(f, dtype='S1', count=query_length[0]).tostring()
-    print(query)
-    num_rows =  np.fromfile(f, dtype=np.int64, count=1)
+    query_length = np.fromfile(f, dtype=np.uint, count=1)
+    query = np.fromfile(f, dtype='S1', count=query_length[0])
+    print(query.tostring().decode('ascii'))
+    num_rows =  np.fromfile(f, dtype=np.ulonglong, count=1)
     print("Number of rows:",num_rows[0])
     data = np.fromfile(f, dtype=job_trace_t, count=num_rows[0])
     df = pd.DataFrame(data, columns=job_trace_t.names)
@@ -115,6 +115,7 @@ def preprocessed_wordload(df):
     df['time_wait'] = df['time_start'] - df['time_submit']
     df['time_elapsed'] = df['time_end'] - df['time_start']
     df['nodehours'] = (df['time_end'] - df['time_start']) * df['nodes_alloc']
+    print(df['gres_alloc'].unique())
     df['node_type'] = df['gres_alloc'].map(lambda x: find_node_type(x))
     print(df['node_type'].unique())
     print(df.groupby('node_type')['node_type'].count())
@@ -149,7 +150,7 @@ def analyse_workload(df, end_date):
     agg_df['per_nodehours'] = agg_df['nodehours']/total_nodehours*100
     agg_df['per_nodes_alloc'] = agg_df['nodes_alloc']/total_nodes_alloc*100
     print(agg_df)
-    bins = [ k for k in range(start_date, end_date, 4*3600)]
+    bins = [ k for k in range(start_date, end_date+4*3600, 4*3600)]
     print([str(k)+'='+time.ctime(k) for k in bins])
     print(df.groupby(pd.cut(df['time_submit'], bins=bins)).size())
     print(df.groupby(pd.cut(df['time_submit'], bins=bins))['nodehours'].sum())
