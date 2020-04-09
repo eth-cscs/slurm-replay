@@ -82,7 +82,7 @@ SLURM_DIR="/$REPLAY_USER/slurmR"
 SLURM_REPLAY="/$REPLAY_USER/slurm-replay"
 SLURM_REPLAY_LIB="libwtime.so"
 
-export PATH="$SLURM_REPLAY/submitter:$PATH"
+export PATH="$SLURM_REPLAY/submitter:$SLURM_REPLAY/tracetools:$PATH"
 export PATH="$SLURM_DIR/bin:$SLURM_DIR/sbin:$PATH"
 export LD_LIBRARY_PATH="$SLURM_REPLAY/distime:$SLURM_DIR/lib:$LD_LIBRARY_PATH"
 
@@ -174,8 +174,8 @@ echo "done."
 #fi
 
 # extra action before to start like blocking until an event is triggered
-if [ -f "../data/extra_action.sh" ]; then
-  ../data/./extra_action.sh
+if [ -f "../data/extra_start_action.sh" ]; then
+  ../data/./extra_start_action.sh
 fi
 
 # Make time progress at a faster rate
@@ -185,7 +185,13 @@ echo "Replay tentative ending time is $(date --date="${END_REPLAY%.*} seconds")"
 
 ticker -c "$END_TIME,$RATE,$TICK" -n "$NJOBS"
 
-sleep 5
+# extra action at the end like blocking until an event is triggered
+if [ -f "../data/extra_end_action.sh" ]; then
+  # continue to make the clock tick
+  ticker -c "$END_TIME,$RATE,$TICK" -i
+  ../data/./extra_end_action.sh
+fi
+
 ticker -o -n "$NJOBS"
 sdiag -a
 echo "current date: $(date)"

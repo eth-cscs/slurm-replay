@@ -5,6 +5,7 @@
 #include <string.h>
 #include <fcntl.h>
 #include <slurm/slurm.h>
+#include "logger.h"
 
 // from src/common/slurm_protocol_defs.h
 int REQUEST_SUBMIT_BATCH_JOB=4003;
@@ -34,6 +35,7 @@ time_t endtime_evt = 0;
 double rate = 0.1;
 int tick = 1;
 int enable_over = 0;
+int enable_infinite = 0;
 unsigned long njobs = 0;
 
 static void
@@ -45,6 +47,7 @@ get_args(int argc, char** argv)
         {"settime", 1, 0, 's'},
         {"njobs", 1, 0, 'n'},
         {"over", 0, 0, 'o'},
+        {"infinite", 0, 0, 'i'},
         {"help", 0, 0, 'h'}
     };
     int opt_char, option_index, i, k;
@@ -54,7 +57,7 @@ get_args(int argc, char** argv)
     char tick_v[32];
 
     while (1) {
-        if ((opt_char = getopt_long(argc, argv, "c:hgs:n:o", long_options, &option_index)) == -1 )
+        if ((opt_char = getopt_long(argc, argv, "c:hgs:n:oi", long_options, &option_index)) == -1 )
             break;
         switch(opt_char) {
         case ('c'):
@@ -105,6 +108,10 @@ get_args(int argc, char** argv)
             break;
         case ('o'):
             enable_over = 1;
+            break;
+        case ('i'):
+            enable_infinite = 1;
+            enable_clock = 0;
             break;
         case ('h'):
             printf("%s\n", help_msg);
@@ -231,6 +238,18 @@ int main(int argc, char *argv[])
             printf("%ld -- %s  Schedule is still active\n", tmp_time, strstart_time);
         } else {
             printf("%ld -- %s  Schedule is over\n", tmp_time, strstart_time);
+        }
+    }
+
+    if (enable_infinite) {
+        freq = one_second*rate;
+        tmp_time = get_shmemclock();
+        strftime(strstart_time, sizeof(strstart_time), "%Y-%m-%d %H:%M:%S", localtime(&tmp_time));
+        printf("%ld -- %s starting infinite loop\n", tmp_time, strstart_time);
+        daemonize(1,"log/ticker.log");
+        while(1) {
+              usleep(freq);
+              incr_shmemclock(tick);
         }
     }
 

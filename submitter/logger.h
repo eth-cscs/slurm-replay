@@ -1,6 +1,8 @@
 
 #ifndef _LOGGER_H_
 #define _LOGGER_H_
+#include <stdarg.h>
+#include <sys/stat.h>
 
 #include "shmemclock.h"
 
