@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #include <time.h>
 #include <err.h>
+#include <string.h>
 
 #include "shmemclock.h"
 
@@ -15,7 +16,7 @@ static inline void _open_shmemclock(int flag1, int flag2)
 {
     int fd = -1;
     const char* shmem_name = getenv("DISTIME_SHMEMCLOCK_NAME");
-    if (shmem_name == NULL) {
+    if (shmem_name == NULL || strlen(shmem_name) == 0) {
        fd = shm_open("/ShmemClock", O_CREAT | flag1, S_IRUSR | S_IWUSR );
     } else {
        fd = shm_open(shmem_name, O_CREAT | flag1, S_IRUSR | S_IWUSR );

@@ -23,6 +23,8 @@
 #define RESV_CREATE 3
 #define RESV_UPDATE 4
 
+#define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
+
 char *tfile = NULL;
 char *username = NULL;
 uid_t userid = 0;
@@ -34,7 +36,10 @@ unsigned long long njobs = 0;
 unsigned long long nresvs = 0;
 double clock_rate = 0.0;
 int *resv_action;
-int use_preset = 1;
+int rsv_enable=1;
+int node_controller_enable=1;
+int priority_enable=0;
+int nodelist_enable=0;
 int use_switch = 0;
 double switch_rate = 1.0;
 int switch_node = 0;
@@ -206,10 +211,6 @@ static int create_and_submit_job(job_trace_t jobd)
     dmesg.environment[2] = strdup(env_str);
     dmesg.env_size = 3;
 
-    if (use_preset != 3) {
-        dmesg.reservation   = strdup(jobd.resv_name);
-    }
-
     dmesg.dependency    = strdup(jobd.dependencies);
     org_duration = jobd.time_end - jobd.time_start;
     if (use_switch && jobd.nodes_alloc >= switch_node && org_duration >= switch_tick && (jobd.state == 3 || jobd.state == 6)) {
@@ -222,16 +223,13 @@ static int create_and_submit_job(job_trace_t jobd)
         duration = org_duration;
     }
 
-    if (use_preset == 0) {
-        jobd.preset=0;
-    } else if (use_preset == 2) {
-        jobd.preset=1;
-    } else if (use_preset == 3) {
-        jobd.preset=1;
+    if (rsv_enable) {
+        dmesg.reservation   = strdup(jobd.resv_name);
+    }
+    if (nodelist_enable) {
         dmesg.req_nodes = strdup(jobd.nodelist);
     }
-
-    if (jobd.preset) {
+    if (priority_enable) {
         dmesg.priority = jobd.priority;
     }
 
@@ -323,7 +321,7 @@ static void create_and_submit_reservations(unsigned long long *npreset_resv)
 {
     unsigned long long kr = 0;
 
-    if (use_preset > 0) {
+    if (rsv_enable) {
         for(kr = 0; kr < nresvs; kr++) {
             if (resv_action[kr] == RESV_CREATE) {
                 create_and_submit_resv(resv_arr[kr], resv_action[kr]);
@@ -352,7 +350,7 @@ static void submit_jobs_and_reservations(unsigned long long npreset_resv)
             current_time = get_shmemclock();
             usleep(freq);
         }
-        while (current_time >= resv_arr[kr].time_start && kr < nresvs) {
+        while (rsv_enable && current_time >= resv_arr[kr].time_start && kr < nresvs) {
             create_and_submit_resv(resv_arr[kr], resv_action[kr]);
             kr++;
         }
@@ -469,7 +467,7 @@ submitter\n\
       -t, --template filename    file containing the templatied script used by the jobs\n\
       -D, --nodaemon             do not daemonize the process\n\
       -r, --clockrate            clock rate of the Replay-clock\n\
-      -p, --preset               use preset: 0 = none, 1 = job started before trace start date (default), 2 = all jobs have a set priority, 3 = like 2 plus fix hostlist and no reservation\n\
+      -p, --preset               use preset: a,b,c,d if a=0 then no reservation, if b=0 then no node_controlled, if c=0 then no prioirty set, if d=0 then no nodelist set\n\
       -c, --timelimit            add a variation of time limit specified by the job. A value of 1.05 will add a 1.05x the real duration as a time limit\n\
       -x, --use_switch           x,y,z will use switch=1 for jobs using y nodes and z time in seconds, will apply the factor x to their duration\n\
       -h, --help                 This help message.\n";
@@ -489,7 +487,7 @@ static void get_args(int argc, char** argv)
         {"preset", 1, 0, 'p'},
         {"help", 0, 0, 'h'}
     };
-    int opt_char, option_index, i, k;
+    int opt_char, option_index, i, k, preset;
     char *switch_v;
     char node_v[128];
     char rate_v[32];
@@ -503,7 +501,11 @@ static void get_args(int argc, char** argv)
             tfile = strdup(optarg);
             break;
         case ('p'):
-            use_preset = atoi(optarg);
+            preset = atoi(optarg);
+            rsv_enable=CHECK_BIT(preset, 0);
+            node_controller_enable=CHECK_BIT(preset, 1);
+            priority_enable=CHECK_BIT(preset, 2);
+            nodelist_enable=CHECK_BIT(preset, 3);
             break;
         case ('w'):
             workload_filename = strdup(optarg);
@@ -588,7 +590,7 @@ int main(int argc, char *argv[])
 
     userids_from_name();
 
-    if (use_preset == 3) {
+    if (rsv_enable == 0) {
         // disable reservation
         nresvs=0;
     }

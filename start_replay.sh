@@ -42,7 +42,7 @@ if [ -z "$RATE" ]; then
     RATE="0.1"
 fi
 if [ -z "$PRESET" ]; then
-    PRESET="1"
+    PRESET="1,1,0,0"
 fi
 if [ -z "$NAME" ]; then
     NAME="unknown"
@@ -66,15 +66,13 @@ fi
 
 TICK="1"
 CLOCK_RATE=$(echo "$RATE*$TICK" | bc -l)
-if (( $PRESET == 0 )); then
-    echo "Preset=$PRESET - No preset jobs (priority=0, hostlist=0, reservation=1, node_controller=1)"
-elif (( $PRESET == 1 )); then
-    echo "Preset=$PRESET - Preset jobs (priority=1, hostlist=0, reservation=1, node_controller=1)"
-elif (( $PRESET == 2 )); then
-    echo "Preset=$PRESET - All jobs (priority=1, hostlist=0, reservation=1, node_controller=1)"
-elif (( $PRESET == 3 )); then
-    echo "Preset=$PRESET - All jobs (priority=1, hostlist=1, reservation=0, node_controller=0)"
-fi
+RSV_ENABLE=$(echo $PRESET | cut -d ',' -f 1)
+NODECONTROLER_ENABLE=$(echo $PRESET | cut -d ',' -f 2)
+PRIO_ENABLE=$(echo $PRESET | cut -d ',' -f 3)
+NODELIST_ENABLE=$(echo $PRESET | cut -d ',' -f 4)
+PRESET_VAL="$((2#${RSV_ENABLE}${NODECONTROLER_ENABLE}${PRIO_ENABLE}${NODELIST_ENABLE}))"
+echo "Preset=${PRESET_VAL} - reservation=${RSV_ENABLE}, node_controller=${NODECONTROLER_ENABLE}, priority=${PRIO_ENABLE}, nodelist=${NODELIST_ENABLE}"
+
 echo "current date: $(date)"
 
 TMP_DIR="/$REPLAY_USER/tmp"
@@ -109,6 +107,7 @@ trap finalize SIGTERM EXIT
 
 if [ -z "$DISTIME_SHMEMCLOCK_NAME" ]; then
 rm -Rf /dev/shm/ShmemClock*
+export DISTIME_SHMEMCLOCK_NAME="/ShmemClock"
 else
 rm -Rf /dev/shm/${DISTIME_SHMEMCLOCK_NAME}*
 fi
@@ -145,33 +144,28 @@ echo
 sinfo --summarize
 echo
 
-echo -n "Start submitter and node controller... "
-rm -f submitter.log node_controller.log
+echo -n "Start submitter... "
+rm -f log/submitter.log log/node_controller.log
 if [[ ! -z "$SUBMITTER_RUNTIME" ]]; then
     echo -n "Submitter using option -c $SUBMITTER_RUNTIME ..."
-    submitter -w "$WORKLOAD" -t template.script -r "$CLOCK_RATE" -u "$REPLAY_USER" -p "$PRESET" -c "$SUBMITTER_RUNTIME"
+    submitter -w "$WORKLOAD" -t template.script -r "$CLOCK_RATE" -u "$REPLAY_USER" -p "$PRESET_VAL" -c "$SUBMITTER_RUNTIME"
 fi
 if [[ ! -z "$SUBMITTER_SWITCH" ]]; then
     echo -n "Submitter using option -x ..."
-    submitter -w "$WORKLOAD" -t template.script -r "$CLOCK_RATE" -u "$REPLAY_USER" -p "$PRESET" -x "$SUBMITTER_SWITCH"
+    submitter -w "$WORKLOAD" -t template.script -r "$CLOCK_RATE" -u "$REPLAY_USER" -p "$PRESET_VAL" -x "$SUBMITTER_SWITCH"
 fi
 if [[ -z "$SUBMITTER_RUNTIME" && -z "$SUBMITTER_SWITCH" ]]; then
-    echo -n "Submitter using no special option ..."
-    submitter -w "$WORKLOAD" -t template.script -r "$CLOCK_RATE" -u "$REPLAY_USER" -p "$PRESET"
+    submitter -w "$WORKLOAD" -t template.script -r "$CLOCK_RATE" -u "$REPLAY_USER" -p "$PRESET_VAL"
 fi
-if (( $PRESET < 3 )); then
+echo "done."
+if [[ "$NODECONTROLER_ENABLE" == "1" ]]; then
+    echo -n "Start node controller... "
     node_controller -w "$WORKLOAD" -r "$CLOCK_RATE"
+    echo "done."
+else
+    echo "Node controller not started." > log/node_controller.log
 fi
 sleep 3
-echo "done."
-
-# Start with a slow rate to let slurm process the preset jobs in the queue
-#if (( $PRESET > 0)); then
-#    echo -n "Let Slurm process the preset jobs... "
-#    END_TIME_PRESET=$(( $START_TIME + $TIME_STARTPAD))
-#    ticker -c "$END_TIME_PRESET,1,1"
-#    echo "done."
-#fi
 
 # extra action before to start like blocking until an event is triggered
 if [ -f "../data/extra_start_action.sh" ]; then
